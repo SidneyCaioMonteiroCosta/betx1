@@ -3,14 +3,14 @@ let token = localStorage.getItem('betx1_token');
 let usuario = JSON.parse(localStorage.getItem('betx1_user') || 'null');
 let modalType = 'dep';
 let pixAmt = 0;
+let pixId = null;
+let pixCheckInterval = null;
 
-// INIT
 window.addEventListener('DOMContentLoaded', () => {
   createParticles();
   if (token && usuario) enterApp();
 });
 
-// PARTICLES
 function createParticles() {
   const c = document.getElementById('particles');
   if (!c) return;
@@ -25,7 +25,6 @@ function createParticles() {
   }
 }
 
-// SCREENS
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -45,7 +44,6 @@ function switchTab(tab) {
   document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
 }
 
-// LOGIN
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const senha = document.getElementById('loginPass').value;
@@ -53,21 +51,18 @@ async function doLogin() {
   err.textContent = '';
   if (!email || !senha) { err.textContent = 'Preencha todos os campos!'; return; }
   try {
-    const res = await fetch(API + '/api/login', {
+    const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, senha })
     });
     const data = await res.json();
-    if (!res.ok) { err.textContent = data.erro || 'Erro ao entrar'; return; }
+    if (!res.ok) { err.textContent = data.erro; return; }
     saveUser(data);
     enterApp();
-  } catch (e) {
-    err.textContent = 'Erro de conexão com o servidor';
-  }
+  } catch { err.textContent = 'Erro de conexão'; }
 }
 
-// CADASTRO
 async function doRegister() {
   const nome = document.getElementById('regNome').value.trim();
   const email = document.getElementById('regEmail').value.trim();
@@ -79,18 +74,16 @@ async function doRegister() {
   if (senha !== senha2) { err.textContent = 'Senhas não coincidem!'; return; }
   if (senha.length < 6) { err.textContent = 'Senha muito curta!'; return; }
   try {
-    const res = await fetch(API + '/api/cadastro', {
+    const res = await fetch('/api/cadastro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome, email, senha })
     });
     const data = await res.json();
-    if (!res.ok) { err.textContent = data.erro || 'Erro ao cadastrar'; return; }
+    if (!res.ok) { err.textContent = data.erro; return; }
     saveUser(data);
     enterApp();
-  } catch (e) {
-    err.textContent = 'Erro de conexão com o servidor';
-  }
+  } catch { err.textContent = 'Erro de conexão'; }
 }
 
 function saveUser(data) {
@@ -108,13 +101,12 @@ function enterApp() {
 }
 
 function updateBalanceUI() {
-  const fmt = usuario.saldo.toFixed(2).replace('.', ',');
-  document.getElementById('balanceTop').textContent = fmt;
-  document.getElementById('walletBal').textContent = fmt;
-  document.getElementById('saqSaldo').textContent = fmt;
+  const fmt = 'R$ ' + usuario.saldo.toFixed(2).replace('.', ',');
+  document.getElementById('balanceTop').textContent = usuario.saldo.toFixed(2).replace('.', ',');
+  document.getElementById('walletBal').textContent = usuario.saldo.toFixed(2).replace('.', ',');
+  document.getElementById('saqSaldo').textContent = usuario.saldo.toFixed(2).replace('.', ',');
 }
 
-// LOGOUT
 function logout() {
   if (!confirm('Sair da conta?')) return;
   token = null; usuario = null;
@@ -123,11 +115,12 @@ function logout() {
   showScreen('splash');
 }
 
-// MODAL
 function showModal(type) {
   modalType = type;
   pixAmt = 0;
-  document.getElementById('modalTitle').textContent = type === 'dep' ? '💰 DEPOSITAR' : '🏦 SACAR';
+  pixId = null;
+  clearInterval(pixCheckInterval);
+  document.getElementById('modalTitle').textContent = type === 'dep' ? '💰 DEPOSITAR VIA PIX' : '🏦 SACAR VIA PIX';
   document.getElementById('modalDep').style.display = type === 'dep' ? 'block' : 'none';
   document.getElementById('modalSaq').style.display = type === 'saq' ? 'block' : 'none';
   document.getElementById('depOk').style.display = 'none';
@@ -135,13 +128,18 @@ function showModal(type) {
   document.getElementById('depAmt').value = '';
   if (document.getElementById('saqAmt')) document.getElementById('saqAmt').value = '';
   if (document.getElementById('pixKey')) document.getElementById('pixKey').value = '';
+  // Reset QR
+  const qrArea = document.getElementById('qrArea');
+  if (qrArea) qrArea.style.display = 'none';
   document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('sel'));
   document.getElementById('modalOverlay').style.display = 'flex';
 }
 
 function closeModalOutside(e) {
-  if (e.target === document.getElementById('modalOverlay'))
+  if (e.target === document.getElementById('modalOverlay')) {
+    clearInterval(pixCheckInterval);
     document.getElementById('modalOverlay').style.display = 'none';
+  }
 }
 
 function setAmt(v, el) {
@@ -153,40 +151,71 @@ function setAmt(v, el) {
 }
 
 function copyPix() {
-  navigator.clipboard?.writeText('betx1@pagamentos.com.br');
-  alert('Chave Pix copiada!');
+  const code = document.getElementById('pixCopyCode')?.textContent;
+  if (code) navigator.clipboard?.writeText(code);
+  alert('Código Pix copiado!');
 }
 
-// DEPOSITAR
 async function confirmarDep() {
   const valor = parseFloat(document.getElementById('depAmt').value) || pixAmt;
-  if (!valor || valor <= 0) { alert('Escolha um valor!'); return; }
+  if (!valor || valor < 1) { alert('Valor mínimo R$1!'); return; }
+  const btn = document.querySelector('#modalDep .btn-primary');
+  btn.textContent = '⏳ Gerando Pix...';
+  btn.disabled = true;
   try {
-    const res = await fetch(API + '/api/depositar', {
+    const res = await fetch('/api/pix/depositar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ valor })
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.erro); return; }
-    usuario.saldo = data.saldo;
-    localStorage.setItem('betx1_user', JSON.stringify(usuario));
-    updateBalanceUI();
-    document.getElementById('depOk').style.display = 'block';
-    setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 2000);
-  } catch (e) {
+    if (!res.ok) { alert(data.erro); btn.textContent = '✅ GERAR PIX'; btn.disabled = false; return; }
+
+    pixId = data.pix_id;
+
+    // Mostrar QR Code
+    const qrArea = document.getElementById('qrArea');
+    qrArea.style.display = 'block';
+    if (data.qr_code_base64) {
+      document.getElementById('qrImg').src = 'data:image/png;base64,' + data.qr_code_base64;
+      document.getElementById('qrImg').style.display = 'block';
+    }
+    document.getElementById('pixCopyCode').textContent = data.qr_code || '';
+    btn.textContent = '✅ GERAR PIX';
+    btn.disabled = false;
+
+    // Verificar pagamento a cada 5 segundos
+    pixCheckInterval = setInterval(async () => {
+      try {
+        const r = await fetch('/api/pix/status/' + pixId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const d = await r.json();
+        if (d.status === 'approved') {
+          clearInterval(pixCheckInterval);
+          usuario.saldo = d.saldo;
+          localStorage.setItem('betx1_user', JSON.stringify(usuario));
+          updateBalanceUI();
+          document.getElementById('depOk').style.display = 'block';
+          document.getElementById('qrArea').style.display = 'none';
+          setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 3000);
+        }
+      } catch {}
+    }, 5000);
+  } catch {
     alert('Erro de conexão');
+    btn.textContent = '✅ GERAR PIX';
+    btn.disabled = false;
   }
 }
 
-// SACAR
 async function confirmarSaq() {
   const valor = parseFloat(document.getElementById('saqAmt').value) || pixAmt;
   const chave_pix = document.getElementById('pixKey').value.trim();
   if (!valor || valor <= 0) { alert('Escolha um valor!'); return; }
   if (!chave_pix) { alert('Informe sua chave Pix!'); return; }
   try {
-    const res = await fetch(API + '/api/sacar', {
+    const res = await fetch('/api/sacar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ valor, chave_pix })
@@ -198,15 +227,12 @@ async function confirmarSaq() {
     updateBalanceUI();
     document.getElementById('saqOk').style.display = 'block';
     setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 2000);
-  } catch (e) {
-    alert('Erro de conexão');
-  }
+  } catch { alert('Erro de conexão'); }
 }
 
-// TRANSAÇÕES
 async function loadTransacoes() {
   try {
-    const res = await fetch(API + '/api/transacoes', {
+    const res = await fetch('/api/transacoes', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const data = await res.json();
@@ -217,22 +243,15 @@ async function loadTransacoes() {
     list.innerHTML = data.map(t => {
       const pos = t.tipo !== 'saque';
       const date = new Date(t.criado_em).toLocaleString('pt-BR');
-      return `
-        <div class="trans-item">
-          <div class="trans-icon ${tipos[t.tipo] || 'dep'}">${icons[t.tipo] || '💰'}</div>
-          <div class="trans-desc">
-            <div class="trans-name">${t.descricao}</div>
-            <div class="trans-date">${date}</div>
-          </div>
-          <div class="trans-val ${pos ? 'pos' : 'neg'}">${pos ? '+' : '-'}R$ ${t.valor.toFixed(2).replace('.', ',')}</div>
-        </div>`;
+      return `<div class="trans-item">
+        <div class="trans-icon ${tipos[t.tipo] || 'dep'}">${icons[t.tipo] || '💰'}</div>
+        <div class="trans-desc"><div class="trans-name">${t.descricao}</div><div class="trans-date">${date}</div></div>
+        <div class="trans-val ${pos ? 'pos' : 'neg'}">${pos ? '+' : '-'}R$ ${t.valor.toFixed(2).replace('.', ',')}</div>
+      </div>`;
     }).join('');
-  } catch (e) {
-    console.log('Erro ao carregar transações');
-  }
+  } catch {}
 }
 
-// JOGOS
 function openGame(game) {
   alert(`🎮 ${game.charAt(0).toUpperCase() + game.slice(1)}\n\nEm breve disponível com apostas reais!`);
 }
