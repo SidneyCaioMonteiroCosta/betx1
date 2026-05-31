@@ -25,6 +25,7 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     senha TEXT NOT NULL,
     saldo REAL DEFAULT 0,
+    cpf TEXT DEFAULT '',
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS transacoes (
@@ -47,12 +48,12 @@ function auth(req, res, next) {
 }
 
 app.post('/api/cadastro', async (req, res) => {
-  const { nome, email, senha } = req.body;
+  const { nome, email, senha, cpf } = req.body;
   if (!nome || !email || !senha) return res.status(400).json({ erro: 'Preencha todos os campos' });
   if (senha.length < 6) return res.status(400).json({ erro: 'Senha muito curta' });
   try {
     const hash = await bcrypt.hash(senha, 10);
-    const result = db.prepare('INSERT INTO users (nome, email, senha, saldo) VALUES (?, ?, ?, ?)').run(nome, email, hash, 10);
+    const result = db.prepare('INSERT INTO users (nome, email, senha, saldo, cpf) VALUES (?, ?, ?, ?, ?)').run(nome, email, hash, 10, cpf || '');
     db.prepare('INSERT INTO transacoes (user_id, tipo, valor, descricao) VALUES (?, ?, ?, ?)').run(result.lastInsertRowid, 'bonus', 10, 'Bônus de boas-vindas');
     const token = jwt.sign({ id: result.lastInsertRowid, email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, nome, email, saldo: 10 });
@@ -74,20 +75,26 @@ app.get('/api/perfil', auth, (req, res) => {
   res.json(user);
 });
 
-// GERAR PIX DE DEPÓSITO
+// GERAR PIX
 app.post('/api/pix/depositar', auth, async (req, res) => {
-  const { valor } = req.body;
+  const { valor, cpf } = req.body;
   if (!valor || valor < 1) return res.status(400).json({ erro: 'Valor mínimo R$1' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const cpfNum = (cpf || user.cpf || '12345678909').replace(/\D/g, '');
   try {
     const pix = await payment.create({
       body: {
         transaction_amount: parseFloat(valor),
-        description: `Depósito Betx1 - ${user.nome}`,
+        description: `Deposito Betx1 - ${user.nome}`,
         payment_method_id: 'pix',
         payer: {
           email: user.email,
-          first_name: user.nome,
+          first_name: user.nome.split(' ')[0],
+          last_name: user.nome.split(' ')[1] || 'Usuario',
+          identification: {
+            type: 'CPF',
+            number: cpfNum
+          }
         }
       },
       requestOptions: { idempotencyKey: `dep_${req.user.id}_${Date.now()}` }
@@ -101,12 +108,12 @@ app.post('/api/pix/depositar', auth, async (req, res) => {
       status: pix.status
     });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ erro: 'Erro ao gerar Pix. Tente novamente.' });
+    console.error('Erro MP:', JSON.stringify(e));
+    res.status(500).json({ erro: 'Erro ao gerar Pix: ' + (e.message || 'tente novamente') });
   }
 });
 
-// VERIFICAR STATUS DO PIX
+// VERIFICAR STATUS PIX
 app.get('/api/pix/status/:pixId', auth, async (req, res) => {
   try {
     const pix = await payment.get({ id: req.params.pixId });
