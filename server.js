@@ -40,6 +40,9 @@ db.exec(`
   );
 `);
 
+// Adiciona coluna cpf se não existir no banco antigo
+try { db.exec('ALTER TABLE users ADD COLUMN cpf TEXT DEFAULT ""'); } catch(e) {}
+
 function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ erro: 'Não autorizado' });
@@ -85,12 +88,12 @@ app.post('/api/pix/depositar', auth, async (req, res) => {
     const pix = await payment.create({
       body: {
         transaction_amount: parseFloat(valor),
-        description: `Deposito Betx1 - ${user.nome}`,
+        description: `Deposito Betx1`,
         payment_method_id: 'pix',
         payer: {
           email: user.email,
-          first_name: user.nome.split(' ')[0],
-          last_name: user.nome.split(' ')[1] || 'Usuario',
+          first_name: user.nome.split(' ')[0] || 'Usuario',
+          last_name: user.nome.split(' ')[1] || 'Betx1',
           identification: {
             type: 'CPF',
             number: cpfNum
