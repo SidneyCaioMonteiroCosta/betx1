@@ -9,7 +9,7 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 const app = express();
 const db = new Database('betx1.db');
 const JWT_SECRET = 'betx1_secret_2026';
-const MP_TOKEN = 'TEST-3691621388347314-053106-dff7c822291e72190efc547499baca17-478925025';
+const MP_TOKEN = 'APP_USR-3691621388347314-053106-82e243a23ed4fa091d30923ed61128b2-478925025';
 
 const mp = new MercadoPagoConfig({ accessToken: MP_TOKEN });
 const payment = new Payment(mp);
@@ -40,7 +40,6 @@ db.exec(`
   );
 `);
 
-// Adiciona coluna cpf se não existir no banco antigo
 try { db.exec('ALTER TABLE users ADD COLUMN cpf TEXT DEFAULT ""'); } catch(e) {}
 
 function auth(req, res, next) {
@@ -78,7 +77,6 @@ app.get('/api/perfil', auth, (req, res) => {
   res.json(user);
 });
 
-// GERAR PIX
 app.post('/api/pix/depositar', auth, async (req, res) => {
   const { valor, cpf } = req.body;
   if (!valor || valor < 1) return res.status(400).json({ erro: 'Valor mínimo R$1' });
@@ -116,7 +114,6 @@ app.post('/api/pix/depositar', auth, async (req, res) => {
   }
 });
 
-// VERIFICAR STATUS PIX
 app.get('/api/pix/status/:pixId', auth, async (req, res) => {
   try {
     const pix = await payment.get({ id: req.params.pixId });
@@ -135,7 +132,6 @@ app.get('/api/pix/status/:pixId', auth, async (req, res) => {
   }
 });
 
-// SACAR
 app.post('/api/sacar', auth, (req, res) => {
   const { valor, chave_pix } = req.body;
   if (!valor || valor <= 0) return res.status(400).json({ erro: 'Valor inválido' });
