@@ -1,269 +1,327 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Betx1</title>
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
+const API = '';
+let token = localStorage.getItem('betx1_token');
+let usuario = JSON.parse(localStorage.getItem('betx1_user') || 'null');
+let modalType = 'dep';
+let pixAmt = 0;
+let pixId = null;
+let pixCheckInterval = null;
 
-<!-- SPLASH -->
-<div id="splash" class="screen active">
-  <div class="particles" id="particles"></div>
-  <div class="splash-content">
-    <div class="cards-anim">
-      <div class="mini-card">🃏</div>
-      <div class="mini-card">♠️</div>
-      <div class="mini-card">🎴</div>
-      <div class="mini-card">🎲</div>
-    </div>
-    <div class="logo">BETX1</div>
-    <div class="tagline">JOGUE · APOSTE · VENÇA</div>
-    <div class="splash-btns">
-      <button class="btn-primary" onclick="showAuth('login')">ENTRAR</button>
-      <button class="btn-outline" onclick="showAuth('register')">CRIAR CONTA</button>
-    </div>
-  </div>
-</div>
+window.addEventListener('DOMContentLoaded', () => {
+  createParticles();
+  if (token && usuario) {
+    if (usuario.admin) enterAdmin();
+    else enterApp();
+  }
+});
 
-<!-- AUTH -->
-<div id="auth" class="screen">
-  <div class="auth-box">
-    <div class="logo small">BETX1</div>
-    <div class="auth-tabs">
-      <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Entrar</div>
-      <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Cadastrar</div>
-    </div>
-    <div id="form-login">
-      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="seu@email.com"/></div>
-      <div class="field"><label>Senha</label><input type="password" id="loginPass" placeholder="••••••••"/></div>
-      <div class="error-msg" id="loginErr"></div>
-      <button class="btn-primary" onclick="doLogin()">ENTRAR</button>
-    </div>
-    <div id="form-register" style="display:none;">
-      <div class="field"><label>Nome</label><input type="text" id="regNome" placeholder="Seu nome"/></div>
-      <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"/></div>
-      <div class="field"><label>Senha</label><input type="password" id="regSenha" placeholder="Mínimo 6 caracteres"/></div>
-      <div class="field"><label>Confirmar senha</label><input type="password" id="regSenha2" placeholder="Repita a senha"/></div>
-      <div class="error-msg" id="regErr"></div>
-      <button class="btn-primary" onclick="doRegister()">CRIAR CONTA GRÁTIS</button>
-    </div>
-    <div class="back-link" onclick="showScreen('splash')">← Voltar</div>
-  </div>
-</div>
+function createParticles() {
+  const c = document.getElementById('particles');
+  if (!c) return;
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (4 + Math.random() * 6) + 's';
+    p.style.animationDelay = Math.random() * 6 + 's';
+    p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+    c.appendChild(p);
+  }
+}
 
-<!-- LOBBY -->
-<div id="lobby" class="screen">
-  <div class="topbar">
-    <div class="logo small">BETX1</div>
-    <div class="balance-pill" onclick="showScreen('wallet')">💰 R$ <span id="balanceTop">0,00</span></div>
-    <div class="avatar" onclick="showScreen('profile')">😎</div>
-  </div>
-  <div class="scrollable">
-    <!-- MODO TREINO BANNER -->
-    <div class="hero" style="background:linear-gradient(135deg,#0d2a0d,#1a4a1a);">
-      <div class="hero-title">🤖 MODO TREINO</div>
-      <div class="hero-sub">Jogue contra bots com fichas virtuais — sem dinheiro real!</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-        <span style="font-size:13px;color:#A5D6A7;">🎮 Fichas: <strong id="saldoTreino">1.000</strong></span>
-        <button class="hero-btn" onclick="showScreen('treino')">JOGAR GRÁTIS</button>
-      </div>
-    </div>
-    <div class="section-label">Jogos com dinheiro real</div>
-    <div class="games-grid">
-      <div class="game-card" onclick="openGame('truco')">
-        <div class="game-thumb green">🃏<span class="gbadge hot">HOT</span></div>
-        <div class="game-info"><div class="gname">Truco</div><div class="gdesc">Paulista · 4 jogadores</div><div class="gplayers">● 1.243 jogando</div></div>
-      </div>
-      <div class="game-card" onclick="openGame('domino')">
-        <div class="game-thumb blue">🁣<span class="gbadge new">NOVO</span></div>
-        <div class="game-info"><div class="gname">Dominó</div><div class="gdesc">P2P · 2-4 jogadores</div><div class="gplayers">● 876 jogando</div></div>
-      </div>
-      <div class="game-card" onclick="openGame('buraco')">
-        <div class="game-thumb red">🎴<span class="gbadge new">NOVO</span></div>
-        <div class="game-info"><div class="gname">Buraco</div><div class="gdesc">Duplas · 4 jogadores</div><div class="gplayers">● 543 jogando</div></div>
-      </div>
-      <div class="game-card locked">
-        <div class="game-thumb purple">♟️<span class="gbadge soon">EM BREVE</span></div>
-        <div class="game-info"><div class="gname">Xadrez</div><div class="gdesc">1v1 · Clássico</div><div class="gplayers muted">Em breve</div></div>
-      </div>
-      <div class="game-card locked">
-        <div class="game-thumb dark">🏓<span class="gbadge soon">EM BREVE</span></div>
-        <div class="game-info"><div class="gname">Air Hockey</div><div class="gdesc">1v1 · Tempo real</div><div class="gplayers muted">Em breve</div></div>
-      </div>
-      <div class="game-card locked">
-        <div class="game-thumb dark">🎯<span class="gbadge soon">EM BREVE</span></div>
-        <div class="game-info"><div class="gname">Sinuca</div><div class="gdesc">1v1 · Online</div><div class="gplayers muted">Em breve</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="bottomnav">
-    <div class="navitem active" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
-    <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
-    <div class="navitem" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
-  </div>
-</div>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  if (id === 'wallet') loadTransacoes();
+  if (id === 'admin') loadAdmin();
+}
 
-<!-- TREINO -->
-<div id="treino" class="screen">
-  <div class="topbar">
-    <button class="back-btn" onclick="showScreen('lobby')">←</button>
-    <div class="topbar-title">🤖 MODO TREINO</div>
-    <div style="margin-left:auto;font-family:'Rajdhani',sans-serif;font-size:14px;color:#A5D6A7;">🎮 <span id="saldoTreinoTop">1.000</span> fichas</div>
-  </div>
-  <div class="scrollable">
-    <div style="padding:16px;">
-      <div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.6;">
-        🤖 <strong>Modo Treino</strong><br>
-        Jogue contra bots sem arriscar dinheiro real. Cada nova conta começa com <strong>1.000 fichas virtuais</strong>. Quando acabar, é só recarregar!
-      </div>
-      <div class="section-label">Escolha um jogo</div>
-      <div class="games-grid">
-        <div class="game-card" onclick="jogarTreino('truco')">
-          <div class="game-thumb green">🃏</div>
-          <div class="game-info"><div class="gname">Truco vs Bot</div><div class="gdesc">Aposta: 50 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
+function showAuth(tab) {
+  showScreen('auth');
+  switchTab(tab);
+}
+
+function switchTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  err.textContent = '';
+  if (!email || !senha) { err.textContent = 'Preencha todos os campos!'; return; }
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha })
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.erro; return; }
+    token = data.token;
+    localStorage.setItem('betx1_token', token);
+    if (data.admin) {
+      usuario = { admin: true, email };
+      localStorage.setItem('betx1_user', JSON.stringify(usuario));
+      enterAdmin();
+    } else {
+      saveUser(data);
+      enterApp();
+    }
+  } catch { err.textContent = 'Erro de conexão'; }
+}
+
+async function doRegister() {
+  const nome = document.getElementById('regNome').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const senha = document.getElementById('regSenha').value;
+  const senha2 = document.getElementById('regSenha2').value;
+  const err = document.getElementById('regErr');
+  err.textContent = '';
+  if (!nome || !email || !senha) { err.textContent = 'Preencha todos os campos!'; return; }
+  if (senha !== senha2) { err.textContent = 'Senhas não coincidem!'; return; }
+  if (senha.length < 6) { err.textContent = 'Senha muito curta!'; return; }
+  try {
+    const res = await fetch('/api/cadastro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, email, senha })
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.erro; return; }
+    saveUser(data);
+    enterApp();
+  } catch { err.textContent = 'Erro de conexão'; }
+}
+
+function saveUser(data) {
+  token = data.token;
+  usuario = { nome: data.nome, email: data.email, saldo: data.saldo, saldo_treino: data.saldo_treino || 1000 };
+  localStorage.setItem('betx1_token', token);
+  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+}
+
+function enterApp() {
+  updateBalanceUI();
+  document.getElementById('profileName').textContent = usuario.nome;
+  document.getElementById('profileEmail').textContent = usuario.email;
+  showScreen('lobby');
+}
+
+function enterAdmin() {
+  showScreen('admin');
+  loadAdmin();
+}
+
+function updateBalanceUI() {
+  const saldo = (usuario.saldo || 0).toFixed(2).replace('.', ',');
+  const treino = Math.floor(usuario.saldo_treino || 1000).toLocaleString('pt-BR');
+  document.getElementById('balanceTop').textContent = saldo;
+  document.getElementById('walletBal').textContent = saldo;
+  document.getElementById('saqSaldo').textContent = saldo;
+  document.getElementById('saldoTreino').textContent = treino;
+  document.getElementById('saldoTreinoTop').textContent = treino;
+}
+
+function logout() {
+  if (!confirm('Sair da conta?')) return;
+  token = null; usuario = null;
+  localStorage.removeItem('betx1_token');
+  localStorage.removeItem('betx1_user');
+  showScreen('splash');
+}
+
+function showModal(type) {
+  modalType = type;
+  pixAmt = 0; pixId = null;
+  clearInterval(pixCheckInterval);
+  document.getElementById('modalTitle').textContent = type === 'dep' ? '💰 DEPOSITAR VIA PIX' : '🏦 SACAR VIA PIX';
+  document.getElementById('modalDep').style.display = type === 'dep' ? 'block' : 'none';
+  document.getElementById('modalSaq').style.display = type === 'saq' ? 'block' : 'none';
+  document.getElementById('depOk').style.display = 'none';
+  document.getElementById('saqOk').style.display = 'none';
+  document.getElementById('depAmt').value = '';
+  if (document.getElementById('saqAmt')) document.getElementById('saqAmt').value = '';
+  if (document.getElementById('pixKey')) document.getElementById('pixKey').value = '';
+  const qrArea = document.getElementById('qrArea');
+  if (qrArea) qrArea.style.display = 'none';
+  document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modalOverlay')) {
+    clearInterval(pixCheckInterval);
+    document.getElementById('modalOverlay').style.display = 'none';
+  }
+}
+
+function setAmt(v, el) {
+  pixAmt = v;
+  document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById(modalType === 'dep' ? 'depAmt' : 'saqAmt').value = v;
+}
+
+function copyPix() {
+  const code = document.getElementById('pixCopyCode')?.textContent;
+  if (code) navigator.clipboard?.writeText(code);
+  alert('Código Pix copiado!');
+}
+
+async function confirmarDep() {
+  const valor = parseFloat(document.getElementById('depAmt').value) || pixAmt;
+  if (!valor || valor < 1) { alert('Valor mínimo R$1!'); return; }
+  const btn = document.querySelector('#modalDep .btn-primary');
+  btn.textContent = '⏳ GERANDO PIX...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/pix/depositar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ valor })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.erro); btn.textContent = '✅ GERAR PIX'; btn.disabled = false; return; }
+    pixId = data.pix_id;
+    const qrArea = document.getElementById('qrArea');
+    qrArea.style.display = 'block';
+    if (data.qr_code_base64) {
+      document.getElementById('qrImg').src = 'data:image/png;base64,' + data.qr_code_base64;
+      document.getElementById('qrImg').style.display = 'block';
+    }
+    document.getElementById('pixCopyCode').textContent = data.qr_code || '';
+    btn.textContent = '✅ GERAR PIX';
+    btn.disabled = false;
+    pixCheckInterval = setInterval(async () => {
+      try {
+        const r = await fetch('/api/pix/status/' + pixId, { headers: { 'Authorization': 'Bearer ' + token } });
+        const d = await r.json();
+        if (d.status === 'approved') {
+          clearInterval(pixCheckInterval);
+          usuario.saldo = d.saldo;
+          localStorage.setItem('betx1_user', JSON.stringify(usuario));
+          updateBalanceUI();
+          document.getElementById('depOk').style.display = 'block';
+          document.getElementById('qrArea').style.display = 'none';
+          setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 3000);
+        }
+      } catch {}
+    }, 5000);
+  } catch {
+    alert('Erro de conexão');
+    btn.textContent = '✅ GERAR PIX';
+    btn.disabled = false;
+  }
+}
+
+async function confirmarSaq() {
+  const valor = parseFloat(document.getElementById('saqAmt').value) || pixAmt;
+  const chave_pix = document.getElementById('pixKey').value.trim();
+  if (!valor || valor <= 0) { alert('Escolha um valor!'); return; }
+  if (!chave_pix) { alert('Informe sua chave Pix!'); return; }
+  try {
+    const res = await fetch('/api/sacar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ valor, chave_pix })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.erro); return; }
+    usuario.saldo = data.saldo;
+    localStorage.setItem('betx1_user', JSON.stringify(usuario));
+    updateBalanceUI();
+    document.getElementById('saqOk').style.display = 'block';
+    setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 2000);
+  } catch { alert('Erro de conexão'); }
+}
+
+async function loadTransacoes() {
+  try {
+    const res = await fetch('/api/transacoes', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    const list = document.getElementById('transList');
+    if (!data.length) { list.innerHTML = '<div class="empty">Nenhuma transação ainda.</div>'; return; }
+    const icons = { deposito: '💳', saque: '🏦', bonus: '🎁' };
+    const tipos = { deposito: 'dep', saque: 'saq', bonus: 'bonus' };
+    list.innerHTML = data.map(t => {
+      const pos = t.tipo !== 'saque';
+      const date = new Date(t.criado_em).toLocaleString('pt-BR');
+      return `<div class="trans-item">
+        <div class="trans-icon ${tipos[t.tipo] || 'dep'}">${icons[t.tipo] || '💰'}</div>
+        <div class="trans-desc"><div class="trans-name">${t.descricao}</div><div class="trans-date">${date}</div></div>
+        <div class="trans-val ${pos ? 'pos' : 'neg'}">${pos ? '+' : '-'}R$ ${t.valor.toFixed(2).replace('.', ',')}</div>
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+function jogarTreino(jogo) {
+  alert(`🤖 ${jogo.charAt(0).toUpperCase() + jogo.slice(1)} vs Bot\n\nEm breve disponível!`);
+}
+
+function recarregarFichas() {
+  usuario.saldo_treino = 1000;
+  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  updateBalanceUI();
+  alert('✅ Fichas recarregadas!');
+}
+
+async function loadAdmin() {
+  try {
+    const headers = { 'Authorization': 'Bearer ' + token };
+    const [stats, saques, users] = await Promise.all([
+      fetch('/api/admin/stats', { headers }).then(r => r.json()),
+      fetch('/api/admin/saques', { headers }).then(r => r.json()),
+      fetch('/api/admin/usuarios', { headers }).then(r => r.json()),
+    ]);
+    document.getElementById('statUsers').textContent = stats.totalUsers || 0;
+    document.getElementById('statDep').textContent = 'R$' + (stats.totalDep || 0).toFixed(0);
+    document.getElementById('statPend').textContent = stats.saquesPendentes || 0;
+    const saqEl = document.getElementById('adminSaques');
+    if (!saques.length) {
+      saqEl.innerHTML = '<div class="empty">Nenhum saque pendente. ✅</div>';
+    } else {
+      saqEl.innerHTML = saques.map(s => `
+        <div class="trans-item" style="flex-wrap:wrap;gap:8px;">
+          <div class="trans-icon saq">🏦</div>
+          <div class="trans-desc">
+            <div class="trans-name">${s.nome} — R$ ${s.valor.toFixed(2)}</div>
+            <div class="trans-date">Chave Pix: ${s.chave_pix || 'não informada'}</div>
+            <div class="trans-date">${new Date(s.criado_em).toLocaleString('pt-BR')}</div>
+          </div>
+          <button onclick="pagarSaque(${s.id})" style="padding:6px 14px;background:var(--green);color:#000;border:none;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">✅ PAGO</button>
         </div>
-        <div class="game-card" onclick="jogarTreino('domino')">
-          <div class="game-thumb blue">🁣</div>
-          <div class="game-info"><div class="gname">Dominó vs Bot</div><div class="gdesc">Aposta: 30 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
+      `).join('');
+    }
+    document.getElementById('adminUsers').innerHTML = users.map(u => `
+      <div class="trans-item">
+        <div class="trans-icon dep">👤</div>
+        <div class="trans-desc">
+          <div class="trans-name">${u.nome}</div>
+          <div class="trans-date">${u.email}</div>
         </div>
-        <div class="game-card" onclick="jogarTreino('blackjack')">
-          <div class="game-thumb purple">🃟</div>
-          <div class="game-info"><div class="gname">Blackjack vs Bot</div><div class="gdesc">Aposta: 20 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
-        </div>
-        <div class="game-card" onclick="jogarTreino('dado')">
-          <div class="game-thumb dark">🎲</div>
-          <div class="game-info"><div class="gname">Dado vs Bot</div><div class="gdesc">Aposta: 10 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
-        </div>
+        <div class="trans-val pos">R$ ${(u.saldo || 0).toFixed(2)}</div>
       </div>
-      <button onclick="recarregarFichas()" style="width:100%;padding:12px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#A5D6A7;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;">🔄 RECARREGAR FICHAS (1.000)</button>
-    </div>
-  </div>
-</div>
+    `).join('');
+  } catch(e) { console.log('Erro admin:', e); }
+}
 
-<!-- WALLET -->
-<div id="wallet" class="screen">
-  <div class="topbar">
-    <button class="back-btn" onclick="showScreen('lobby')">←</button>
-    <div class="topbar-title">CARTEIRA</div>
-  </div>
-  <div class="scrollable">
-    <div class="wallet-header">
-      <div class="wallet-label">SALDO DISPONÍVEL</div>
-      <div class="wallet-balance">R$ <span id="walletBal">0,00</span></div>
-    </div>
-    <div class="wallet-actions">
-      <button class="wbtn dep" onclick="showModal('dep')"><span>⬆️</span>DEPOSITAR</button>
-      <button class="wbtn saq" onclick="showModal('saq')"><span>⬇️</span>SACAR</button>
-    </div>
-    <div class="section-label">Histórico</div>
-    <div class="trans-list" id="transList"><div class="empty">Nenhuma transação ainda.</div></div>
-  </div>
-  <div class="bottomnav">
-    <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
-    <div class="navitem active" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
-    <div class="navitem" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
-  </div>
-</div>
+async function pagarSaque(id) {
+  if (!confirm('Marcar saque como pago?')) return;
+  try {
+    await fetch(`/api/admin/saques/${id}/pagar`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    loadAdmin();
+  } catch {}
+}
 
-<!-- PROFILE -->
-<div id="profile" class="screen">
-  <div class="topbar">
-    <button class="back-btn" onclick="showScreen('lobby')">←</button>
-    <div class="topbar-title">PERFIL</div>
-  </div>
-  <div class="scrollable">
-    <div class="profile-header">
-      <div class="profile-avatar">😎</div>
-      <div class="profile-name" id="profileName">-</div>
-      <div class="profile-email" id="profileEmail">-</div>
-    </div>
-    <div class="profile-stats">
-      <div class="pstat"><div class="pval">47</div><div class="plbl">Partidas</div></div>
-      <div class="pstat"><div class="pval">28</div><div class="plbl">Vitórias</div></div>
-      <div class="pstat"><div class="pval">59%</div><div class="plbl">Win Rate</div></div>
-    </div>
-    <div class="menu-list">
-      <div class="menu-item"><span>👤</span><div><div class="mname">Editar perfil</div><div class="msub">Nome e dados pessoais</div></div><span>›</span></div>
-      <div class="menu-item"><span>🔔</span><div><div class="mname">Notificações</div><div class="msub">Alertas e promoções</div></div><span>›</span></div>
-      <div class="menu-item"><span>🔒</span><div><div class="mname">Segurança</div><div class="msub">Senha e autenticação</div></div><span>›</span></div>
-      <div class="menu-item"><span>🎁</span><div><div class="mname">Indique um amigo</div><div class="msub">Ganhe R$5 por indicação</div></div><span>›</span></div>
-      <button class="logout-btn" onclick="logout()">🚪 SAIR DA CONTA</button>
-    </div>
-  </div>
-  <div class="bottomnav">
-    <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
-    <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
-    <div class="navitem active" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
-  </div>
-</div>
-
-<!-- ADMIN -->
-<div id="admin" class="screen">
-  <div class="topbar">
-    <div class="logo small">BETX1</div>
-    <div style="margin-left:auto;font-size:11px;color:var(--muted);">PAINEL ADMIN</div>
-    <button class="back-btn" style="margin-left:8px;" onclick="logout()">🚪</button>
-  </div>
-  <div class="scrollable">
-    <div style="padding:16px;">
-      <div class="profile-stats" id="adminStats" style="margin:0 0 16px;">
-        <div class="pstat"><div class="pval" id="statUsers">-</div><div class="plbl">Usuários</div></div>
-        <div class="pstat"><div class="pval" id="statDep">-</div><div class="plbl">Depósitos</div></div>
-        <div class="pstat"><div class="pval" id="statPend">-</div><div class="plbl">Saques pend.</div></div>
-      </div>
-      <div class="section-label">Saques pendentes</div>
-      <div id="adminSaques"><div class="empty">Nenhum saque pendente.</div></div>
-      <div class="section-label" style="margin-top:16px;">Usuários</div>
-      <div id="adminUsers"></div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL -->
-<div id="modalOverlay" class="modal-overlay" style="display:none;" onclick="closeModalOutside(event)">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="modalTitle">DEPOSITAR</div>
-    <div id="modalDep">
-      <div class="amt-grid">
-        <div class="amt-btn" onclick="setAmt(10,this)">R$ 10</div>
-        <div class="amt-btn" onclick="setAmt(20,this)">R$ 20</div>
-        <div class="amt-btn" onclick="setAmt(50,this)">R$ 50</div>
-        <div class="amt-btn" onclick="setAmt(100,this)">R$ 100</div>
-        <div class="amt-btn" onclick="setAmt(200,this)">R$ 200</div>
-        <div class="amt-btn" onclick="setAmt(500,this)">R$ 500</div>
-      </div>
-      <input class="modal-input" type="number" id="depAmt" placeholder="Ou digite o valor (R$)"/>
-      <div id="qrArea" style="display:none;text-align:center;margin-bottom:14px;">
-        <div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ Pix gerado! Escaneie ou copie o código</div>
-        <img id="qrImg" style="width:180px;height:180px;border-radius:10px;display:none;margin:0 auto 10px;"/>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:10px;color:var(--muted);word-break:break-all;margin-bottom:8px;" id="pixCopyCode"></div>
-        <button onclick="copyPix()" style="width:100%;padding:10px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;">📋 COPIAR CÓDIGO PIX</button>
-        <div style="font-size:11px;color:var(--muted);">⏳ Aguardando pagamento... O saldo atualiza automaticamente!</div>
-      </div>
-      <div class="success-msg" id="depOk" style="display:none;">✅ Depósito confirmado! Saldo atualizado.</div>
-      <button class="btn-primary" onclick="confirmarDep()">✅ GERAR PIX</button>
-    </div>
-    <div id="modalSaq" style="display:none;">
-      <div class="saldo-info">Saldo: <strong>R$ <span id="saqSaldo">0,00</span></strong></div>
-      <div class="amt-grid">
-        <div class="amt-btn" onclick="setAmt(10,this)">R$ 10</div>
-        <div class="amt-btn" onclick="setAmt(20,this)">R$ 20</div>
-        <div class="amt-btn" onclick="setAmt(50,this)">R$ 50</div>
-        <div class="amt-btn" onclick="setAmt(100,this)">R$ 100</div>
-        <div class="amt-btn" onclick="setAmt(200,this)">R$ 200</div>
-        <div class="amt-btn" onclick="setAmt(500,this)">R$ 500</div>
-      </div>
-      <input class="modal-input" type="number" id="saqAmt" placeholder="Valor do saque (R$)"/>
-      <input class="modal-input" type="text" id="pixKey" placeholder="Sua chave Pix (CPF, email ou telefone)"/>
-      <div class="success-msg" id="saqOk" style="display:none;">✅ Saque solicitado! Pix em até 24h.</div>
-      <button class="btn-primary saq" onclick="confirmarSaq()">⬇️ SOLICITAR SAQUE</button>
-    </div>
-  </div>
-</div>
-
-<script src="app.js"></script>
-</body>
-</html>
+function openGame(game) {
+  alert(`🎮 ${game.charAt(0).toUpperCase() + game.slice(1)}\n\nEm breve disponível com apostas reais!`);
+}
