@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Air Hockey - Betx1</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#070b14;--surface:#0d1425;--green:#00c853;--gold:#f0c040;--text:#e8eaf6;--muted:#6b7db3;--border:#1e2d50;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo{font-family:sans-serif;font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;}
+.back-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+
+/* LOBBY */
+#lobby{width:100%;max-width:480px;padding:16px;}
+.arena-title{font-size:22px;font-weight:700;color:var(--gold);margin:16px 0 8px;text-align:center;}
+.arena-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
+.valores-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.valor-btn{padding:14px 8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.valor-btn:hover,.valor-btn.sel{background:rgba(240,192,64,.15);border-color:var(--gold);color:var(--gold);}
+.premio-info{background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.8;display:none;}
+.play-btn{width:100%;padding:16px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;letter-spacing:2px;display:none;}
+.play-btn:hover{filter:brightness(1.1);}
+
+/* WAITING */
+#waiting{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.spinner{width:60px;height:60px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.wait-text{font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;}
+.wait-sub{font-size:13px;color:var(--muted);}
+.cancel-btn{margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+
+/* GAME */
+#game{display:none;flex-direction:column;align-items:center;width:100%;}
+.score-bar{width:100%;max-width:480px;display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+.score-player{text-align:center;}
+.score-name{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.score-num{font-size:32px;font-weight:900;color:var(--gold);line-height:1;}
+.score-mid{font-size:12px;color:var(--muted);text-align:center;}
+.arena-badge{font-size:10px;color:var(--gold);background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);border-radius:20px;padding:2px 8px;margin-top:2px;}
+canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--border);border-right:2px solid var(--border);}
+
+/* RESULT */
+#result{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.result-emoji{font-size:72px;margin-bottom:16px;}
+.result-title{font-size:36px;font-weight:900;margin-bottom:8px;}
+.result-prize{font-size:18px;color:var(--gold);margin-bottom:24px;}
+.result-btn{padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;letter-spacing:1px;}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="back-btn" onclick="voltarLobbyPrincipal()">←</button>
+  <div class="logo">AIR HOCKEY</div>
+  <div style="margin-left:auto;font-size:13px;color:var(--gold);">💰 R$ <span id="saldoHeader">0,00</span></div>
+</header>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <div class="arena-title">⚡ Escolha o valor da aposta</div>
+  <div class="arena-sub">Os dois jogadores apostam o mesmo valor.<br>Vencedor leva <strong style="color:var(--gold);">175%</strong> do valor apostado!</div>
+  <div class="valores-grid">
+    <div class="valor-btn" onclick="selecionarValor(1,this)">R$ 1</div>
+    <div class="valor-btn" onclick="selecionarValor(2,this)">R$ 2</div>
+    <div class="valor-btn" onclick="selecionarValor(5,this)">R$ 5</div>
+    <div class="valor-btn" onclick="selecionarValor(10,this)">R$ 10</div>
+    <div class="valor-btn" onclick="selecionarValor(15,this)">R$ 15</div>
+    <div class="valor-btn" onclick="selecionarValor(20,this)">R$ 20</div>
+    <div class="valor-btn" onclick="selecionarValor(25,this)">R$ 25</div>
+    <div class="valor-btn" onclick="selecionarValor(30,this)">R$ 30</div>
+    <div class="valor-btn" onclick="selecionarValor(50,this)">R$ 50</div>
+    <div class="valor-btn" onclick="selecionarValor(60,this)">R$ 60</div>
+    <div class="valor-btn" onclick="selecionarValor(80,this)">R$ 80</div>
+    <div class="valor-btn" onclick="selecionarValor(100,this)">R$ 100</div>
+  </div>
+  <div class="premio-info" id="premioInfo"></div>
+  <button class="play-btn" id="playBtn" onclick="entrarFila()">⚡ JOGAR</button>
+</div>
+
+<!-- WAITING -->
+<div id="waiting">
+  <div class="spinner"></div>
+  <div class="wait-text">Procurando adversário...</div>
+  <div class="wait-sub" id="waitSub">Aguardando outro jogador com R$ <span id="waitValor">0</span></div>
+  <button class="cancel-btn" onclick="cancelarFila()">Cancelar</button>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="score-bar">
+    <div class="score-player">
+      <div class="score-name" id="p1name">Você</div>
+      <div class="score-num" id="p1score">0</div>
+    </div>
+    <div class="score-mid">
+      <div style="font-size:11px;color:var(--muted);">PRIMEIRO A 7</div>
+      <div class="arena-badge" id="arenaBadge">R$ 0</div>
+    </div>
+    <div class="score-player">
+      <div class="score-name" id="p2name">Adversário</div>
+      <div class="score-num" id="p2score">0</div>
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+</div>
+
+<!-- RESULT -->
+<div id="result">
+  <div class="result-emoji" id="resultEmoji">🏆</div>
+  <div class="result-title" id="resultTitle">VOCÊ VENCEU!</div>
+  <div class="result-prize" id="resultPrize">+R$ 0,00</div>
+  <button class="result-btn" onclick="voltarLobby()">JOGAR NOVAMENTE</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const token = localStorage.getItem('betx1_token');
+const usuario = JSON.parse(localStorage.getItem('betx1_user') || '{}');
+
+// Atualiza saldo
+document.getElementById('saldoHeader').textContent = (usuario.saldo || 0).toFixed(2).replace('.', ',');
+
+let socket = null;
+let valorSel = 0;
+let myRole = null; // 'p1' ou 'p2'
+let gameState = null;
+let animFrame = null;
+let canvas, ctx;
+let W, H;
+let myMallet = { x: 0, y: 0 };
+let lastSent = 0;
+
+// CONEXÃO
+function conectar() {
+  socket = io({ auth: { token } });
+  socket.on('connect', () => console.log('Conectado!'));
+  socket.on('game_start', onGameStart);
+  socket.on('game_update', onGameUpdate);
+  socket.on('game_end', onGameEnd);
+  socket.on('disconnect', () => console.log('Desconectado'));
+}
+
+function voltarLobbyPrincipal() {
+  if (socket) socket.disconnect();
+  window.location.href = '/';
+}
+
+// SELEÇÃO DE VALOR
+function selecionarValor(v, el) {
+  valorSel = v;
+  document.querySelectorAll('.valor-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  const premio = (v * 1.75).toFixed(2).replace('.', ',');
+  const taxa = (v * 0.25).toFixed(2).replace('.', ',');
+  document.getElementById('premioInfo').style.display = 'block';
+  document.getElementById('premioInfo').innerHTML = `
+    💰 Você aposta: <strong>R$ ${v.toFixed(2).replace('.', ',')}</strong><br>
+    🏆 Se vencer recebe: <strong style="color:var(--gold);">R$ ${premio}</strong><br>
+    📊 Taxa da plataforma: R$ ${taxa} (25%)
+  `;
+  document.getElementById('playBtn').style.display = 'block';
+}
+
+// ENTRAR NA FILA
+function entrarFila() {
+  if (!token) { alert('Faça login primeiro!'); return; }
+  if ((usuario.saldo || 0) < valorSel) { alert('Saldo insuficiente!'); return; }
+  if (!socket) conectar();
+  mostrar('waiting');
+  document.getElementById('waitValor').textContent = valorSel.toFixed(2).replace('.', ',');
+  socket.emit('join_queue', { valor: valorSel, token });
+}
+
+function cancelarFila() {
+  if (socket) socket.emit('leave_queue');
+  mostrar('lobby');
+}
+
+// GAME START
+function onGameStart(data) {
+  myRole = data.role;
+  mostrar('game');
+  document.getElementById('p1name').textContent = data.p1name || 'Jogador 1';
+  document.getElementById('p2name').textContent = data.p2name || 'Jogador 2';
+  document.getElementById('arenaBadge').textContent = 'R$ ' + data.valor.toFixed(2).replace('.', ',');
+  initCanvas();
+}
+
+function onGameUpdate(state) {
+  gameState = state;
+  document.getElementById('p1score').textContent = state.score1;
+  document.getElementById('p2score').textContent = state.score2;
+}
+
+function onGameEnd(data) {
+  cancelAnimationFrame(animFrame);
+  mostrar('result');
+  const ganhou = (myRole === 'p1' && data.winner === 'p1') || (myRole === 'p2' && data.winner === 'p2');
+  document.getElementById('resultEmoji').textContent = ganhou ? '🏆' : '😢';
+  document.getElementById('resultTitle').textContent = ganhou ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
+  document.getElementById('resultTitle').style.color = ganhou ? 'var(--gold)' : '#ef4444';
+  const prize = ganhou ? '+R$ ' + data.prize.toFixed(2).replace('.', ',') : '-R$ ' + data.valor.toFixed(2).replace('.', ',');
+  document.getElementById('resultPrize').textContent = prize;
+  document.getElementById('resultPrize').style.color = ganhou ? 'var(--green)' : '#ef4444';
+  // Atualiza saldo local
+  if (ganhou) {
+    usuario.saldo = (usuario.saldo || 0) + data.prize - data.valor;
+  } else {
+    usuario.saldo = Math.max(0, (usuario.saldo || 0) - data.valor);
+  }
+  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  document.getElementById('saldoHeader').textContent = usuario.saldo.toFixed(2).replace('.', ',');
+}
+
+// CANVAS
+function initCanvas() {
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+  W = Math.min(window.innerWidth, 480);
+  H = Math.round(W * 1.6);
+  canvas.width = W;
+  canvas.height = H;
+
+  // Touch/Mouse
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    moveMallet(t.clientX - rect.left, t.clientY - rect.top);
+  }, { passive: false });
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    moveMallet(e.clientX - rect.left, e.clientY - rect.top);
+  });
+
+  animFrame = requestAnimationFrame(render);
+}
+
+function moveMallet(x, y) {
+  myMallet.x = x / W;
+  myMallet.y = y / H;
+  const now = Date.now();
+  if (now - lastSent > 30) {
+    socket.emit('mallet_move', { x: myMallet.x, y: myMallet.y });
+    lastSent = now;
+  }
+}
+
+function render() {
+  if (!ctx || !gameState) { animFrame = requestAnimationFrame(render); return; }
+  const s = gameState;
+  ctx.clearRect(0, 0, W, H);
+
+  // Fundo
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a1628');
+  grad.addColorStop(1, '#070b14');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Linhas da arena
+  ctx.strokeStyle = 'rgba(240,192,64,.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, H/2);
+  ctx.lineTo(W, H/2);
+  ctx.stroke();
+
+  // Círculo central
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, W*0.15, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(240,192,64,.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Gols
+  const gw = W * 0.35;
+  const gx = (W - gw) / 2;
+  ctx.fillStyle = 'rgba(0,200,83,.2)';
+  ctx.fillRect(gx, 0, gw, 8);
+  ctx.fillRect(gx, H - 8, gw, 8);
+  ctx.strokeStyle = 'rgba(0,200,83,.8)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(gx, 0, gw, 8);
+  ctx.strokeRect(gx, H - 8, gw, 8);
+
+  // Bolinha
+  ctx.beginPath();
+  ctx.arc(s.ball.x * W, s.ball.y * H, s.ball.r * W, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = '#fff';
+  ctx.shadowBlur = 15;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Mallets
+  const mr = s.mallet_r * W;
+  // P1 (azul)
+  ctx.beginPath();
+  ctx.arc(s.m1.x * W, s.m1.y * H, mr, 0, Math.PI*2);
+  ctx.fillStyle = myRole === 'p1' ? '#1a8cff' : 'rgba(26,140,255,.6)';
+  ctx.shadowColor = '#1a8cff';
+  ctx.shadowBlur = 20;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // P2 (vermelho)
+  ctx.beginPath();
+  ctx.arc(s.m2.x * W, s.m2.y * H, mr, 0, Math.PI*2);
+  ctx.fillStyle = myRole === 'p2' ? '#ef4444' : 'rgba(239,68,68,.6)';
+  ctx.shadowColor = '#ef4444';
+  ctx.shadowBlur = 20;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  animFrame = requestAnimationFrame(render);
+}
+
+function voltarLobby() {
+  mostrar('lobby');
+}
+
+function mostrar(id) {
+  ['lobby','waiting','game','result'].forEach(x => {
+    const el = document.getElementById(x);
+    el.style.display = x === id ? 'flex' : 'none';
+  });
+  if (id === 'lobby') {
+    document.getElementById('lobby').style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>
