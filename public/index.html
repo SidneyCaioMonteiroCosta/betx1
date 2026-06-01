@@ -42,7 +42,6 @@
       <button class="btn-primary" onclick="doLogin()">ENTRAR</button>
     </div>
     <div id="form-register" style="display:none;">
-      <div class="bonus-badge">🎁 R$10 de bônus no cadastro!</div>
       <div class="field"><label>Nome</label><input type="text" id="regNome" placeholder="Seu nome"/></div>
       <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"/></div>
       <div class="field"><label>Senha</label><input type="password" id="regSenha" placeholder="Mínimo 6 caracteres"/></div>
@@ -62,12 +61,15 @@
     <div class="avatar" onclick="showScreen('profile')">😎</div>
   </div>
   <div class="scrollable">
-    <div class="hero">
-      <div class="hero-title">🎁 BÔNUS DE BOAS-VINDAS</div>
-      <div class="hero-sub">Deposite e ganhe 100% de bônus até R$100</div>
-      <button class="hero-btn" onclick="showModal('dep')">DEPOSITAR AGORA</button>
+    <div class="hero" style="background:linear-gradient(135deg,#0d2a0d,#1a4a1a);">
+      <div class="hero-title">🤖 MODO TREINO</div>
+      <div class="hero-sub">Jogue contra bots com fichas virtuais — sem dinheiro real!</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <span style="font-size:13px;color:#A5D6A7;">🎮 Fichas: <strong id="saldoTreino">1.000</strong></span>
+        <button class="hero-btn" onclick="showScreen('treino')">JOGAR GRÁTIS</button>
+      </div>
     </div>
-    <div class="section-label">Jogos disponíveis</div>
+    <div class="section-label">Jogos com dinheiro real</div>
     <div class="games-grid">
       <div class="game-card" onclick="openGame('truco')">
         <div class="game-thumb green">🃏<span class="gbadge hot">HOT</span></div>
@@ -99,6 +101,43 @@
     <div class="navitem active" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
     <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
     <div class="navitem" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
+  </div>
+</div>
+
+<!-- TREINO -->
+<div id="treino" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('lobby')">←</button>
+    <div class="topbar-title">🤖 MODO TREINO</div>
+    <div style="margin-left:auto;font-family:'Rajdhani',sans-serif;font-size:14px;color:#A5D6A7;">🎮 <span id="saldoTreinoTop">1.000</span> fichas</div>
+  </div>
+  <div class="scrollable">
+    <div style="padding:16px;">
+      <div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.6;">
+        🤖 <strong>Modo Treino</strong><br>
+        Jogue contra bots sem arriscar dinheiro real. Cada nova conta começa com <strong>1.000 fichas virtuais</strong>.
+      </div>
+      <div class="section-label">Escolha um jogo</div>
+      <div class="games-grid">
+        <div class="game-card" onclick="jogarTreino('truco')">
+          <div class="game-thumb green">🃏</div>
+          <div class="game-info"><div class="gname">Truco vs Bot</div><div class="gdesc">Aposta: 50 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
+        </div>
+        <div class="game-card" onclick="jogarTreino('domino')">
+          <div class="game-thumb blue">🁣</div>
+          <div class="game-info"><div class="gname">Dominó vs Bot</div><div class="gdesc">Aposta: 30 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
+        </div>
+        <div class="game-card" onclick="jogarTreino('blackjack')">
+          <div class="game-thumb purple">🃟</div>
+          <div class="game-info"><div class="gname">Blackjack vs Bot</div><div class="gdesc">Aposta: 20 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
+        </div>
+        <div class="game-card" onclick="jogarTreino('dado')">
+          <div class="game-thumb dark">🎲</div>
+          <div class="game-info"><div class="gname">Dado vs Bot</div><div class="gdesc">Aposta: 10 fichas</div><div class="gplayers" style="color:#A5D6A7;">● Disponível</div></div>
+        </div>
+      </div>
+      <button onclick="recarregarFichas()" style="width:100%;padding:12px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#A5D6A7;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;">🔄 RECARREGAR FICHAS</button>
+    </div>
   </div>
 </div>
 
@@ -140,15 +179,14 @@
       <div class="profile-email" id="profileEmail">-</div>
     </div>
     <div class="profile-stats">
-      <div class="pstat"><div class="pval">47</div><div class="plbl">Partidas</div></div>
-      <div class="pstat"><div class="pval">28</div><div class="plbl">Vitórias</div></div>
-      <div class="pstat"><div class="pval">59%</div><div class="plbl">Win Rate</div></div>
+      <div class="pstat"><div class="pval">0</div><div class="plbl">Partidas</div></div>
+      <div class="pstat"><div class="pval">0</div><div class="plbl">Vitórias</div></div>
+      <div class="pstat"><div class="pval">0%</div><div class="plbl">Win Rate</div></div>
     </div>
     <div class="menu-list">
       <div class="menu-item"><span>👤</span><div><div class="mname">Editar perfil</div><div class="msub">Nome e dados pessoais</div></div><span>›</span></div>
       <div class="menu-item"><span>🔔</span><div><div class="mname">Notificações</div><div class="msub">Alertas e promoções</div></div><span>›</span></div>
       <div class="menu-item"><span>🔒</span><div><div class="mname">Segurança</div><div class="msub">Senha e autenticação</div></div><span>›</span></div>
-      <div class="menu-item"><span>🎁</span><div><div class="mname">Indique um amigo</div><div class="msub">Ganhe R$5 por indicação</div></div><span>›</span></div>
       <button class="logout-btn" onclick="logout()">🚪 SAIR DA CONTA</button>
     </div>
   </div>
@@ -159,13 +197,33 @@
   </div>
 </div>
 
+<!-- ADMIN -->
+<div id="admin" class="screen">
+  <div class="topbar">
+    <div class="logo small">BETX1</div>
+    <div style="margin-left:auto;font-size:11px;color:var(--muted);">PAINEL ADMIN</div>
+    <button class="back-btn" style="margin-left:8px;" onclick="logout()">🚪</button>
+  </div>
+  <div class="scrollable">
+    <div style="padding:16px;">
+      <div class="profile-stats" id="adminStats" style="margin:0 0 16px;">
+        <div class="pstat"><div class="pval" id="statUsers">-</div><div class="plbl">Usuários</div></div>
+        <div class="pstat"><div class="pval" id="statDep">-</div><div class="plbl">Depósitos</div></div>
+        <div class="pstat"><div class="pval" id="statPend">-</div><div class="plbl">Saques pend.</div></div>
+      </div>
+      <div class="section-label">Saques pendentes</div>
+      <div id="adminSaques"><div class="empty">Carregando...</div></div>
+      <div class="section-label" style="margin-top:16px;">Usuários cadastrados</div>
+      <div id="adminUsers"></div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL -->
 <div id="modalOverlay" class="modal-overlay" style="display:none;" onclick="closeModalOutside(event)">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modalTitle">DEPOSITAR</div>
-
-    <!-- DEPOSITAR -->
     <div id="modalDep">
       <div class="amt-grid">
         <div class="amt-btn" onclick="setAmt(10,this)">R$ 10</div>
@@ -176,21 +234,16 @@
         <div class="amt-btn" onclick="setAmt(500,this)">R$ 500</div>
       </div>
       <input class="modal-input" type="number" id="depAmt" placeholder="Ou digite o valor (R$)"/>
-
-      <!-- QR CODE PIX -->
       <div id="qrArea" style="display:none;text-align:center;margin-bottom:14px;">
-        <div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ Pix gerado! Escaneie o QR Code ou copie o código</div>
-        <img id="qrImg" style="width:180px;height:180px;border-radius:10px;display:none;margin:0 auto 10px;" />
+        <div style="font-size:12px;color:var(--green);margin-bottom:8px;">✅ Pix gerado! Escaneie ou copie o código</div>
+        <img id="qrImg" style="width:180px;height:180px;border-radius:10px;display:none;margin:0 auto 10px;"/>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:10px;color:var(--muted);word-break:break-all;margin-bottom:8px;" id="pixCopyCode"></div>
         <button onclick="copyPix()" style="width:100%;padding:10px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;">📋 COPIAR CÓDIGO PIX</button>
         <div style="font-size:11px;color:var(--muted);">⏳ Aguardando pagamento... O saldo atualiza automaticamente!</div>
       </div>
-
       <div class="success-msg" id="depOk" style="display:none;">✅ Depósito confirmado! Saldo atualizado.</div>
       <button class="btn-primary" onclick="confirmarDep()">✅ GERAR PIX</button>
     </div>
-
-    <!-- SACAR -->
     <div id="modalSaq" style="display:none;">
       <div class="saldo-info">Saldo: <strong>R$ <span id="saqSaldo">0,00</span></strong></div>
       <div class="amt-grid">
