@@ -56,7 +56,10 @@ async function initDB() {
   `);
   console.log('✅ Banco de dados inicializado');
 }
-initDB().catch(console.error);
+initDB().catch(err => {
+  console.error('❌ Erro ao conectar no banco:', err.message);
+  process.exit(1);
+});
 
 function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
