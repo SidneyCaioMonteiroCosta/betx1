@@ -407,4 +407,130 @@ io.on('connection', (socket) => {
   });
 });
 
+
+// ===== FLAPPY BIRD MULTIPLAYER =====
+const flappySalas = {};
+const flappyConns = {};
+
+function calcularPremios(ranking, valor, tamanho) {
+  const premios = {};
+  ranking.forEach((j, i) => {
+    if (tamanho <= 3) {
+      premios[j.userId] = i === 0 ? parseFloat((valor * 2).toFixed(2)) : 0;
+    } else if (tamanho === 4) {
+      if (i === 0) premios[j.userId] = parseFloat((valor * 2).toFixed(2));
+      else if (i === 1) premios[j.userId] = parseFloat((valor * 1.5).toFixed(2));
+      else premios[j.userId] = 0;
+    } else {
+      if (i === 0) premios[j.userId] = parseFloat((valor * 2).toFixed(2));
+      else if (i === 1) premios[j.userId] = parseFloat((valor * 1.5).toFixed(2));
+      else if (i === 2) premios[j.userId] = parseFloat(valor.toFixed(2));
+      else premios[j.userId] = 0;
+    }
+  });
+  return premios;
+}
+
+async function finalizarFlappy(salaKey) {
+  const s = flappySalas[salaKey];
+  if (!s || s.finalizada) return;
+  s.finalizada = true;
+
+  const ranking = [...s.jogadores].sort((a, b) => b.pontos - a.pontos);
+  const premios = calcularPremios(ranking, s.valor, s.tamanho);
+
+  for (const [userId, premio] of Object.entries(premios)) {
+    if (premio > 0) {
+      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [premio, userId]);
+      const tipo = premio > s.valor ? 'ganho' : 'devolucao';
+      await pool.query(
+        'INSERT INTO transacoes (user_id, tipo, valor, descricao, status) VALUES ($1,$2,$3,$4,$5)',
+        [userId, tipo, premio, `Flappy Bird R$${s.valor} (${s.tamanho}p)`, 'concluido']
+      );
+    }
+  }
+
+  io.to(salaKey).emit('flappy_fim', {
+    ranking: ranking.map(j => ({ id: j.userId, nome: j.nome, pontos: j.pontos })),
+    premios
+  });
+
+  delete flappySalas[salaKey];
+  Object.keys(flappyConns).forEach(sid => {
+    if (flappyConns[sid] && flappyConns[sid].salaKey === salaKey) delete flappyConns[sid];
+  });
+}
+
+io.on('connection', (socketF) => {
+  socketF.on('flappy_join', async ({ token: tkn, sala, valor }) => {
+    try {
+      const decoded = jwt.verify(tkn, JWT_SECRET);
+      const userId = decoded.id;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = rows[0];
+      if (!user || user.saldo < valor) { socketF.emit('flappy_erro', { msg: 'Saldo insuficiente' }); return; }
+
+      const salaKey = `flappy_${sala}_${valor}`;
+      if (!flappySalas[salaKey]) flappySalas[salaKey] = { jogadores: [], valor, tamanho: sala, iniciada: false, finalizada: false, timer: null };
+      const s = flappySalas[salaKey];
+      s.jogadores = s.jogadores.filter(j => j.userId !== userId);
+      s.jogadores.push({ socketId: socketF.id, userId, nome: user.nome, pontos: 0, morto: false });
+      flappyConns[socketF.id] = { userId, nome: user.nome, salaKey, pontos: 0, morto: false };
+      socketF.join(salaKey);
+
+      io.to(salaKey).emit('flappy_sala_update', {
+        jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })), total: sala
+      });
+
+      if (s.jogadores.length >= sala && !s.iniciada) {
+        s.iniciada = true;
+        if (s.timer) clearTimeout(s.timer);
+        s.timer = setTimeout(async () => {
+          for (const j of s.jogadores) {
+            await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, j.userId]);
+          }
+          io.to(salaKey).emit('flappy_start', {
+            jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })), valor, countdown: 3
+          });
+        }, 500);
+      }
+    } catch(e) { socketF.emit('flappy_erro', { msg: 'Erro de autenticação' }); }
+  });
+
+  socketF.on('flappy_ponto', ({ pontos }) => {
+    const conn = flappyConns[socketF.id];
+    if (!conn) return;
+    conn.pontos = pontos;
+    const s = flappySalas[conn.salaKey];
+    if (s) { const j = s.jogadores.find(j => j.userId === conn.userId); if (j) j.pontos = pontos; }
+    io.to(conn.salaKey).emit('flappy_update', { id: conn.userId, pontos });
+  });
+
+  socketF.on('flappy_morreu', async ({ pontos }) => {
+    const conn = flappyConns[socketF.id];
+    if (!conn) return;
+    conn.morto = true; conn.pontos = pontos;
+    const s = flappySalas[conn.salaKey];
+    if (!s) return;
+    const j = s.jogadores.find(j => j.userId === conn.userId);
+    if (j) { j.morto = true; j.pontos = pontos; }
+    io.to(conn.salaKey).emit('flappy_player_morreu', { id: conn.userId });
+    if (s.jogadores.every(j => j.morto)) await finalizarFlappy(conn.salaKey);
+  });
+
+  socketF.on('flappy_leave', () => {
+    const conn = flappyConns[socketF.id];
+    if (!conn) return;
+    const s = flappySalas[conn.salaKey];
+    if (s && !s.iniciada) {
+      s.jogadores = s.jogadores.filter(j => j.socketId !== socketF.id);
+      io.to(conn.salaKey).emit('flappy_sala_update', {
+        jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })), total: s.tamanho
+      });
+    }
+    socketF.leave(conn.salaKey);
+    delete flappyConns[socketF.id];
+  });
+});
+
 server.listen(3000, () => console.log('✅ Betx1 rodando em http://localhost:3000'));
