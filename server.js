@@ -114,6 +114,24 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, nome: user.nome, email: user.email, saldo: user.saldo, saldo_treino: user.saldo_treino || 1000 });
 });
 
+
+app.post('/api/perfil/editar', auth, async (req, res) => {
+  const { nome, senhaAtual, novaSenha } = req.body;
+  if (!nome) return res.status(400).json({ erro: 'Nome obrigatório' });
+  try {
+    if (senhaAtual && novaSenha) {
+      const { rows } = await pool.query('SELECT senha FROM users WHERE id = $1', [req.user.id]);
+      const ok = await bcrypt.compare(senhaAtual, rows[0].senha);
+      if (!ok) return res.status(400).json({ erro: 'Senha atual incorreta' });
+      const hash = await bcrypt.hash(novaSenha, 10);
+      await pool.query('UPDATE users SET nome = $1, senha = $2 WHERE id = $3', [nome, hash, req.user.id]);
+    } else {
+      await pool.query('UPDATE users SET nome = $1 WHERE id = $2', [nome, req.user.id]);
+    }
+    res.json({ sucesso: true, nome });
+  } catch { res.status(500).json({ erro: 'Erro ao atualizar perfil' }); }
+});
+
 app.get('/api/perfil', auth, async (req, res) => {
   const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino FROM users WHERE id = $1', [req.user.id]);
   res.json(rows[0]);

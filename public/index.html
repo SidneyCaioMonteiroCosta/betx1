@@ -177,8 +177,9 @@
     <div class="topbar-title">PERFIL</div>
   </div>
   <div class="scrollable">
-    <div class="profile-header">
-      <div class="profile-avatar">😎</div>
+    <div class="profile-header" style="position:relative;">
+      <div class="profile-avatar" style="font-size:64px;cursor:pointer;" onclick="abrirEditarPerfil()">😎</div>
+      <div style="position:absolute;bottom:60px;right:calc(50% - 44px);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:11px;color:var(--muted);cursor:pointer;" onclick="abrirEditarPerfil()">✏️ trocar</div>
       <div class="profile-name" id="profileName">-</div>
       <div class="profile-email" id="profileEmail">-</div>
     </div>
@@ -188,9 +189,8 @@
       <div class="pstat"><div class="pval">0%</div><div class="plbl">Win Rate</div></div>
     </div>
     <div class="menu-list">
-      <div class="menu-item"><span>👤</span><div><div class="mname">Editar perfil</div><div class="msub">Nome e dados pessoais</div></div><span>›</span></div>
-      <div class="menu-item"><span>🔔</span><div><div class="mname">Notificações</div><div class="msub">Alertas e promoções</div></div><span>›</span></div>
-      <div class="menu-item"><span>🔒</span><div><div class="mname">Segurança</div><div class="msub">Senha e autenticação</div></div><span>›</span></div>
+      <div class="menu-item" onclick="abrirEditarPerfil()"><span>👤</span><div><div class="mname">Editar perfil</div><div class="msub">Nome, senha e foto</div></div><span>›</span></div>
+      <div class="menu-item" onclick="abrirNotificacoes()"><span>🔔</span><div><div class="mname">Notificações</div><div class="msub">Depósito e saque</div></div><span>›</span></div>
       <button class="logout-btn" onclick="logout()">🚪 SAIR DA CONTA</button>
     </div>
   </div>
@@ -198,6 +198,68 @@
     <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
     <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
     <div class="navitem active" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PERFIL -->
+<div id="modalEditPerfil" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)fecharEditarPerfil()">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;max-height:90vh;overflow-y:auto;">
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px;">✏️ Editar Perfil</div>
+
+    <div style="margin-bottom:12px;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;">Escolha seu avatar</div>
+    <div id="avatarGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;background:var(--bg);border-radius:12px;padding:10px;"></div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nome</label>
+      <input type="text" id="editNome" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:15px;" placeholder="Seu nome"/>
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
+      <input type="email" id="editEmail" disabled style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--muted);font-size:15px;opacity:.6;"/>
+    </div>
+    <div style="margin-bottom:8px;margin-top:4px;font-size:12px;color:var(--muted);">Alterar senha (opcional)</div>
+    <div class="field" style="margin-bottom:10px;">
+      <input type="password" id="editSenhaAtual" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:15px;" placeholder="Senha atual"/>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <input type="password" id="editNovaSenha" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:15px;" placeholder="Nova senha (mín. 6 caracteres)"/>
+    </div>
+    <div id="editMsg" style="font-size:13px;margin-bottom:10px;min-height:18px;"></div>
+    <button onclick="salvarPerfil()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--gold),#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;">SALVAR</button>
+    <button onclick="fecharEditarPerfil()" style="width:100%;padding:12px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:12px;font-size:14px;cursor:pointer;margin-top:8px;">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL NOTIFICAÇÕES -->
+<div id="modalNotif" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)fecharNotificacoes()">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;">
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:20px;">🔔 Notificações</div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--bg);border-radius:10px;margin-bottom:10px;">
+      <div>
+        <div style="font-weight:600;font-size:14px;">💳 Depósito confirmado</div>
+        <div style="font-size:12px;color:var(--muted);">Aviso quando Pix for aprovado</div>
+      </div>
+      <label style="position:relative;display:inline-block;width:44px;height:24px;">
+        <input type="checkbox" id="notifDeposito" style="opacity:0;width:0;height:0;">
+        <span onclick="this.previousElementSibling.click()" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:24px;transition:.3s;" id="toggleDep"></span>
+      </label>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--bg);border-radius:10px;margin-bottom:20px;">
+      <div>
+        <div style="font-weight:600;font-size:14px;">🏦 Saque solicitado</div>
+        <div style="font-size:12px;color:var(--muted);">Aviso quando saque for enviado</div>
+      </div>
+      <label style="position:relative;display:inline-block;width:44px;height:24px;">
+        <input type="checkbox" id="notifSaque" style="opacity:0;width:0;height:0;">
+        <span onclick="this.previousElementSibling.click()" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:24px;transition:.3s;"></span>
+      </label>
+    </div>
+
+    <button onclick="salvarNotificacoes()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--gold),#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;">SALVAR</button>
   </div>
 </div>
 

@@ -6,6 +6,9 @@ let pixAmt = 0;
 let pixId = null;
 let pixCheckInterval = null;
 
+// Avatares disponíveis
+const AVATARES = ['😎','🤠','🥷','👑','🦁','🐯','🦊','🐺','🎭','🤖','👾','🎮','🏆','💎','🔥','⚡','🌟','🎯','🎲','♟️'];
+
 window.addEventListener('DOMContentLoaded', () => {
   createParticles();
   if (token && usuario) {
@@ -34,6 +37,7 @@ function showScreen(id) {
   window.scrollTo(0, 0);
   if (id === 'wallet') loadTransacoes();
   if (id === 'admin') loadAdmin();
+  if (id === 'profile') carregarPerfil();
 }
 
 function showAuth(tab) {
@@ -56,8 +60,7 @@ async function doLogin() {
   if (!email || !senha) { err.textContent = 'Preencha todos os campos!'; return; }
   try {
     const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, senha })
     });
     const data = await res.json();
@@ -68,10 +71,7 @@ async function doLogin() {
       usuario = { admin: true, email };
       localStorage.setItem('betx1_user', JSON.stringify(usuario));
       enterAdmin();
-    } else {
-      saveUser(data);
-      enterApp();
-    }
+    } else { saveUser(data); enterApp(); }
   } catch { err.textContent = 'Erro de conexão'; }
 }
 
@@ -87,34 +87,38 @@ async function doRegister() {
   if (senha.length < 6) { err.textContent = 'Senha muito curta!'; return; }
   try {
     const res = await fetch('/api/cadastro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome, email, senha })
     });
     const data = await res.json();
     if (!res.ok) { err.textContent = data.erro; return; }
-    saveUser(data);
-    enterApp();
+    saveUser(data); enterApp();
   } catch { err.textContent = 'Erro de conexão'; }
 }
 
 function saveUser(data) {
   token = data.token;
-  usuario = { nome: data.nome, email: data.email, saldo: data.saldo, saldo_treino: data.saldo_treino || 1000 };
+  usuario = {
+    nome: data.nome, email: data.email, saldo: data.saldo,
+    saldo_treino: data.saldo_treino || 1000,
+    avatar: data.avatar || '😎',
+    notif_deposito: true, notif_saque: true
+  };
   localStorage.setItem('betx1_token', token);
   localStorage.setItem('betx1_user', JSON.stringify(usuario));
 }
 
 function enterApp() {
   updateBalanceUI();
-  document.getElementById('profileName').textContent = usuario.nome;
-  document.getElementById('profileEmail').textContent = usuario.email;
+  atualizarAvatar();
   showScreen('lobby');
 }
 
-function enterAdmin() {
-  showScreen('admin');
-  loadAdmin();
+function enterAdmin() { showScreen('admin'); loadAdmin(); }
+
+function atualizarAvatar() {
+  const av = usuario?.avatar || '😎';
+  document.querySelectorAll('.avatar, .profile-avatar').forEach(el => el.textContent = av);
 }
 
 function updateBalanceUI() {
@@ -135,6 +139,132 @@ function logout() {
   showScreen('splash');
 }
 
+// ===== PERFIL =====
+async function carregarPerfil() {
+  try {
+    const r = await fetch('/api/perfil', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    usuario.nome = d.nome;
+    usuario.email = d.email;
+    usuario.saldo = d.saldo;
+    localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  } catch {}
+  document.getElementById('profileName').textContent = usuario.nome || '-';
+  document.getElementById('profileEmail').textContent = usuario.email || '-';
+  document.querySelector('.profile-avatar').textContent = usuario.avatar || '😎';
+}
+
+function abrirEditarPerfil() {
+  document.getElementById('editNome').value = usuario.nome || '';
+  document.getElementById('editEmail').value = usuario.email || '';
+  document.getElementById('editSenhaAtual').value = '';
+  document.getElementById('editNovaSenha').value = '';
+  document.getElementById('editMsg').textContent = '';
+  renderAvatares();
+  document.getElementById('modalEditPerfil').style.display = 'flex';
+}
+
+function fecharEditarPerfil() {
+  document.getElementById('modalEditPerfil').style.display = 'none';
+}
+
+function renderAvatares() {
+  const grid = document.getElementById('avatarGrid');
+  grid.innerHTML = AVATARES.map(av => `
+    <div onclick="selecionarAvatar('${av}',this)"
+      style="font-size:28px;cursor:pointer;padding:8px;border-radius:10px;text-align:center;border:2px solid ${av===usuario.avatar?'var(--gold)':'transparent'};background:${av===usuario.avatar?'rgba(240,192,64,.1)':'transparent'}">
+      ${av}
+    </div>
+  `).join('');
+}
+
+function selecionarAvatar(av, el) {
+  usuario.avatar = av;
+  document.querySelectorAll('#avatarGrid div').forEach(d => {
+    d.style.border = '2px solid transparent';
+    d.style.background = 'transparent';
+  });
+  el.style.border = '2px solid var(--gold)';
+  el.style.background = 'rgba(240,192,64,.1)';
+  atualizarAvatar();
+  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+}
+
+async function salvarPerfil() {
+  const nome = document.getElementById('editNome').value.trim();
+  const senhaAtual = document.getElementById('editSenhaAtual').value;
+  const novaSenha = document.getElementById('editNovaSenha').value;
+  const msg = document.getElementById('editMsg');
+
+  if (!nome) { msg.textContent = 'Nome obrigatório!'; msg.style.color = '#ef4444'; return; }
+
+  try {
+    const body = { nome };
+    if (senhaAtual && novaSenha) {
+      if (novaSenha.length < 6) { msg.textContent = 'Nova senha muito curta!'; msg.style.color = '#ef4444'; return; }
+      body.senhaAtual = senhaAtual;
+      body.novaSenha = novaSenha;
+    }
+
+    const res = await fetch('/api/perfil/editar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = data.erro; msg.style.color = '#ef4444'; return; }
+
+    usuario.nome = nome;
+    localStorage.setItem('betx1_user', JSON.stringify(usuario));
+    document.getElementById('profileName').textContent = nome;
+    msg.textContent = '✅ Perfil atualizado!';
+    msg.style.color = '#00c853';
+    setTimeout(fecharEditarPerfil, 1500);
+  } catch { msg.textContent = 'Erro de conexão'; msg.style.color = '#ef4444'; }
+}
+
+function abrirNotificacoes() {
+  document.getElementById('notifDeposito').checked = usuario.notif_deposito !== false;
+  document.getElementById('notifSaque').checked = usuario.notif_saque !== false;
+  document.getElementById('modalNotif').style.display = 'flex';
+}
+
+function fecharNotificacoes() {
+  document.getElementById('modalNotif').style.display = 'none';
+}
+
+function salvarNotificacoes() {
+  usuario.notif_deposito = document.getElementById('notifDeposito').checked;
+  usuario.notif_saque = document.getElementById('notifSaque').checked;
+  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  fecharNotificacoes();
+  mostrarToast('✅ Notificações salvas!');
+}
+
+function mostrarToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e2d50;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:9999;border:1px solid var(--border);';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  setTimeout(() => toast.style.display = 'none', 2500);
+}
+
+// Notificar depósito/saque
+function notificarTransacao(tipo, valor) {
+  if (tipo === 'deposito' && usuario.notif_deposito !== false) {
+    mostrarToast(`💳 Depósito de R$ ${valor.toFixed(2)} confirmado!`);
+  }
+  if (tipo === 'saque' && usuario.notif_saque !== false) {
+    mostrarToast(`🏦 Saque de R$ ${valor.toFixed(2)} solicitado!`);
+  }
+}
+
+// ===== MODAL =====
 function showModal(type) {
   modalType = type;
   pixAmt = 0; pixId = null;
@@ -170,7 +300,7 @@ function setAmt(v, el) {
 function copyPix() {
   const code = document.getElementById('pixCopyCode')?.textContent;
   if (code) navigator.clipboard?.writeText(code);
-  alert('Código Pix copiado!');
+  mostrarToast('📋 Código Pix copiado!');
 }
 
 async function confirmarDep() {
@@ -208,6 +338,7 @@ async function confirmarDep() {
           updateBalanceUI();
           document.getElementById('depOk').style.display = 'block';
           document.getElementById('qrArea').style.display = 'none';
+          notificarTransacao('deposito', valor);
           setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 3000);
         }
       } catch {}
@@ -236,6 +367,7 @@ async function confirmarSaq() {
     localStorage.setItem('betx1_user', JSON.stringify(usuario));
     updateBalanceUI();
     document.getElementById('saqOk').style.display = 'block';
+    notificarTransacao('saque', valor);
     setTimeout(() => document.getElementById('modalOverlay').style.display = 'none', 2000);
   } catch { alert('Erro de conexão'); }
 }
@@ -246,8 +378,8 @@ async function loadTransacoes() {
     const data = await res.json();
     const list = document.getElementById('transList');
     if (!data.length) { list.innerHTML = '<div class="empty">Nenhuma transação ainda.</div>'; return; }
-    const icons = { deposito: '💳', saque: '🏦', bonus: '🎁' };
-    const tipos = { deposito: 'dep', saque: 'saq', bonus: 'bonus' };
+    const icons = { deposito: '💳', saque: '🏦', ganho: '🏆', devolucao: '🔄' };
+    const tipos = { deposito: 'dep', saque: 'saq', ganho: 'dep', devolucao: 'dep' };
     list.innerHTML = data.map(t => {
       const pos = t.tipo !== 'saque';
       const date = new Date(t.criado_em).toLocaleString('pt-BR');
@@ -261,6 +393,7 @@ async function loadTransacoes() {
 }
 
 function jogarTreino(jogo) {
+  if (jogo === 'airhockey') { window.location.href = '/airhockey.html'; return; }
   alert(`🤖 ${jogo.charAt(0).toUpperCase() + jogo.slice(1)} vs Bot\n\nEm breve disponível!`);
 }
 
@@ -268,7 +401,7 @@ function recarregarFichas() {
   usuario.saldo_treino = 1000;
   localStorage.setItem('betx1_user', JSON.stringify(usuario));
   updateBalanceUI();
-  alert('✅ Fichas recarregadas!');
+  mostrarToast('✅ Fichas recarregadas!');
 }
 
 async function loadAdmin() {
@@ -301,10 +434,7 @@ async function loadAdmin() {
     document.getElementById('adminUsers').innerHTML = users.map(u => `
       <div class="trans-item">
         <div class="trans-icon dep">👤</div>
-        <div class="trans-desc">
-          <div class="trans-name">${u.nome}</div>
-          <div class="trans-date">${u.email}</div>
-        </div>
+        <div class="trans-desc"><div class="trans-name">${u.nome}</div><div class="trans-date">${u.email}</div></div>
         <div class="trans-val pos">R$ ${(u.saldo || 0).toFixed(2)}</div>
       </div>
     `).join('');
@@ -314,10 +444,7 @@ async function loadAdmin() {
 async function pagarSaque(id) {
   if (!confirm('Marcar saque como pago?')) return;
   try {
-    await fetch(`/api/admin/saques/${id}/pagar`, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
+    await fetch(`/api/admin/saques/${id}/pagar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
     loadAdmin();
   } catch {}
 }
