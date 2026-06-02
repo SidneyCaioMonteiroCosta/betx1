@@ -413,20 +413,29 @@ const flappySalas = {};
 const flappyConns = {};
 
 function calcularPremios(ranking, valor, tamanho) {
+  // valor = aposta de cada jogador
+  // 2 jogadores: 1º recebe 175% da aposta dele (casa fica 25% de cada)
+  // 3 jogadores: 1º recebe 175%, 2º recebe 100% (devolução)
+  // 4 jogadores: 1º recebe 175%, 2º recebe 150%, 3º recebe 50%
+  // 5 jogadores: 1º recebe 175%, 2º recebe 150%, 3º recebe 100%
   const premios = {};
   ranking.forEach((j, i) => {
     if (tamanho === 2) {
-      premios[j.userId] = i === 0 ? parseFloat((valor * 1.75).toFixed(2)) : 0;
+      if (i === 0) premios[j.userId] = parseFloat((valor * 1.75).toFixed(2));
+      else premios[j.userId] = 0;
     } else if (tamanho === 3) {
-      premios[j.userId] = i === 0 ? parseFloat((valor * 2).toFixed(2)) : 0;
+      if (i === 0) premios[j.userId] = parseFloat((valor * 1.75).toFixed(2));
+      else if (i === 1) premios[j.userId] = parseFloat((valor * 1.0).toFixed(2));
+      else premios[j.userId] = 0;
     } else if (tamanho === 4) {
-      if (i === 0) premios[j.userId] = parseFloat((valor * 2).toFixed(2));
+      if (i === 0) premios[j.userId] = parseFloat((valor * 1.75).toFixed(2));
       else if (i === 1) premios[j.userId] = parseFloat((valor * 1.5).toFixed(2));
+      else if (i === 2) premios[j.userId] = parseFloat((valor * 0.5).toFixed(2));
       else premios[j.userId] = 0;
     } else {
-      if (i === 0) premios[j.userId] = parseFloat((valor * 2).toFixed(2));
+      if (i === 0) premios[j.userId] = parseFloat((valor * 1.75).toFixed(2));
       else if (i === 1) premios[j.userId] = parseFloat((valor * 1.5).toFixed(2));
-      else if (i === 2) premios[j.userId] = parseFloat(valor.toFixed(2));
+      else if (i === 2) premios[j.userId] = parseFloat((valor * 1.0).toFixed(2));
       else premios[j.userId] = 0;
     }
   });

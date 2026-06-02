@@ -670,14 +670,22 @@ function mostrarResultadoBot() {
   }, 800);
 }
 
-// Override voltarLobby para resetar bot
-const _voltarLobbyOriginal = voltarLobby;
 function voltarLobby() {
   botMode = false;
   botMorto = false;
   botPontos = 0;
   botPassaro = { x: 80, y: 150, vy: 0 };
-  _voltarLobbyOriginal();
+  gameAtivo = false;
+  cancelAnimationFrame(animId);
+  document.removeEventListener('keydown', pular);
+  document.getElementById('resultado-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('lobby').style.display = 'block';
+  document.getElementById('btn-entrar').disabled = false;
+  document.getElementById('btn-entrar').style.display = 'block';
+  document.getElementById('aguardando-box').style.display = 'none';
+  document.getElementById('tap-hint').textContent = 'Toque ou pressione ESPAÇO para voar';
+  carregarSaldo();
 }
 
 // Override loop para incluir bot
