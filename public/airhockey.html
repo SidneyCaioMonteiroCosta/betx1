@@ -183,27 +183,27 @@ function simularFisicaBot() {
   if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx); }
   if (b.x + b.r > 1) { b.x = 1 - b.r; b.vx = -Math.abs(b.vx); }
 
-  // Gol de cima (bot marca no jogador)
+  // Gol de cima: bola entrou no gol de cima = jogador (baixo) marcou
   if (b.y - b.r < 0) {
-    if (b.x > gx && b.x < gx + gw) {
-      s.score2++;
-      botScore = s.score2;
-      document.getElementById('p2score').textContent = s.score2;
-      if (s.score2 >= 7) { encerrarBot(false); return; }
-      resetBola(s, 'bot');
-    } else {
-      b.y = b.r; b.vy = Math.abs(b.vy);
-    }
-  }
-
-  // Gol de baixo (jogador marca no bot)
-  if (b.y + b.r > 1) {
     if (b.x > gx && b.x < gx + gw) {
       s.score1++;
       playerScore = s.score1;
       document.getElementById('p1score').textContent = s.score1;
       if (s.score1 >= 7) { encerrarBot(true); return; }
       resetBola(s, 'player');
+    } else {
+      b.y = b.r; b.vy = Math.abs(b.vy);
+    }
+  }
+
+  // Gol de baixo: bola entrou no gol de baixo = bot (cima) marcou
+  if (b.y + b.r > 1) {
+    if (b.x > gx && b.x < gx + gw) {
+      s.score2++;
+      botScore = s.score2;
+      document.getElementById('p2score').textContent = s.score2;
+      if (s.score2 >= 7) { encerrarBot(false); return; }
+      resetBola(s, 'bot');
     } else {
       b.y = 1 - b.r; b.vy = -Math.abs(b.vy);
     }
@@ -365,14 +365,14 @@ function onGameStart(data) {
 
 function onGameUpdate(state) {
   gameState = state;
-  // score1 = gols marcados pelo jogador de baixo (p1)
-  // score2 = gols marcados pelo jogador de cima (p2)
+  // p1 joga em baixo: marca gol quando bola entra em cima (score2 no servidor)
+  // p2 joga em cima: marca gol quando bola entra em baixo (score1 no servidor)
   if (myRole === 'p1') {
-    document.getElementById('p1score').textContent = state.score1;
-    document.getElementById('p2score').textContent = state.score2;
-  } else {
     document.getElementById('p1score').textContent = state.score2;
     document.getElementById('p2score').textContent = state.score1;
+  } else {
+    document.getElementById('p1score').textContent = state.score1;
+    document.getElementById('p2score').textContent = state.score2;
   }
 }
 
