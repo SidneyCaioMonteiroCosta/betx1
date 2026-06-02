@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Xadrez - Betx1</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#070b14;--surface:#0d1425;--gold:#f0c040;--text:#e8eaf6;--muted:#6b7db3;--border:#1e2d50;--green:#00c853;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo{font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;}
+.back-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+#lobby{width:100%;max-width:480px;padding:16px;}
+.title{font-size:22px;font-weight:700;color:var(--gold);margin:16px 0 8px;text-align:center;}
+.sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
+.valores-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.valor-btn{padding:14px 8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.valor-btn:hover,.valor-btn.sel{background:rgba(240,192,64,.15);border-color:var(--gold);color:var(--gold);}
+.info-box{background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.8;display:none;}
+.play-btn{width:100%;padding:16px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;display:none;}
+.bot-btn{width:100%;padding:14px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;display:none;}
+#waiting{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.spinner{width:60px;height:60px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.wait-text{font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;}
+.cancel-btn{margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+#game{display:none;flex-direction:column;align-items:center;width:100%;}
+.game-header{width:100%;max-width:480px;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+.player-info{display:flex;align-items:center;gap:8px;}
+.player-color{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);}
+.player-name{font-size:13px;font-weight:600;}
+.turn-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:var(--gold);}
+.timer{font-size:20px;font-weight:900;color:var(--gold);min-width:40px;text-align:center;}
+#board-container{position:relative;margin:8px 0;}
+#board{display:grid;grid-template-columns:repeat(8,1fr);border:2px solid var(--border);}
+.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(20px,6vw,40px);cursor:pointer;position:relative;transition:background .15s;}
+.cell.light{background:#c8a96e;}
+.cell.dark{background:#6b4423;}
+.cell.selected{background:#f0c040 !important;box-shadow:inset 0 0 0 3px #fff;}
+.cell.possible{cursor:pointer;}
+.cell.possible::after{content:'';position:absolute;width:30%;height:30%;background:rgba(0,200,83,.6);border-radius:50%;}
+.cell.possible.capture::after{width:100%;height:100%;background:rgba(239,68,68,.3);border-radius:0;}
+.cell.check{background:rgba(239,68,68,.5) !important;}
+.captured-bar{width:100%;max-width:480px;padding:6px 16px;background:var(--surface);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+.status-bar{width:100%;max-width:480px;padding:8px 16px;background:var(--surface);border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--gold);}
+#result{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.result-emoji{font-size:72px;margin-bottom:16px;}
+.result-title{font-size:36px;font-weight:900;margin-bottom:8px;}
+.result-prize{font-size:18px;color:var(--gold);margin-bottom:24px;}
+.result-btn{padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;}
+</style>
+</head>
+<body>
+<header>
+  <button class="back-btn" onclick="window.location.href='/'">←</button>
+  <div class="logo">♟️ XADREZ</div>
+  <div style="margin-left:auto;font-size:13px;color:var(--gold);">💰 R$ <span id="saldoHeader">0,00</span></div>
+</header>
+
+<div id="lobby">
+  <div class="title">♟️ Escolha o valor da aposta</div>
+  <div class="sub">1v1 · Vencedor leva <strong style="color:var(--gold);">175%</strong> do valor apostado</div>
+  <div class="valores-grid">
+    <div class="valor-btn" onclick="sel(1,this)">R$ 1</div>
+    <div class="valor-btn" onclick="sel(2,this)">R$ 2</div>
+    <div class="valor-btn" onclick="sel(5,this)">R$ 5</div>
+    <div class="valor-btn" onclick="sel(10,this)">R$ 10</div>
+    <div class="valor-btn" onclick="sel(15,this)">R$ 15</div>
+    <div class="valor-btn" onclick="sel(20,this)">R$ 20</div>
+    <div class="valor-btn" onclick="sel(25,this)">R$ 25</div>
+    <div class="valor-btn" onclick="sel(30,this)">R$ 30</div>
+    <div class="valor-btn" onclick="sel(50,this)">R$ 50</div>
+    <div class="valor-btn" onclick="sel(60,this)">R$ 60</div>
+    <div class="valor-btn" onclick="sel(80,this)">R$ 80</div>
+    <div class="valor-btn" onclick="sel(100,this)">R$ 100</div>
+  </div>
+  <div class="info-box" id="infoBox"></div>
+  <button class="play-btn" id="playBtn" onclick="entrarFila()">♟️ JOGAR</button>
+  <button class="bot-btn" id="botBtn" onclick="jogarBot()">🤖 JOGAR CONTRA BOT</button>
+</div>
+
+<div id="waiting">
+  <div class="spinner"></div>
+  <div class="wait-text">Procurando adversário...</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Aguardando com R$ <span id="waitValor">0</span></div>
+  <button class="cancel-btn" onclick="cancelar()">Cancelar</button>
+</div>
+
+<div id="game">
+  <div class="game-header">
+    <div class="player-info">
+      <div class="player-color" id="myColor" style="background:#fff;"></div>
+      <div class="player-name" id="myName">Você</div>
+    </div>
+    <div class="timer" id="timer">--</div>
+    <div class="player-info">
+      <div class="player-color" id="oppColor" style="background:#333;"></div>
+      <div class="player-name" id="oppName">Adversário</div>
+    </div>
+  </div>
+  <div class="captured-bar">
+    <span id="capturedByMe"></span>
+    <span id="capturedByOpp"></span>
+  </div>
+  <div id="board-container">
+    <div id="board"></div>
+  </div>
+  <div class="status-bar" id="statusBar">Aguardando...</div>
+</div>
+
+<div id="result">
+  <div class="result-emoji" id="resEmoji">🏆</div>
+  <div class="result-title" id="resTitle">VOCÊ VENCEU!</div>
+  <div class="result-prize" id="resPrize"></div>
+  <button class="result-btn" onclick="voltarLobby()">JOGAR NOVAMENTE</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const token = localStorage.getItem('betx1_token');
+const usuario = JSON.parse(localStorage.getItem('betx1_user') || '{}');
+document.getElementById('saldoHeader').textContent = (usuario.saldo||0).toFixed(2).replace('.',',');
+
+let socket = null;
+let valorSel = 0;
+let myColor = null; // 'white' ou 'black'
+let botMode = false;
+let selectedCell = null;
+let possibleMoves = [];
+let board = [];
+let turn = 'white';
+let timerInterval = null;
+let timeLeft = 600; // 10 min
+let capturedByWhite = [];
+let capturedByBlack = [];
+let isBot = false;
+let botThinking = false;
+
+// Peças unicode
+const PIECES = {
+  'wK':'♔','wQ':'♕','wR':'♖','wB':'♗','wN':'♘','wP':'♙',
+  'bK':'♚','bQ':'♛','bR':'♜','bB':'♝','bN':'♞','bP':'♟'
+};
+
+function sel(v, el) {
+  valorSel = v;
+  document.querySelectorAll('.valor-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  const premio = (v*1.75).toFixed(2).replace('.',',');
+  document.getElementById('infoBox').style.display = 'block';
+  document.getElementById('infoBox').innerHTML = `💰 Aposta: <strong>R$ ${v.toFixed(2).replace('.',',')}</strong><br>🏆 Prêmio: <strong style="color:var(--gold);">R$ ${premio}</strong>`;
+  document.getElementById('playBtn').style.display = 'block';
+  document.getElementById('botBtn').style.display = 'block';
+}
+
+function iniciarTabuleiro() {
+  board = Array(8).fill(null).map(() => Array(8).fill(null));
+  // Peças pretas
+  const ordem = ['R','N','B','Q','K','B','N','R'];
+  for(let c=0;c<8;c++) { board[0][c]='b'+ordem[c]; board[1][c]='bP'; }
+  // Peças brancas
+  for(let c=0;c<8;c++) { board[7][c]='w'+ordem[c]; board[6][c]='wP'; }
+}
+
+function renderBoard() {
+  const el = document.getElementById('board');
+  const size = Math.min(window.innerWidth, 480) - 4;
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.innerHTML = '';
+
+  for(let r=0;r<8;r++) {
+    for(let c=0;c<8;c++) {
+      const cell = document.createElement('div');
+      const dispR = myColor === 'black' ? 7-r : r;
+      const dispC = myColor === 'black' ? 7-c : c;
+      cell.className = 'cell ' + ((dispR+dispC)%2===0 ? 'light' : 'dark');
+      cell.dataset.r = dispR;
+      cell.dataset.c = dispC;
+
+      const piece = board[dispR][dispC];
+      if(piece) cell.textContent = PIECES[piece];
+
+      if(selectedCell && selectedCell[0]===dispR && selectedCell[1]===dispC) cell.classList.add('selected');
+      if(possibleMoves.some(m=>m[0]===dispR&&m[1]===dispC)) {
+        cell.classList.add('possible');
+        if(board[dispR][dispC]) cell.classList.add('capture');
+      }
+
+      // Check highlight
+      if(isCheck('white') && board[dispR][dispC]==='wK') cell.classList.add('check');
+      if(isCheck('black') && board[dispR][dispC]==='bK') cell.classList.add('check');
+
+      cell.onclick = () => handleClick(dispR, dispC);
+      el.appendChild(cell);
+    }
+  }
+}
+
+function handleClick(r, c) {
+  const canMove = (botMode && myColor === turn) || (!botMode);
+  if(!canMove) return;
+
+  const piece = board[r][c];
+
+  if(selectedCell) {
+    const [sr, sc] = selectedCell;
+    if(possibleMoves.some(m=>m[0]===r&&m[1]===c)) {
+      fazerMovimento(sr, sc, r, c);
+      return;
+    }
+    selectedCell = null;
+    possibleMoves = [];
+  }
+
+  if(piece && piece[0]===(turn==='white'?'w':'b')) {
+    selectedCell = [r, c];
+    possibleMoves = getMovimentos(r, c, board, turn, true);
+  }
+
+  renderBoard();
+}
+
+function fazerMovimento(fr, fc, tr, tc, isBotMove=false) {
+  const piece = board[fr][fc];
+  const captured = board[tr][tc];
+
+  // Captura
+  if(captured) {
+    if(captured[0]==='w') capturedByBlack.push(captured);
+    else capturedByWhite.push(captured);
+  }
+
+  // En passant
+  if(piece[1]==='P' && fc!==tc && !captured) {
+    board[fr][tc] = null;
+    if(piece[0]==='w') capturedByWhite.push('bP');
+    else capturedByBlack.push('wP');
+  }
+
+  // Roque
+  if(piece[1]==='K' && Math.abs(fc-tc)===2) {
+    if(tc===6) { board[fr][5]=board[fr][7]; board[fr][7]=null; }
+    if(tc===2) { board[fr][3]=board[fr][0]; board[fr][0]=null; }
+  }
+
+  board[tr][tc] = piece;
+  board[fr][fc] = null;
+
+  // Promoção peão
+  if(piece==='wP' && tr===0) board[tr][tc]='wQ';
+  if(piece==='bP' && tr===7) board[tr][tc]='bQ';
+
+  selectedCell = null;
+  possibleMoves = [];
+  turn = turn==='white' ? 'black' : 'white';
+
+  // Enviar para servidor se online
+  if(!botMode && socket) {
+    socket.emit('chess_move', { from:[fr,fc], to:[tr,tc] });
+  }
+
+  atualizarCaptured();
+
+  // Verificar xeque-mate / afogamento
+  const cor = turn;
+  const temMovimentos = temAlgumMovimento(cor);
+  if(!temMovimentos) {
+    if(isCheck(cor)) {
+      setTimeout(() => encerrarJogo(cor==='white'?'black':'white', 'Xeque-mate!'), 100);
+    } else {
+      setTimeout(() => encerrarJogo(null, 'Afogamento! Empate.'), 100);
+    }
+    return;
+  }
+
+  atualizarStatus();
+  renderBoard();
+
+  // Bot faz jogada
+  if(botMode && turn==='black' && !isBotMove) {
+    setTimeout(jogadaBot, 600);
+  }
+}
+
+function atualizarCaptured() {
+  const pv = capturedByWhite.map(p=>PIECES[p]||'').join('');
+  const pb = capturedByBlack.map(p=>PIECES[p]||'').join('');
+  document.getElementById('capturedByMe').textContent = myColor==='white' ? '🏆 '+pv : '🏆 '+pb;
+  document.getElementById('capturedByOpp').textContent = myColor==='white' ? '🤖 '+pb : '🤖 '+pv;
+}
+
+function atualizarStatus() {
+  const minhaCor = myColor || 'white';
+  const cor = turn==='white' ? 'Brancas' : 'Pretas';
+  let txt = turn===minhaCor ? '⚡ Sua vez!' : `⏳ Vez de ${cor}`;
+  if(isCheck(turn)) txt = '⚠️ Xeque! ' + txt;
+  document.getElementById('statusBar').textContent = txt;
+}
+
+// ===== MOVIMENTOS =====
+function getMovimentos(r, c, b, t, filtrarCheck=false) {
+  const piece = b[r][c];
+  if(!piece) return [];
+  const cor = piece[0];
+  const tipo = piece[1];
+  let moves = [];
+
+  const add = (nr, nc) => {
+    if(nr>=0&&nr<8&&nc>=0&&nc<8) {
+      const alvo = b[nr][nc];
+      if(!alvo||alvo[0]!==cor) moves.push([nr,nc]);
+    }
+  };
+  const deslizar = (dr, dc) => {
+    let nr=r+dr, nc=c+dc;
+    while(nr>=0&&nr<8&&nc>=0&&nc<8) {
+      const alvo = b[nr][nc];
+      if(!alvo) { moves.push([nr,nc]); }
+      else { if(alvo[0]!==cor) moves.push([nr,nc]); break; }
+      nr+=dr; nc+=dc;
+    }
+  };
+
+  if(tipo==='P') {
+    const dir = cor==='w' ? -1 : 1;
+    const ini = cor==='w' ? 6 : 1;
+    if(r+dir>=0&&r+dir<8&&!b[r+dir][c]) {
+      moves.push([r+dir,c]);
+      if(r===ini&&!b[r+2*dir][c]) moves.push([r+2*dir,c]);
+    }
+    [-1,1].forEach(dc => {
+      if(c+dc>=0&&c+dc<8&&r+dir>=0&&r+dir<8) {
+        const alvo = b[r+dir][c+dc];
+        if(alvo&&alvo[0]!==cor) moves.push([r+dir,c+dc]);
+      }
+    });
+  }
+  else if(tipo==='N') { [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr,dc])=>add(r+dr,c+dc)); }
+  else if(tipo==='B') { [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>deslizar(dr,dc)); }
+  else if(tipo==='R') { [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>deslizar(dr,dc)); }
+  else if(tipo==='Q') { [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>deslizar(dr,dc)); }
+  else if(tipo==='K') {
+    [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dr,dc])=>add(r+dr,c+dc));
+    // Roque
+    if(cor==='w'&&r===7) {
+      if(!b[7][5]&&!b[7][6]&&b[7][7]==='wR') moves.push([7,6]);
+      if(!b[7][3]&&!b[7][2]&&!b[7][1]&&b[7][0]==='wR') moves.push([7,2]);
+    }
+    if(cor==='b'&&r===0) {
+      if(!b[0][5]&&!b[0][6]&&b[0][7]==='bR') moves.push([0,6]);
+      if(!b[0][3]&&!b[0][2]&&!b[0][1]&&b[0][0]==='bR') moves.push([0,2]);
+    }
+  }
+
+  if(filtrarCheck) moves = moves.filter(([nr,nc]) => !deixaEmCheck(r,c,nr,nc,b,cor));
+  return moves;
+}
+
+function deixaEmCheck(fr,fc,tr,tc,b,cor) {
+  const nb = b.map(r=>[...r]);
+  nb[tr][tc] = nb[fr][fc];
+  nb[fr][fc] = null;
+  return isCheckBoard(nb, cor);
+}
+
+function isCheck(cor) { return isCheckBoard(board, cor); }
+
+function isCheckBoard(b, cor) {
+  let kr=-1, kc=-1;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) if(b[r][c]===(cor==='white'?'wK':'bK')) { kr=r; kc=c; }
+  if(kr<0) return false;
+  const opp = cor==='white'?'b':'w';
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    if(b[r][c]&&b[r][c][0]===opp) {
+      const ms = getMovimentos(r,c,b,opp==='w'?'white':'black',false);
+      if(ms.some(([mr,mc])=>mr===kr&&mc===kc)) return true;
+    }
+  }
+  return false;
+}
+
+function temAlgumMovimento(cor) {
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    const p = board[r][c];
+    if(p&&p[0]===(cor==='white'?'w':'b')) {
+      if(getMovimentos(r,c,board,cor,true).length>0) return true;
+    }
+  }
+  return false;
+}
+
+// ===== BOT IA =====
+const VALORES_PECAS = {P:100,N:320,B:330,R:500,Q:900,K:20000};
+const BONUS_POS = {
+  P:[[0,0,0,0,0,0,0,0],[50,50,50,50,50,50,50,50],[10,10,20,30,30,20,10,10],[5,5,10,25,25,10,5,5],[0,0,0,20,20,0,0,0],[5,-5,-10,0,0,-10,-5,5],[5,10,10,-20,-20,10,10,5],[0,0,0,0,0,0,0,0]],
+  N:[[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,0,0,0,-20,-40],[-30,0,10,15,15,10,0,-30],[-30,5,15,20,20,15,5,-30],[-30,0,15,20,20,15,0,-30],[-30,5,10,15,15,10,5,-30],[-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]],
+};
+
+function avaliarTabuleiro(b) {
+  let score = 0;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    const p = b[r][c];
+    if(!p) continue;
+    const val = VALORES_PECAS[p[1]]||0;
+    const bonus = BONUS_POS[p[1]] ? (BONUS_POS[p[1]][p[0]==='w'?r:7-r][c]||0) : 0;
+    score += p[0]==='b' ? (val+bonus) : -(val+bonus);
+  }
+  return score;
+}
+
+function minimax(b, depth, alpha, beta, maximizing) {
+  if(depth===0) return avaliarTabuleiro(b);
+  const cor = maximizing ? 'black' : 'white';
+  const cChar = maximizing ? 'b' : 'w';
+  let best = maximizing ? -Infinity : Infinity;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    const p = b[r][c];
+    if(!p||p[0]!==cChar) continue;
+    const moves = getMovimentos(r,c,b,cor,false).filter(([nr,nc])=>!deixaEmCheck(r,c,nr,nc,b,cor));
+    for(const [nr,nc] of moves) {
+      const nb = b.map(row=>[...row]);
+      nb[nr][nc]=nb[r][c]; nb[r][c]=null;
+      if(nb[nr][nc]==='bP'&&nr===7) nb[nr][nc]='bQ';
+      const val = minimax(nb, depth-1, alpha, beta, !maximizing);
+      if(maximizing) { best=Math.max(best,val); alpha=Math.max(alpha,val); }
+      else { best=Math.min(best,val); beta=Math.min(beta,val); }
+      if(beta<=alpha) break;
+    }
+  }
+  return best===Infinity||best===-Infinity ? 0 : best;
+}
+
+function jogadaBot() {
+  if(!botMode||turn!=='black') return;
+  let bestVal=-Infinity, bestMove=null;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) {
+    const p = board[r][c];
+    if(!p||p[0]!=='b') continue;
+    const moves = getMovimentos(r,c,board,'black',true);
+    for(const [nr,nc] of moves) {
+      const nb = board.map(row=>[...row]);
+      nb[nr][nc]=nb[r][c]; nb[r][c]=null;
+      const val = minimax(nb,2,-Infinity,Infinity,false);
+      if(val>bestVal) { bestVal=val; bestMove=[r,c,nr,nc]; }
+    }
+  }
+  if(bestMove) fazerMovimento(bestMove[0],bestMove[1],bestMove[2],bestMove[3],true);
+}
+
+function encerrarJogo(vencedor, motivo) {
+  clearInterval(timerInterval);
+  mostrar('result');
+  const ganhou = vencedor === myColor || (botMode && vencedor==='white');
+  const empate = !vencedor;
+  document.getElementById('resEmoji').textContent = empate?'🤝':ganhou?'🏆':'😢';
+  document.getElementById('resTitle').textContent = empate?'EMPATE!':ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
+  document.getElementById('resTitle').style.color = empate?'var(--gold)':ganhou?'var(--gold)':'#ef4444';
+  if(botMode) {
+    document.getElementById('resPrize').textContent = motivo + ' — Modo treino';
+  } else {
+    const prize = (valorSel*1.75).toFixed(2).replace('.',',');
+    document.getElementById('resPrize').textContent = ganhou ? `🏆 +R$ ${prize}` : `${motivo}`;
+  }
+}
+
+function jogarBot() {
+  botMode = true;
+  myColor = 'white';
+  iniciarTabuleiro();
+  capturedByWhite=[]; capturedByBlack=[];
+  turn = 'white';
+  document.getElementById('myName').textContent = usuario.nome||'Você';
+  document.getElementById('oppName').textContent = '🤖 Bot';
+  document.getElementById('myColor').style.background = '#fff';
+  document.getElementById('oppColor').style.background = '#333';
+  document.getElementById('arenaBadge')&&(document.getElementById('arenaBadge').textContent='TREINO');
+  mostrar('game');
+  atualizarStatus();
+  atualizarCaptured();
+  renderBoard();
+  iniciarTimer();
+}
+
+function iniciarTimer() {
+  timeLeft = 600;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const m = Math.floor(timeLeft/60);
+    const s = timeLeft%60;
+    document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    if(timeLeft<=0) { clearInterval(timerInterval); encerrarJogo(turn==='white'?'black':'white','Tempo esgotado!'); }
+  }, 1000);
+}
+
+// ===== ONLINE =====
+function conectar() {
+  socket = io();
+  socket.on('chess_start', data => {
+    myColor = data.color;
+    botMode = false;
+    iniciarTabuleiro();
+    capturedByWhite=[]; capturedByBlack=[];
+    turn = 'white';
+    document.getElementById('myName').textContent = usuario.nome||'Você';
+    document.getElementById('oppName').textContent = data.oppName||'Adversário';
+    document.getElementById('myColor').style.background = myColor==='white'?'#fff':'#333';
+    document.getElementById('oppColor').style.background = myColor==='white'?'#333':'#fff';
+    mostrar('game');
+    atualizarStatus();
+    renderBoard();
+    iniciarTimer();
+  });
+  socket.on('chess_move', data => {
+    const [fr,fc]=data.from, [tr,tc]=data.to;
+    const captured = board[tr][tc];
+    if(captured) { if(captured[0]==='w') capturedByBlack.push(captured); else capturedByWhite.push(captured); }
+    board[tr][tc]=board[fr][fc]; board[fr][fc]=null;
+    if(board[tr][tc]==='wP'&&tr===0) board[tr][tc]='wQ';
+    if(board[tr][tc]==='bP'&&tr===7) board[tr][tc]='bQ';
+    turn = turn==='white'?'black':'white';
+    atualizarCaptured();
+    atualizarStatus();
+    renderBoard();
+  });
+  socket.on('chess_end', data => encerrarJogo(data.winner, data.reason||''));
+}
+
+function entrarFila() {
+  if(!token){alert('Faça login!');return;}
+  if((usuario.saldo||0)<valorSel){alert('Saldo insuficiente!');return;}
+  if(!socket) conectar();
+  mostrar('waiting');
+  document.getElementById('waitValor').textContent = valorSel.toFixed(2).replace('.',',');
+  socket.emit('chess_join', {valor:valorSel, token});
+}
+
+function cancelar() {
+  if(socket) socket.emit('chess_leave');
+  mostrar('lobby');
+}
+
+function voltarLobby() {
+  clearInterval(timerInterval);
+  botMode=false; turn='white'; board=[]; selectedCell=null; possibleMoves=[];
+  mostrar('lobby');
+}
+
+function mostrar(id) {
+  ['lobby','waiting','game','result'].forEach(x=>{
+    document.getElementById(x).style.display = x===id?(x==='lobby'?'block':'flex'):'none';
+  });
+}
+</script>
+</body>
+</html>

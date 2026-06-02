@@ -544,4 +544,70 @@ io.on('connection', (socketF) => {
   });
 });
 
+
+// ===== XADREZ MULTIPLAYER =====
+const xadrezFilas = {}; // valor -> [jogadores]
+const xadrezPartidas = {}; // roomId -> { p1, p2, valor }
+
+io.on('connection', (socketX) => {
+  socketX.on('chess_join', async ({ valor, token: tkn }) => {
+    try {
+      const decoded = jwt.verify(tkn, JWT_SECRET);
+      const userId = decoded.id;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = rows[0];
+      if (!user || user.saldo < valor) { socketX.emit('chess_error', { msg: 'Saldo insuficiente' }); return; }
+
+      if (!xadrezFilas[valor]) xadrezFilas[valor] = [];
+      xadrezFilas[valor] = xadrezFilas[valor].filter(j => j.userId !== userId);
+
+      if (xadrezFilas[valor].length > 0) {
+        const oponente = xadrezFilas[valor].shift();
+        const roomId = `chess_${Date.now()}`;
+
+        await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, userId]);
+        await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, oponente.userId]);
+
+        xadrezPartidas[roomId] = { p1: oponente, p2: { socket: socketX, userId, nome: user.nome }, valor };
+
+        socketX.join(roomId);
+        oponente.socket.join(roomId);
+
+        oponente.socket.emit('chess_start', { color: 'white', oppName: user.nome, valor });
+        socketX.emit('chess_start', { color: 'black', oppName: oponente.nome, valor });
+
+        xadrezPartidas[roomId].room = roomId;
+      } else {
+        xadrezFilas[valor].push({ socket: socketX, userId, nome: user.nome });
+      }
+    } catch(e) { socketX.emit('chess_error', { msg: 'Erro de autenticação' }); }
+  });
+
+  socketX.on('chess_move', (data) => {
+    const partida = Object.values(xadrezPartidas).find(p => p.p1.socket.id===socketX.id || p.p2.socket.id===socketX.id);
+    if (!partida) return;
+    const outro = partida.p1.socket.id===socketX.id ? partida.p2.socket : partida.p1.socket;
+    outro.emit('chess_move', data);
+  });
+
+  socketX.on('chess_end', async ({ winner, reason }) => {
+    const entry = Object.entries(xadrezPartidas).find(([,p]) => p.p1.socket.id===socketX.id || p.p2.socket.id===socketX.id);
+    if (!entry) return;
+    const [roomId, partida] = entry;
+    const winnerId = winner==='white' ? partida.p1.userId : partida.p2.userId;
+    const prize = parseFloat((partida.valor * 1.75).toFixed(2));
+    await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [prize, winnerId]);
+    await pool.query('INSERT INTO transacoes (user_id, tipo, valor, descricao, status) VALUES ($1,$2,$3,$4,$5)',
+      [winnerId, 'ganho', prize, `Vitória Xadrez R$${partida.valor}`, 'concluido']);
+    io.to(roomId).emit('chess_end', { winner, reason });
+    delete xadrezPartidas[roomId];
+  });
+
+  socketX.on('chess_leave', () => {
+    Object.keys(xadrezFilas).forEach(v => {
+      xadrezFilas[v] = xadrezFilas[v].filter(j => j.socket.id !== socketX.id);
+    });
+  });
+});
+
 server.listen(3000, () => console.log('✅ Betx1 rodando em http://localhost:3000'));
