@@ -46,6 +46,13 @@
       <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"/></div>
       <div class="field"><label>Senha</label><input type="password" id="regSenha" placeholder="Mínimo 6 caracteres"/></div>
       <div class="field"><label>Confirmar senha</label><input type="password" id="regSenha2" placeholder="Repita a senha"/></div>
+      <div class="field">
+        <label>Celular</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 10px;font-size:13px;color:var(--muted);white-space:nowrap;">🇧🇷 +55</span>
+          <input type="tel" id="regTelefone" placeholder="(11) 99999-9999" maxlength="15" oninput="mascaraTel(this)" style="flex:1;"/>
+        </div>
+      </div>
       <div style="display:flex;align-items:flex-start;gap:10px;margin:12px 0;padding:12px;background:rgba(240,192,64,.05);border:1px solid rgba(240,192,64,.2);border-radius:8px;">
         <input type="checkbox" id="checkIdade" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;cursor:pointer;">
         <label for="checkIdade" style="font-size:13px;color:var(--text);cursor:pointer;">Declaro que tenho <strong style="color:var(--gold);">18 anos ou mais</strong> e concordo com os <span onclick="abrirTermos()" style="color:var(--gold);text-decoration:underline;cursor:pointer;">Termos de Uso</span></label>
@@ -89,7 +96,7 @@
       </div>
       <div class="game-card" onclick="window.location.href='/flappy.html'">
         <div class="game-thumb" style="background:linear-gradient(135deg,#1a0a2e,#2d1a4a);">🐦<span class="gbadge new">NOVO</span></div>
-        <div class="game-info"><div class="gname">Flappy Bet</div><div class="gdesc">2-5 jogadores · Apostas</div><div class="gplayers">● Disponível</div></div>
+        <div class="game-info"><div class="gname">Flappy Duelo</div><div class="gdesc">2-5 jogadores · Apostas</div><div class="gplayers">● Disponível</div></div>
       </div>
       <div class="game-card" onclick="openGame('buraco')">
         <div class="game-thumb red">🎴<span class="gbadge new">NOVO</span></div>

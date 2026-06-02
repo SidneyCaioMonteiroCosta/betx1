@@ -85,11 +85,14 @@ async function doRegister() {
   if (!nome || !email || !senha) { err.textContent = 'Preencha todos os campos!'; return; }
   if (senha !== senha2) { err.textContent = 'Senhas não coincidem!'; return; }
   if (senha.length < 6) { err.textContent = 'Senha muito curta!'; return; }
+  const telefone = document.getElementById('regTelefone').value.trim();
+  if (!telefone) { err.textContent = 'Informe seu número de celular!'; return; }
+  if (!validarTelBR(telefone)) { err.textContent = 'Número inválido! Use um celular brasileiro válido (ex: (11) 99999-9999)'; return; }
   if (!document.getElementById('checkIdade').checked) { err.textContent = 'Você deve ter 18 anos ou mais e aceitar os Termos de Uso!'; return; }
   try {
     const res = await fetch('/api/cadastro', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, email, senha })
+      body: JSON.stringify({ nome, email, senha, telefone })
     });
     const data = await res.json();
     if (!res.ok) { err.textContent = data.erro; return; }
@@ -448,6 +451,25 @@ async function pagarSaque(id) {
     await fetch(`/api/admin/saques/${id}/pagar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
     loadAdmin();
   } catch {}
+}
+
+function mascaraTel(input) {
+  let v = input.value.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  if (v.length > 7) v = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7);
+  else if (v.length > 2) v = '(' + v.slice(0,2) + ') ' + v.slice(2);
+  else if (v.length > 0) v = '(' + v;
+  input.value = v;
+}
+
+function validarTelBR(tel) {
+  const nums = tel.replace(/\D/g, '');
+  // Celular brasileiro: 11 dígitos, DDD + 9 + 8 dígitos
+  if (nums.length !== 11) return false;
+  if (nums[2] !== '9') return false; // celular começa com 9
+  const ddd = parseInt(nums.slice(0,2));
+  if (ddd < 11 || ddd > 99) return false;
+  return true;
 }
 
 function abrirTermos() {

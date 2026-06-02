@@ -41,8 +41,10 @@ async function initDB() {
         saldo REAL DEFAULT 0,
         saldo_treino REAL DEFAULT 1000,
         cpf TEXT DEFAULT '',
+        telefone TEXT DEFAULT '',
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS telefone TEXT DEFAULT '';
       CREATE TABLE IF NOT EXISTS transacoes (
         id SERIAL PRIMARY KEY,
         user_id INTEGER,
@@ -91,8 +93,8 @@ app.post('/api/cadastro', async (req, res) => {
   try {
     const hash = await bcrypt.hash(senha, 10);
     const result = await pool.query(
-      'INSERT INTO users (nome, email, senha, saldo, saldo_treino, cpf) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [nome, email, hash, 0, 1000, cpf || '']
+      'INSERT INTO users (nome, email, senha, saldo, saldo_treino, cpf, telefone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      [nome, email, hash, 0, 1000, cpf || '', req.body.telefone || '']
     );
     const token = jwt.sign({ id: result.rows[0].id, email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, nome, email, saldo: 0, saldo_treino: 1000 });
