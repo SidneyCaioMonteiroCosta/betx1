@@ -235,7 +235,7 @@ function criarEstado(valor) {
     ball: { x: 0.5, y: 0.5, vx: 0.003, vy: 0.005, r: 0.03 },
     m1: { x: 0.5, y: 0.75 },
     m2: { x: 0.5, y: 0.25 },
-    mallet_r: 0.09,
+    mallet_r: 0.075,
     score1: 0,
     score2: 0,
     valor
