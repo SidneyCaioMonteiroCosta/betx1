@@ -110,8 +110,8 @@ canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--b
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const token = localStorage.getItem('betx1_token');
-const usuario = JSON.parse(localStorage.getItem('betx1_user') || '{}');
+const token = localStorage.getItem('superduelo_token');
+const usuario = JSON.parse(localStorage.getItem('superduelo_user') || '{}');
 document.getElementById('saldoHeader').textContent = (usuario.saldo || 0).toFixed(2).replace('.', ',');
 
 let socket = null;
@@ -394,7 +394,7 @@ function onGameEnd(data) {
   } else {
     usuario.saldo = Math.max(0, (usuario.saldo || 0) - data.valor);
   }
-  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  localStorage.setItem('superduelo_user', JSON.stringify(usuario));
   document.getElementById('saldoHeader').textContent = usuario.saldo.toFixed(2).replace('.', ',');
 }
 
