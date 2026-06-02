@@ -415,7 +415,9 @@ const flappyConns = {};
 function calcularPremios(ranking, valor, tamanho) {
   const premios = {};
   ranking.forEach((j, i) => {
-    if (tamanho <= 3) {
+    if (tamanho === 2) {
+      premios[j.userId] = i === 0 ? parseFloat((valor * 1.75).toFixed(2)) : 0;
+    } else if (tamanho === 3) {
       premios[j.userId] = i === 0 ? parseFloat((valor * 2).toFixed(2)) : 0;
     } else if (tamanho === 4) {
       if (i === 0) premios[j.userId] = parseFloat((valor * 2).toFixed(2));
