@@ -11,8 +11,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
 .logo{font-family:sans-serif;font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;}
 .back-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
-
-/* LOBBY */
 #lobby{width:100%;max-width:480px;padding:16px;}
 .arena-title{font-size:22px;font-weight:700;color:var(--gold);margin:16px 0 8px;text-align:center;}
 .arena-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
@@ -22,16 +20,14 @@ header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px 
 .premio-info{background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.8;display:none;}
 .play-btn{width:100%;padding:16px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;letter-spacing:2px;display:none;}
 .play-btn:hover{filter:brightness(1.1);}
-
-/* WAITING */
+.bot-btn{width:100%;padding:14px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;display:none;}
+.bot-btn:hover{background:rgba(0,200,83,.2);}
 #waiting{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
 .spinner{width:60px;height:60px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .wait-text{font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;}
 .wait-sub{font-size:13px;color:var(--muted);}
 .cancel-btn{margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
-
-/* GAME */
 #game{display:none;flex-direction:column;align-items:center;width:100%;}
 .score-bar{width:100%;max-width:480px;display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
 .score-player{text-align:center;}
@@ -40,8 +36,6 @@ header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px 
 .score-mid{font-size:12px;color:var(--muted);text-align:center;}
 .arena-badge{font-size:10px;color:var(--gold);background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);border-radius:20px;padding:2px 8px;margin-top:2px;}
 canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--border);border-right:2px solid var(--border);}
-
-/* RESULT */
 #result{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
 .result-emoji{font-size:72px;margin-bottom:16px;}
 .result-title{font-size:36px;font-weight:900;margin-bottom:8px;}
@@ -57,7 +51,6 @@ canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--b
   <div style="margin-left:auto;font-size:13px;color:var(--gold);">💰 R$ <span id="saldoHeader">0,00</span></div>
 </header>
 
-<!-- LOBBY -->
 <div id="lobby">
   <div class="arena-title">⚡ Escolha o valor da aposta</div>
   <div class="arena-sub">Os dois jogadores apostam o mesmo valor.<br>Vencedor leva <strong style="color:var(--gold);">175%</strong> do valor apostado!</div>
@@ -77,17 +70,16 @@ canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--b
   </div>
   <div class="premio-info" id="premioInfo"></div>
   <button class="play-btn" id="playBtn" onclick="entrarFila()">⚡ JOGAR</button>
+  <button class="bot-btn" id="botBtn" onclick="jogarContraBot()">🤖 JOGAR CONTRA BOT</button>
 </div>
 
-<!-- WAITING -->
 <div id="waiting">
   <div class="spinner"></div>
   <div class="wait-text">Procurando adversário...</div>
-  <div class="wait-sub" id="waitSub">Aguardando outro jogador com R$ <span id="waitValor">0</span></div>
+  <div class="wait-sub">Aguardando outro jogador com R$ <span id="waitValor">0</span></div>
   <button class="cancel-btn" onclick="cancelarFila()">Cancelar</button>
 </div>
 
-<!-- GAME -->
 <div id="game">
   <div class="score-bar">
     <div class="score-player">
@@ -106,7 +98,6 @@ canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--b
   <canvas id="canvas"></canvas>
 </div>
 
-<!-- RESULT -->
 <div id="result">
   <div class="result-emoji" id="resultEmoji">🏆</div>
   <div class="result-title" id="resultTitle">VOCÊ VENCEU!</div>
@@ -118,13 +109,11 @@ canvas{display:block;touch-action:none;cursor:none;border-left:2px solid var(--b
 <script>
 const token = localStorage.getItem('betx1_token');
 const usuario = JSON.parse(localStorage.getItem('betx1_user') || '{}');
-
-// Atualiza saldo
 document.getElementById('saldoHeader').textContent = (usuario.saldo || 0).toFixed(2).replace('.', ',');
 
 let socket = null;
 let valorSel = 0;
-let myRole = null; // 'p1' ou 'p2'
+let myRole = null;
 let gameState = null;
 let animFrame = null;
 let canvas, ctx;
@@ -132,7 +121,192 @@ let W, H;
 let myMallet = { x: 0, y: 0 };
 let lastSent = 0;
 
-// CONEXÃO
+// ===== BOT MODE =====
+let botMode = false;
+let botState = null;
+let botScore = 0;
+let playerScore = 0;
+let botAnimFrame = null;
+
+function jogarContraBot() {
+  botMode = true;
+  mostrar('game');
+  document.getElementById('p1name').textContent = usuario.nome || 'Você';
+  document.getElementById('p2name').textContent = '🤖 Bot';
+  document.getElementById('arenaBadge').textContent = 'TREINO';
+  document.getElementById('p1score').textContent = '0';
+  document.getElementById('p2score').textContent = '0';
+  playerScore = 0;
+  botScore = 0;
+  initCanvas();
+  iniciarJogoBot();
+}
+
+function iniciarJogoBot() {
+  const bola = {
+    x: 0.5, y: 0.5,
+    vx: (Math.random() > 0.5 ? 1 : -1) * 0.007,
+    vy: 0.009,
+    r: 0.03
+  };
+  botState = {
+    ball: bola,
+    m1: { x: 0.5, y: 0.75 }, // jogador (baixo)
+    m2: { x: 0.5, y: 0.25 }, // bot (cima)
+    mallet_r: 0.06,
+    score1: 0,
+    score2: 0,
+    valor: 0
+  };
+  myRole = 'p1';
+  gameState = botState;
+  loopBot();
+}
+
+function loopBot() {
+  if (!botMode) return;
+  botAnimFrame = requestAnimationFrame(loopBot);
+  simularFisicaBot();
+  render();
+}
+
+function simularFisicaBot() {
+  const s = botState;
+  const b = s.ball;
+  const gw = 0.35;
+  const gx = (1 - gw) / 2;
+
+  b.x += b.vx;
+  b.y += b.vy;
+
+  // Paredes laterais
+  if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx); }
+  if (b.x + b.r > 1) { b.x = 1 - b.r; b.vx = -Math.abs(b.vx); }
+
+  // Gol de cima (bot marca no jogador)
+  if (b.y - b.r < 0) {
+    if (b.x > gx && b.x < gx + gw) {
+      s.score2++;
+      botScore = s.score2;
+      document.getElementById('p2score').textContent = s.score2;
+      if (s.score2 >= 7) { encerrarBot(false); return; }
+      resetBola(s, 'bot');
+    } else {
+      b.y = b.r; b.vy = Math.abs(b.vy);
+    }
+  }
+
+  // Gol de baixo (jogador marca no bot)
+  if (b.y + b.r > 1) {
+    if (b.x > gx && b.x < gx + gw) {
+      s.score1++;
+      playerScore = s.score1;
+      document.getElementById('p1score').textContent = s.score1;
+      if (s.score1 >= 7) { encerrarBot(true); return; }
+      resetBola(s, 'player');
+    } else {
+      b.y = 1 - b.r; b.vy = -Math.abs(b.vy);
+    }
+  }
+
+  // Colisão mallets
+  colidirMallet(b, s.m1, s.mallet_r);
+  colidirMallet(b, s.m2, s.mallet_r);
+
+  // Limitar velocidade
+  const maxV = 0.02;
+  const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+  if (spd > maxV) { b.vx = b.vx/spd*maxV; b.vy = b.vy/spd*maxV; }
+  if (spd < 0.004) { b.vx *= 1.1; b.vy *= 1.1; }
+
+  // IA do Bot — inteligente e desafiadora
+  moverBot(s);
+}
+
+function moverBot(s) {
+  const b = s.ball;
+  const bot = s.m2;
+  const velocidade = 0.025; // velocidade do bot
+
+  // Prever onde a bola vai estar
+  let previsaoX = b.x;
+  let previsaoY = b.y;
+  let pvx = b.vx;
+  let pvy = b.vy;
+
+  // Simular trajetória da bola por alguns frames
+  for (let i = 0; i < 15; i++) {
+    previsaoX += pvx;
+    previsaoY += pvy;
+    if (previsaoX < 0 || previsaoX > 1) pvx *= -1;
+    if (previsaoY < 0) pvy = Math.abs(pvy);
+  }
+
+  // Posição alvo do bot
+  let alvoX = previsaoX;
+  let alvoY = 0.15; // manter na metade de cima
+
+  // Se a bola está vindo em direção ao bot, interceptar agressivamente
+  if (b.vy < 0 && b.y < 0.5) {
+    alvoX = previsaoX;
+    alvoY = Math.max(0.08, previsaoY + 0.05);
+  } else {
+    // Bola indo para baixo — posição defensiva/estratégica
+    alvoX = 0.5 + (b.x - 0.5) * 0.3;
+    alvoY = 0.2;
+  }
+
+  // Mover em direção ao alvo
+  const dx = alvoX - bot.x;
+  const dy = alvoY - bot.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+
+  if (dist > 0.01) {
+    bot.x += (dx/dist) * Math.min(velocidade, dist);
+    bot.y += (dy/dist) * Math.min(velocidade, dist);
+  }
+
+  // Limitar à metade de cima
+  bot.x = Math.max(0.06, Math.min(0.94, bot.x));
+  bot.y = Math.max(0.06, Math.min(0.44, bot.y));
+}
+
+function colidirMallet(b, m, mr) {
+  const dx = b.x - m.x;
+  const dy = b.y - m.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < b.r + mr && dist > 0) {
+    const nx = dx/dist;
+    const ny = dy/dist;
+    const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+    b.vx = nx * (spd + 0.003);
+    b.vy = ny * (spd + 0.003);
+    b.x = m.x + nx * (b.r + mr + 0.001);
+    b.y = m.y + ny * (b.r + mr + 0.001);
+  }
+}
+
+function resetBola(s, quemMarcou) {
+  s.ball.x = 0.5;
+  s.ball.y = 0.5;
+  s.ball.vx = (Math.random() - 0.5) * 0.01;
+  s.ball.vy = quemMarcou === 'player' ? -0.009 : 0.009;
+}
+
+function encerrarBot(ganhou) {
+  cancelAnimationFrame(botAnimFrame);
+  botMode = false;
+  botState = null;
+  gameState = null;
+  mostrar('result');
+  document.getElementById('resultEmoji').textContent = ganhou ? '🏆' : '😢';
+  document.getElementById('resultTitle').textContent = ganhou ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
+  document.getElementById('resultTitle').style.color = ganhou ? 'var(--gold)' : '#ef4444';
+  document.getElementById('resultPrize').textContent = ganhou ? '🎮 Modo treino — sem apostas' : '🤖 O bot venceu desta vez!';
+  document.getElementById('resultPrize').style.color = ganhou ? 'var(--green)' : '#ef4444';
+}
+
+// ===== MODO ONLINE =====
 function conectar() {
   socket = io({ auth: { token } });
   socket.on('connect', () => console.log('Conectado!'));
@@ -144,10 +318,11 @@ function conectar() {
 
 function voltarLobbyPrincipal() {
   if (socket) socket.disconnect();
+  cancelAnimationFrame(botAnimFrame);
+  botMode = false;
   window.location.href = '/';
 }
 
-// SELEÇÃO DE VALOR
 function selecionarValor(v, el) {
   valorSel = v;
   document.querySelectorAll('.valor-btn').forEach(b => b.classList.remove('sel'));
@@ -161,9 +336,9 @@ function selecionarValor(v, el) {
     📊 Taxa da plataforma: R$ ${taxa} (25%)
   `;
   document.getElementById('playBtn').style.display = 'block';
+  document.getElementById('botBtn').style.display = 'block';
 }
 
-// ENTRAR NA FILA
 function entrarFila() {
   if (!token) { alert('Faça login primeiro!'); return; }
   if ((usuario.saldo || 0) < valorSel) { alert('Saldo insuficiente!'); return; }
@@ -178,9 +353,9 @@ function cancelarFila() {
   mostrar('lobby');
 }
 
-// GAME START
 function onGameStart(data) {
   myRole = data.role;
+  botMode = false;
   mostrar('game');
   document.getElementById('p1name').textContent = data.p1name || 'Jogador 1';
   document.getElementById('p2name').textContent = data.p2name || 'Jogador 2';
@@ -204,7 +379,6 @@ function onGameEnd(data) {
   const prize = ganhou ? '+R$ ' + data.prize.toFixed(2).replace('.', ',') : '-R$ ' + data.valor.toFixed(2).replace('.', ',');
   document.getElementById('resultPrize').textContent = prize;
   document.getElementById('resultPrize').style.color = ganhou ? 'var(--green)' : '#ef4444';
-  // Atualiza saldo local
   if (ganhou) {
     usuario.saldo = (usuario.saldo || 0) + data.prize - data.valor;
   } else {
@@ -214,7 +388,6 @@ function onGameEnd(data) {
   document.getElementById('saldoHeader').textContent = usuario.saldo.toFixed(2).replace('.', ',');
 }
 
-// CANVAS
 function initCanvas() {
   canvas = document.getElementById('canvas');
   ctx = canvas.getContext('2d');
@@ -223,7 +396,6 @@ function initCanvas() {
   canvas.width = W;
   canvas.height = H;
 
-  // Touch/Mouse
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     const t = e.touches[0];
@@ -235,12 +407,20 @@ function initCanvas() {
     moveMallet(e.clientX - rect.left, e.clientY - rect.top);
   });
 
-  animFrame = requestAnimationFrame(render);
+  if (!botMode) animFrame = requestAnimationFrame(render);
 }
 
 function moveMallet(x, y) {
   myMallet.x = x / W;
   myMallet.y = y / H;
+
+  if (botMode && botState) {
+    // No modo bot, mover mallet do jogador diretamente
+    botState.m1.x = Math.max(0.06, Math.min(0.94, myMallet.x));
+    botState.m1.y = Math.max(0.56, Math.min(0.94, myMallet.y));
+    return;
+  }
+
   const now = Date.now();
   if (now - lastSent > 30) {
     socket.emit('mallet_move', { x: myMallet.x, y: myMallet.y });
@@ -249,8 +429,10 @@ function moveMallet(x, y) {
 }
 
 function render() {
-  if (!ctx || !gameState) { animFrame = requestAnimationFrame(render); return; }
+  if (!ctx) { animFrame = requestAnimationFrame(render); return; }
   const s = gameState;
+  if (!s) { animFrame = requestAnimationFrame(render); return; }
+
   ctx.clearRect(0, 0, W, H);
 
   // Fundo
@@ -260,7 +442,7 @@ function render() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Linhas da arena
+  // Linha central
   ctx.strokeStyle = 'rgba(240,192,64,.3)';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -295,9 +477,8 @@ function render() {
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // Mallets
+  // Mallet P1 (jogador - azul)
   const mr = s.mallet_r * W;
-  // P1 (azul)
   ctx.beginPath();
   ctx.arc(s.m1.x * W, s.m1.y * H, mr, 0, Math.PI*2);
   ctx.fillStyle = myRole === 'p1' ? '#1a8cff' : 'rgba(26,140,255,.6)';
@@ -306,30 +487,41 @@ function render() {
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // P2 (vermelho)
+  // Mallet P2 (bot/adversário - vermelho)
   ctx.beginPath();
   ctx.arc(s.m2.x * W, s.m2.y * H, mr, 0, Math.PI*2);
-  ctx.fillStyle = myRole === 'p2' ? '#ef4444' : 'rgba(239,68,68,.6)';
-  ctx.shadowColor = '#ef4444';
+  ctx.fillStyle = botMode ? '#00c853' : (myRole === 'p2' ? '#ef4444' : 'rgba(239,68,68,.6)');
+  ctx.shadowColor = botMode ? '#00c853' : '#ef4444';
   ctx.shadowBlur = 20;
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  animFrame = requestAnimationFrame(render);
+  // Label bot
+  if (botMode) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🤖', s.m2.x * W, s.m2.y * H + 4);
+    ctx.textAlign = 'left';
+  }
+
+  if (!botMode) animFrame = requestAnimationFrame(render);
 }
 
 function voltarLobby() {
+  cancelAnimationFrame(animFrame);
+  cancelAnimationFrame(botAnimFrame);
+  botMode = false;
+  botState = null;
+  gameState = null;
   mostrar('lobby');
 }
 
 function mostrar(id) {
   ['lobby','waiting','game','result'].forEach(x => {
     const el = document.getElementById(x);
-    el.style.display = x === id ? 'flex' : 'none';
+    el.style.display = x === id ? (x === 'lobby' ? 'block' : 'flex') : 'none';
   });
-  if (id === 'lobby') {
-    document.getElementById('lobby').style.display = 'block';
-  }
 }
 </script>
 </body>
