@@ -630,4 +630,4 @@ io.on('connection', (socketX) => {
   });
 });
 
-server.listen(3000, () => console.log('✅ Betx1 rodando em http://localhost:3000'));
+server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

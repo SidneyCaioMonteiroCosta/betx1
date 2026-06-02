@@ -1,6 +1,6 @@
 const API = '';
-let token = localStorage.getItem('betx1_token');
-let usuario = JSON.parse(localStorage.getItem('betx1_user') || 'null');
+let token = localStorage.getItem('superduelo_token');
+let usuario = JSON.parse(localStorage.getItem('superduelo_user') || 'null');
 let modalType = 'dep';
 let pixAmt = 0;
 let pixId = null;
@@ -66,10 +66,10 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) { err.textContent = data.erro; return; }
     token = data.token;
-    localStorage.setItem('betx1_token', token);
+    localStorage.setItem('superduelo_token', token);
     if (data.admin) {
       usuario = { admin: true, email };
-      localStorage.setItem('betx1_user', JSON.stringify(usuario));
+      localStorage.setItem('superduelo_user', JSON.stringify(usuario));
       enterAdmin();
     } else { saveUser(data); enterApp(); }
   } catch { err.textContent = 'Erro de conexão'; }
@@ -85,6 +85,7 @@ async function doRegister() {
   if (!nome || !email || !senha) { err.textContent = 'Preencha todos os campos!'; return; }
   if (senha !== senha2) { err.textContent = 'Senhas não coincidem!'; return; }
   if (senha.length < 6) { err.textContent = 'Senha muito curta!'; return; }
+  if (!document.getElementById('checkIdade').checked) { err.textContent = 'Você deve ter 18 anos ou mais e aceitar os Termos de Uso!'; return; }
   try {
     const res = await fetch('/api/cadastro', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -104,8 +105,8 @@ function saveUser(data) {
     avatar: data.avatar || '😎',
     notif_deposito: true, notif_saque: true
   };
-  localStorage.setItem('betx1_token', token);
-  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  localStorage.setItem('superduelo_token', token);
+  localStorage.setItem('superduelo_user', JSON.stringify(usuario));
 }
 
 function enterApp() {
@@ -134,8 +135,8 @@ function updateBalanceUI() {
 function logout() {
   if (!confirm('Sair da conta?')) return;
   token = null; usuario = null;
-  localStorage.removeItem('betx1_token');
-  localStorage.removeItem('betx1_user');
+  localStorage.removeItem('superduelo_token');
+  localStorage.removeItem('superduelo_user');
   showScreen('splash');
 }
 
@@ -147,7 +148,7 @@ async function carregarPerfil() {
     usuario.nome = d.nome;
     usuario.email = d.email;
     usuario.saldo = d.saldo;
-    localStorage.setItem('betx1_user', JSON.stringify(usuario));
+    localStorage.setItem('superduelo_user', JSON.stringify(usuario));
   } catch {}
   document.getElementById('profileName').textContent = usuario.nome || '-';
   document.getElementById('profileEmail').textContent = usuario.email || '-';
@@ -187,7 +188,7 @@ function selecionarAvatar(av, el) {
   el.style.border = '2px solid var(--gold)';
   el.style.background = 'rgba(240,192,64,.1)';
   atualizarAvatar();
-  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  localStorage.setItem('superduelo_user', JSON.stringify(usuario));
 }
 
 async function salvarPerfil() {
@@ -215,7 +216,7 @@ async function salvarPerfil() {
     if (!res.ok) { msg.textContent = data.erro; msg.style.color = '#ef4444'; return; }
 
     usuario.nome = nome;
-    localStorage.setItem('betx1_user', JSON.stringify(usuario));
+    localStorage.setItem('superduelo_user', JSON.stringify(usuario));
     document.getElementById('profileName').textContent = nome;
     msg.textContent = '✅ Perfil atualizado!';
     msg.style.color = '#00c853';
@@ -236,7 +237,7 @@ function fecharNotificacoes() {
 function salvarNotificacoes() {
   usuario.notif_deposito = document.getElementById('notifDeposito').checked;
   usuario.notif_saque = document.getElementById('notifSaque').checked;
-  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  localStorage.setItem('superduelo_user', JSON.stringify(usuario));
   fecharNotificacoes();
   mostrarToast('✅ Notificações salvas!');
 }
@@ -334,7 +335,7 @@ async function confirmarDep() {
         if (d.status === 'approved') {
           clearInterval(pixCheckInterval);
           usuario.saldo = d.saldo;
-          localStorage.setItem('betx1_user', JSON.stringify(usuario));
+          localStorage.setItem('superduelo_user', JSON.stringify(usuario));
           updateBalanceUI();
           document.getElementById('depOk').style.display = 'block';
           document.getElementById('qrArea').style.display = 'none';
@@ -364,7 +365,7 @@ async function confirmarSaq() {
     const data = await res.json();
     if (!res.ok) { alert(data.erro); return; }
     usuario.saldo = data.saldo;
-    localStorage.setItem('betx1_user', JSON.stringify(usuario));
+    localStorage.setItem('superduelo_user', JSON.stringify(usuario));
     updateBalanceUI();
     document.getElementById('saqOk').style.display = 'block';
     notificarTransacao('saque', valor);
@@ -399,7 +400,7 @@ function jogarTreino(jogo) {
 
 function recarregarFichas() {
   usuario.saldo_treino = 1000;
-  localStorage.setItem('betx1_user', JSON.stringify(usuario));
+  localStorage.setItem('superduelo_user', JSON.stringify(usuario));
   updateBalanceUI();
   mostrarToast('✅ Fichas recarregadas!');
 }
@@ -447,6 +448,14 @@ async function pagarSaque(id) {
     await fetch(`/api/admin/saques/${id}/pagar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
     loadAdmin();
   } catch {}
+}
+
+function abrirTermos() {
+  document.getElementById('modalTermos').style.display = 'flex';
+}
+
+function fecharTermos() {
+  document.getElementById('modalTermos').style.display = 'none';
 }
 
 function openGame(game) {

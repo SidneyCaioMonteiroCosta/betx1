@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Betx1</title>
+<title>Super Duelo</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,7 +18,7 @@
       <div class="mini-card">🎴</div>
       <div class="mini-card">🎲</div>
     </div>
-    <div class="logo">BETX1</div>
+    <div class="logo">SUPER DUELO</div>
     <div class="tagline">JOGUE · APOSTE · VENÇA</div>
     <div class="splash-btns">
       <button class="btn-primary" onclick="showAuth('login')">ENTRAR</button>
@@ -30,7 +30,7 @@
 <!-- AUTH -->
 <div id="auth" class="screen">
   <div class="auth-box">
-    <div class="logo small">BETX1</div>
+    <div class="logo small">SUPER DUELO</div>
     <div class="auth-tabs">
       <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Entrar</div>
       <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Cadastrar</div>
@@ -46,6 +46,10 @@
       <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="seu@email.com"/></div>
       <div class="field"><label>Senha</label><input type="password" id="regSenha" placeholder="Mínimo 6 caracteres"/></div>
       <div class="field"><label>Confirmar senha</label><input type="password" id="regSenha2" placeholder="Repita a senha"/></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin:12px 0;padding:12px;background:rgba(240,192,64,.05);border:1px solid rgba(240,192,64,.2);border-radius:8px;">
+        <input type="checkbox" id="checkIdade" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;cursor:pointer;">
+        <label for="checkIdade" style="font-size:13px;color:var(--text);cursor:pointer;">Declaro que tenho <strong style="color:var(--gold);">18 anos ou mais</strong> e concordo com os <span onclick="abrirTermos()" style="color:var(--gold);text-decoration:underline;cursor:pointer;">Termos de Uso</span></label>
+      </div>
       <div class="error-msg" id="regErr"></div>
       <button class="btn-primary" onclick="doRegister()">CRIAR CONTA GRÁTIS</button>
     </div>
@@ -56,7 +60,7 @@
 <!-- LOBBY -->
 <div id="lobby" class="screen">
   <div class="topbar">
-    <div class="logo small">BETX1</div>
+    <div class="logo small">SUPER DUELO</div>
     <div class="balance-pill" onclick="showScreen('wallet')">💰 R$ <span id="balanceTop">0,00</span></div>
     <div class="avatar" onclick="showScreen('profile')">😎</div>
   </div>
@@ -266,7 +270,7 @@
 <!-- ADMIN -->
 <div id="admin" class="screen">
   <div class="topbar">
-    <div class="logo small">BETX1</div>
+    <div class="logo small">SUPER DUELO</div>
     <div style="margin-left:auto;font-size:11px;color:var(--muted);">PAINEL ADMIN</div>
     <button class="back-btn" style="margin-left:8px;" onclick="logout()">🚪</button>
   </div>
@@ -329,5 +333,62 @@
 </div>
 
 <script src="app.js"></script>
+
+<!-- MODAL TERMOS DE USO -->
+<div id="modalTermos" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:16px;font-weight:700;color:var(--gold);">📋 Termos de Uso</div>
+      <button onclick="fecharTermos()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:20px;flex:1;font-size:13px;color:var(--text);line-height:1.7;">
+      <h3 style="color:var(--gold);margin-bottom:8px;">1. DEFINIÇÃO DA PLATAFORMA</h3>
+      <p style="margin-bottom:16px;">A Super Duelo é uma plataforma digital de organização e promoção de campeonatos, torneios e competições de jogos de habilidade. A plataforma conecta participantes interessados em competições baseadas exclusivamente em destreza, estratégia e capacidade técnica, nos moldes de eventos esportivos e competições presenciais de xadrez, damas e similares.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">2. NATUREZA DOS SERVIÇOS</h3>
+      <p style="margin-bottom:8px;">Os serviços prestados pela Super Duelo limitam-se a:</p>
+      <ul style="margin-left:16px;margin-bottom:16px;color:var(--muted);">
+        <li>Organizar e promover competições de jogos de habilidade</li>
+        <li>Fornecer infraestrutura tecnológica para registro de participantes e acompanhamento de resultados</li>
+        <li>Intermediar a cobrança de taxas de inscrição em campeonatos e torneios</li>
+        <li>Gerenciar a premiação aos vencedores, conforme regulamento de cada evento</li>
+      </ul>
+      <p style="margin-bottom:16px;">A Super Duelo não é operadora de apostas, não define odds, não assume risco financeiro e não participa das competições.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">3. JOGOS DE HABILIDADE</h3>
+      <p style="margin-bottom:16px;">Todas as competições realizadas através da plataforma são jogos de habilidade, nos quais o resultado depende exclusivamente da capacidade técnica, estratégia, treinamento e experiência dos participantes. Não há elemento de sorte, acaso ou aleatoriedade que determine o vencedor.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">4. TAXA DE INSCRIÇÃO E PREMIAÇÃO</h3>
+      <p style="margin-bottom:8px;">Para participar de determinados campeonatos e torneios, o participante deve pagar uma taxa de inscrição, cujo valor é definido no regulamento de cada evento. O valor arrecadado destina-se a:</p>
+      <ul style="margin-left:16px;margin-bottom:16px;color:var(--muted);">
+        <li>Formação do fundo de premiação do evento</li>
+        <li>Remuneração da Super Duelo pelo serviço de organização e intermediação tecnológica</li>
+        <li>Custos operacionais da plataforma</li>
+      </ul>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">5. RESPONSABILIDADE FINANCEIRA</h3>
+      <p style="margin-bottom:16px;">A Super Duelo recebe e gerencia temporariamente as taxas de inscrição para fins de organização do evento e premiação. O participante não deposita saldo na plataforma. O pagamento ocorre exclusivamente para inscrição em eventos específicos, com valor, data e regulamento pré-definidos.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">6. IDADE MÍNIMA</h3>
+      <p style="margin-bottom:16px;color:#ef4444;font-weight:600;">O uso da plataforma é estritamente proibido para menores de 18 anos. Ao cadastrar-se, o participante declara ter idade igual ou superior a 18 anos.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">7. LIMITAÇÃO DE RESPONSABILIDADE</h3>
+      <p style="margin-bottom:16px;">A Super Duelo não se responsabiliza por resultados das competições, conduta dos participantes ou cancelamento de eventos por motivos de força maior. A plataforma atua exclusivamente como organizadora e promotora de eventos esportivos digitais.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">8. CADASTRO E VERIFICAÇÃO</h3>
+      <p style="margin-bottom:16px;">O participante deve fornecer informações verdadeiras. A Super Duelo se reserva o direito de suspender ou cancelar contas que violem estes termos ou pratiquem fraude, manipulação de resultados ou uso de software não autorizado.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">9. LEGISLAÇÃO APLICÁVEL</h3>
+      <p style="margin-bottom:16px;">Estes termos são regidos pelas leis da República Federativa do Brasil, em especial as normas relativas a eventos esportivos e competições de habilidade.</p>
+
+      <h3 style="color:var(--gold);margin-bottom:8px;">10. ALTERAÇÕES</h3>
+      <p>A Super Duelo pode alterar estes termos a qualquer momento, com comunicação prévia aos usuários.</p>
+    </div>
+    <div style="padding:16px 20px;border-top:1px solid var(--border);">
+      <button onclick="fecharTermos()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--gold),#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">Li e Entendi</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
