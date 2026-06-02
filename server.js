@@ -31,35 +31,40 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Criar tabelas no PostgreSQL
 async function initDB() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      nome TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      senha TEXT NOT NULL,
-      saldo REAL DEFAULT 0,
-      saldo_treino REAL DEFAULT 1000,
-      cpf TEXT DEFAULT '',
-      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS transacoes (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER,
-      tipo TEXT,
-      valor REAL,
-      descricao TEXT,
-      status TEXT DEFAULT 'concluido',
-      pix_id TEXT,
-      chave_pix TEXT DEFAULT '',
-      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  console.log('✅ Banco de dados inicializado');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        senha TEXT NOT NULL,
+        saldo REAL DEFAULT 0,
+        saldo_treino REAL DEFAULT 1000,
+        cpf TEXT DEFAULT '',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS transacoes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        tipo TEXT,
+        valor REAL,
+        descricao TEXT,
+        status TEXT DEFAULT 'concluido',
+        pix_id TEXT,
+        chave_pix TEXT DEFAULT '',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Banco de dados inicializado com sucesso');
+  } catch (err) {
+    console.error('❌ Erro ao conectar no banco:', err.message);
+    console.error('❌ Detalhes:', err);
+    // Tenta reconectar após 5 segundos
+    console.log('🔄 Tentando reconectar em 5 segundos...');
+    setTimeout(initDB, 5000);
+  }
 }
-initDB().catch(err => {
-  console.error('❌ Erro ao conectar no banco:', err.message);
-  process.exit(1);
-});
+initDB();
 
 function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
