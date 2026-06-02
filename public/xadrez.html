@@ -99,6 +99,9 @@ header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px 
       <div class="player-name" id="oppName">Adversário</div>
     </div>
   </div>
+  <div style="width:100%;max-width:480px;padding:6px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;justify-content:flex-end;">
+    <button onclick="confirmarDesistir()" style="padding:5px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🏳️ Desistir</button>
+  </div>
   <div class="captured-bar">
     <span id="capturedByMe"></span>
     <span id="capturedByOpp"></span>
@@ -474,6 +477,35 @@ function encerrarJogo(vencedor, motivo) {
     document.getElementById('resPrize').textContent = ganhou ? `🏆 +R$ ${prize}` : `${motivo}`;
   }
 }
+
+function confirmarDesistir() {
+  if(confirm('Tem certeza que deseja desistir? Você perderá a aposta.')) {
+    desistir();
+  }
+}
+
+function desistir() {
+  clearInterval(timerInterval);
+  if(!botMode && socket) {
+    socket.emit('chess_end', { winner: myColor==='white'?'black':'white', reason: 'Desistência' });
+  }
+  encerrarJogo(botMode?'black':(myColor==='white'?'black':'white'), 'Você desistiu.');
+}
+
+window.addEventListener('beforeunload', (e) => {
+  const gameEl = document.getElementById('game');
+  if(gameEl && gameEl.style.display !== 'none') {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  const gameEl = document.getElementById('game');
+  if(document.visibilityState === 'hidden' && gameEl && gameEl.style.display !== 'none') {
+    // just warn, don't auto-resign
+  }
+});
 
 function jogarBot() {
   botMode = true;

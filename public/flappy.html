@@ -136,6 +136,9 @@
     <canvas id="canvas" width="360" height="500"></canvas>
     <div id="countdown" style="display:none"></div>
   </div>
+  <div style="width:100%;max-width:500px;padding:6px 0;display:flex;justify-content:flex-end;">
+    <button onclick="confirmarDesistir()" style="padding:5px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🏳️ Desistir</button>
+  </div>
   <div id="tap-hint">Toque ou pressione ESPAÇO para voar</div>
 </div>
 
@@ -557,6 +560,33 @@ function mostrarResultado(ranking, premios) {
     </div>`).join('');
   carregarSaldo();
 }
+
+function confirmarDesistir() {
+  if(confirm('Tem certeza que deseja desistir? Você perderá a aposta.')) {
+    desistir();
+  }
+}
+
+function desistir() {
+  gameAtivo = false;
+  cancelAnimationFrame(animId);
+  document.removeEventListener('keydown', pular);
+  if(!botMode) socket.emit('flappy_morreu', { pontos });
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('resultado-screen').style.display = 'block';
+  document.getElementById('resultado-titulo').textContent = '🏳️ Você Desistiu';
+  document.getElementById('resultado-titulo').className = 'resultado-titulo perdeu';
+  document.getElementById('resultado-valor').innerHTML = botMode ? 'Modo treino' : `Perdeu <span>R$ ${valorAposta.toFixed(2)}</span>`;
+  document.getElementById('ranking-lista').innerHTML = '';
+}
+
+window.addEventListener('beforeunload', (e) => {
+  const gameEl = document.getElementById('game-screen');
+  if(gameEl && gameEl.style.display !== 'none') {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 function voltarLobby() {
   gameAtivo = false;
