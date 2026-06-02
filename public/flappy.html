@@ -8,46 +8,33 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0a0a0f; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-
   #lobby, #game-screen, #resultado-screen { width: 100%; max-width: 500px; padding: 20px; }
-
   .logo { text-align: center; margin-bottom: 24px; }
   .logo h1 { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .logo p { color: #888; font-size: 0.9rem; margin-top: 4px; }
-
   .card { background: #13131a; border: 1px solid #2a2a3a; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
   .card h3 { color: #a855f7; font-size: 1rem; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
-
   .saldo-box { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #a855f7; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 20px; }
   .saldo-box .label { color: #888; font-size: 0.8rem; }
   .saldo-box .value { color: #a855f7; font-size: 1.8rem; font-weight: 700; }
-
   .grid-salas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
   .sala-btn { background: #1a1a2e; border: 2px solid #2a2a3a; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; text-align: center; }
   .sala-btn:hover, .sala-btn.ativo { border-color: #a855f7; background: #1f1f35; }
   .sala-btn .jogadores { font-size: 1.5rem; font-weight: 700; color: #fff; }
   .sala-btn .info { font-size: 0.75rem; color: #888; margin-top: 4px; }
   .sala-btn .premio { font-size: 0.7rem; color: #a855f7; margin-top: 6px; }
-
-  input[type=number] { width: 100%; background: #1a1a2e; border: 1px solid #2a2a3a; border-radius: 10px; padding: 12px 16px; color: #fff; font-size: 1rem; outline: none; }
-  input[type=number]:focus { border-color: #a855f7; }
-
   .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
   .btn-primary { background: linear-gradient(135deg, #a855f7, #ec4899); color: #fff; }
   .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
   .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   .btn-secondary { background: #2a2a3a; color: #fff; margin-top: 10px; }
-
   .aguardando { text-align: center; padding: 30px; }
   .aguardando .spinner { width: 50px; height: 50px; border: 3px solid #2a2a3a; border-top-color: #a855f7; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .aguardando h3 { color: #a855f7; margin-bottom: 8px; }
   .aguardando p { color: #888; font-size: 0.9rem; }
-
   .jogadores-lista { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
   .jogador-chip { background: #1f1f35; border: 1px solid #a855f7; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; color: #a855f7; }
-
-  /* GAME */
   #game-screen { display: none; flex-direction: column; align-items: center; padding: 10px; }
   #placar { display: flex; justify-content: space-around; width: 100%; max-width: 500px; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
   .placar-item { background: #13131a; border: 1px solid #2a2a3a; border-radius: 10px; padding: 8px 14px; text-align: center; min-width: 80px; }
@@ -55,15 +42,10 @@
   .placar-item .ppontos { font-size: 1.2rem; font-weight: 700; color: #a855f7; }
   .placar-item.morto .ppontos { color: #ef4444; text-decoration: line-through; }
   .placar-item.eu { border-color: #a855f7; background: #1a1a2e; }
-
   canvas { border-radius: 12px; border: 2px solid #2a2a3a; display: block; max-width: 100%; }
   #countdown { position: absolute; font-size: 5rem; font-weight: 900; color: #fff; text-shadow: 0 0 30px #a855f7; pointer-events: none; }
-
   .game-wrapper { position: relative; display: flex; align-items: center; justify-content: center; }
-
   #tap-hint { color: #888; font-size: 0.85rem; margin-top: 10px; text-align: center; }
-
-  /* RESULTADO */
   #resultado-screen { display: none; text-align: center; }
   .resultado-titulo { font-size: 2rem; font-weight: 900; margin-bottom: 8px; }
   .resultado-titulo.ganhou { background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -76,34 +58,28 @@
   .ranking-nome { flex: 1; font-weight: 600; }
   .ranking-canos { color: #888; font-size: 0.85rem; }
   .ranking-premio { color: #a855f7; font-weight: 700; }
-
   .msg { padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; }
   .msg-erro { background: #2a1515; border: 1px solid #ef4444; color: #ef4444; }
-  .msg-ok { background: #0f2a1a; border: 1px solid #22c55e; color: #22c55e; }
-
+  #valor-grid .sala-btn { padding: 10px; font-size: 0.9rem; font-weight: 700; }
   @media (max-width: 480px) { canvas { width: 340px !important; height: 480px !important; } }
 </style>
 </head>
 <body>
 
-<!-- LOBBY -->
 <div id="lobby">
   <div class="logo">
     <h1>🐦 Flappy Bet</h1>
     <p>Jogue e ganhe de verdade</p>
   </div>
-
   <div class="saldo-box">
     <div class="label">Seu saldo</div>
     <div class="value" id="saldo-display">R$ 0,00</div>
   </div>
-
   <div id="msg-area"></div>
-
   <div class="card">
     <h3>Escolha a sala</h3>
     <div class="grid-salas">
-            <div class="sala-btn ativo" data-sala="2" onclick="selecionarSala(2)">
+      <div class="sala-btn ativo" data-sala="2" onclick="selecionarSala(2)">
         <div class="jogadores">👥 2</div>
         <div class="info">2 jogadores</div>
         <div class="premio">1º→175% / 2º→nada</div>
@@ -123,7 +99,7 @@
         <div class="info">5 jogadores</div>
         <div class="premio">1º→175% / 2º→150% / 3º→100%</div>
       </div>
-
+    </div>
     <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;">Valor da aposta (mín. R$1)</label>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;" id="valor-grid">
       <div class="sala-btn" onclick="setValor(1,this)">R$ 1</div>
@@ -141,10 +117,8 @@
     </div>
     <input type="number" id="valor-aposta" min="1" step="1" value="5" style="display:none;">
   </div>
-
   <button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
-<button class="btn btn-secondary" style="margin-top:10px;" onclick="jogarContraBot()">🤖 Jogar contra Bot</button>
-
+  <button class="btn btn-secondary" onclick="jogarContraBot()">🤖 Jogar contra Bot</button>
   <div id="aguardando-box" style="display:none">
     <div class="card aguardando">
       <div class="spinner"></div>
@@ -156,7 +130,6 @@
   </div>
 </div>
 
-<!-- JOGO -->
 <div id="game-screen">
   <div id="placar"></div>
   <div class="game-wrapper">
@@ -166,7 +139,6 @@
   <div id="tap-hint">Toque ou pressione ESPAÇO para voar</div>
 </div>
 
-<!-- RESULTADO -->
 <div id="resultado-screen">
   <div class="logo"><h1>🐦 Flappy Bet</h1></div>
   <div id="resultado-titulo" class="resultado-titulo"></div>
@@ -181,36 +153,32 @@ if (!token) { window.location.href = '/'; }
 
 const socket = io();
 let salaAtual = 2;
-let myRole = null;
 let myNome = '';
 let myId = null;
 let valorAposta = 5;
 let gameAtivo = false;
 let morto = false;
 let canos = [];
-let passaro = { x: 80, y: 250, vy: 0, largura: 34, altura: 28 };
+let passaro = { x: 80, y: 250, vy: 0 };
 let pontos = 0;
 let frame = 0;
 let animId = null;
 let jogadoresInfo = {};
-let totalJogadores = 0;
 let canvas, ctx;
-let lastTimestamp = 0;
-const FPS = 60;
 
-// Física
+// Bot
+let botMode = false;
+let botMorto = false;
+let botPontos = 0;
+let botPassaro = { x: 120, y: 150, vy: 0 };
+
 const GRAVITY = 0.45;
 const FLAP = -8;
 const CANO_VEL = 2.5;
 const CANO_GAP = 160;
 const CANO_LARGURA = 60;
 
-function setValor(v, el) {
-  document.querySelectorAll('.grid-salas ~ div .sala-btn').forEach(b => b.classList.remove('ativo'));
-  el.classList.add('ativo');
-  document.getElementById('valor-aposta').value = v;
-}
-
+// ===== LOBBY =====
 function setValor(v, el) {
   document.querySelectorAll('#valor-grid .sala-btn').forEach(b => b.classList.remove('ativo'));
   el.classList.add('ativo');
@@ -219,7 +187,7 @@ function setValor(v, el) {
 
 function selecionarSala(n) {
   salaAtual = n;
-  document.querySelectorAll('.sala-btn').forEach(b => b.classList.remove('ativo'));
+  document.querySelectorAll('.grid-salas .sala-btn').forEach(b => b.classList.remove('ativo'));
   document.querySelector(`[data-sala="${n}"]`).classList.add('ativo');
 }
 
@@ -241,12 +209,10 @@ function mostrarMsg(texto, tipo) {
 
 function entrarFila() {
   valorAposta = parseFloat(document.getElementById('valor-aposta').value);
-  if (!valorAposta || valorAposta < 1) return mostrarMsg('Valor mínimo é R$1', 'erro');
-
+  if (!valorAposta || valorAposta < 1) return mostrarMsg('Selecione um valor!', 'erro');
   document.getElementById('btn-entrar').disabled = true;
   document.getElementById('aguardando-box').style.display = 'block';
   document.getElementById('btn-entrar').style.display = 'none';
-
   socket.emit('flappy_join', { token, sala: salaAtual, valor: valorAposta });
 }
 
@@ -259,24 +225,107 @@ function sairFila() {
 
 socket.on('flappy_sala_update', ({ jogadores, total }) => {
   document.getElementById('aguardando-texto').textContent = `${jogadores.length} / ${total} na sala`;
-  const lista = document.getElementById('jogadores-lista');
-  lista.innerHTML = jogadores.map(j => `<div class="jogador-chip">${j.nome}</div>`).join('');
+  document.getElementById('jogadores-lista').innerHTML = jogadores.map(j => `<div class="jogador-chip">${j.nome}</div>`).join('');
 });
 
 socket.on('flappy_start', ({ jogadores, valor, countdown }) => {
-  totalJogadores = jogadores.length;
   valorAposta = valor;
   jogadoresInfo = {};
   jogadores.forEach(j => { jogadoresInfo[j.id] = { nome: j.nome, pontos: 0, morto: false, eu: j.id === myId }; });
-
-  document.getElementById('lobby').style.display = 'none';
-  document.getElementById('game-screen').style.display = 'flex';
-
-  canvas = document.getElementById('canvas');
-  ctx = canvas.getContext('2d');
-
+  mostrarJogo(false);
   iniciarContagem(countdown);
 });
+
+socket.on('flappy_update', ({ id, pontos: p }) => {
+  if (jogadoresInfo[id]) { jogadoresInfo[id].pontos = p; atualizarPlacar(); }
+});
+
+socket.on('flappy_player_morreu', ({ id }) => {
+  if (jogadoresInfo[id]) { jogadoresInfo[id].morto = true; atualizarPlacar(); }
+});
+
+socket.on('flappy_fim', ({ ranking, premios }) => {
+  gameAtivo = false;
+  cancelAnimationFrame(animId);
+  document.removeEventListener('keydown', pular);
+  setTimeout(() => mostrarResultado(ranking, premios), 800);
+});
+
+socket.on('flappy_erro', ({ msg }) => {
+  mostrarMsg(msg, 'erro');
+  sairFila();
+});
+
+// ===== BOT MODE =====
+function jogarContraBot() {
+  botMode = true;
+  botMorto = false;
+  botPontos = 0;
+  botPassaro = { x: 120, y: 150, vy: 0 };
+  valorAposta = 0;
+  jogadoresInfo = {
+    [myId || 'eu']: { nome: myNome || 'Você', pontos: 0, morto: false, eu: true },
+    'bot': { nome: '🤖 Bot', pontos: 0, morto: false, eu: false }
+  };
+  mostrarJogo(true);
+  iniciarContagem(3);
+}
+
+function atualizarBot() {
+  if (!botMode || botMorto) return;
+  botPassaro.vy += GRAVITY;
+  botPassaro.y += botPassaro.vy;
+
+  // IA: encontrar próximo cano e decidir pular
+  const proximoCano = canos.find(c => c.x + CANO_LARGURA > botPassaro.x);
+  if (proximoCano) {
+    const centroGap = proximoCano.topo + CANO_GAP / 2;
+    const distX = proximoCano.x - botPassaro.x;
+    const erro = 30; // margem de erro do bot
+    const alvo = centroGap + (Math.random() - 0.5) * erro;
+    if (botPassaro.y > alvo - 15 && botPassaro.vy > -2 && distX < 180) {
+      botPassaro.vy = FLAP;
+    }
+  }
+  if (botPassaro.y > canvas.height - 80) botPassaro.vy = FLAP;
+  if (botPassaro.y < 20 && botPassaro.vy < 0) botPassaro.vy = 2;
+
+  // Colisão bot
+  if (botPassaro.y < 0 || botPassaro.y + 28 > canvas.height) { botMorreu(); return; }
+  for (let c of canos) {
+    if (botPassaro.x + 28 > c.x && botPassaro.x < c.x + CANO_LARGURA) {
+      if (botPassaro.y < c.topo || botPassaro.y + 28 > c.topo + CANO_GAP) { botMorreu(); return; }
+    }
+  }
+
+  // Pontos bot
+  for (let c of canos) {
+    if (!c.botPassou && c.x + CANO_LARGURA < botPassaro.x) {
+      c.botPassou = true;
+      botPontos++;
+      if (jogadoresInfo['bot']) { jogadoresInfo['bot'].pontos = botPontos; atualizarPlacar(); }
+    }
+  }
+}
+
+function botMorreu() {
+  if (botMorto) return;
+  botMorto = true;
+  if (jogadoresInfo['bot']) jogadoresInfo['bot'].morto = true;
+  atualizarPlacar();
+  if (morto) mostrarResultadoBot();
+}
+
+// ===== JOGO =====
+function mostrarJogo(isBot) {
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'flex';
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+  document.getElementById('tap-hint').textContent = isBot
+    ? '🤖 Modo treino — sem apostas! Toque ou ESPAÇO para voar'
+    : 'Toque ou pressione ESPAÇO para voar';
+}
 
 function iniciarContagem(seg) {
   const el = document.getElementById('countdown');
@@ -297,15 +346,16 @@ function iniciarContagem(seg) {
 function iniciarJogo() {
   gameAtivo = true;
   morto = false;
+  botMorto = false;
   canos = [];
   passaro = { x: 80, y: 250, vy: 0 };
+  botPassaro = { x: 120, y: 150, vy: 0 };
   pontos = 0;
+  botPontos = 0;
   frame = 0;
-
   document.addEventListener('keydown', pular);
   canvas.addEventListener('click', pular);
   canvas.addEventListener('touchstart', pular);
-
   requestAnimationFrame(loop);
 }
 
@@ -314,38 +364,42 @@ function pular(e) {
   e.preventDefault();
   if (!gameAtivo || morto) return;
   passaro.vy = FLAP;
-  socket.emit('flappy_pulo');
+  if (!botMode) socket.emit('flappy_pulo');
 }
 
-function loop(timestamp) {
+function loop() {
   if (!gameAtivo) return;
   animId = requestAnimationFrame(loop);
 
-  // Física local
+  // Física jogador
   passaro.vy += GRAVITY;
   passaro.y += passaro.vy;
-
   frame++;
 
   // Spawnar canos
   if (frame % 90 === 0) {
     const topo = 60 + Math.random() * (canvas.height - CANO_GAP - 120);
-    canos.push({ x: canvas.width, topo, passou: false });
+    canos.push({ x: canvas.width, topo, passou: false, botPassou: false });
   }
 
-  // Mover canos
+  // Mover canos e contar pontos
   for (let c of canos) {
     c.x -= CANO_VEL;
     if (!c.passou && c.x + CANO_LARGURA < passaro.x) {
       c.passou = true;
       pontos++;
-      socket.emit('flappy_ponto', { pontos });
+      if (botMode) {
+        const uid = myId || 'eu';
+        if (jogadoresInfo[uid]) { jogadoresInfo[uid].pontos = pontos; }
+      } else {
+        socket.emit('flappy_ponto', { pontos });
+      }
       atualizarPlacar();
     }
   }
   canos = canos.filter(c => c.x + CANO_LARGURA > 0);
 
-  // Colisão
+  // Colisão jogador
   if (!morto) {
     if (passaro.y < 0 || passaro.y + 28 > canvas.height) morreu();
     for (let c of canos) {
@@ -355,20 +409,27 @@ function loop(timestamp) {
     }
   }
 
+  // Bot
+  if (botMode) {
+    atualizarBot();
+    if (morto && botMorto) mostrarResultadoBot();
+  }
+
   desenhar();
 }
 
 function morreu() {
   if (morto) return;
   morto = true;
-  socket.emit('flappy_morreu', { pontos });
-  if (jogadoresInfo[myId]) jogadoresInfo[myId].morto = true;
+  if (!botMode) socket.emit('flappy_morreu', { pontos });
+  const uid = myId || 'eu';
+  if (jogadoresInfo[uid]) jogadoresInfo[uid].morto = true;
   atualizarPlacar();
+  if (botMode && botMorto) mostrarResultadoBot();
 }
 
 function desenhar() {
   const W = canvas.width, H = canvas.height;
-  // Fundo
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, '#0a0a1a');
   grad.addColorStop(1, '#0d0d20');
@@ -378,91 +439,56 @@ function desenhar() {
   // Estrelas
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   for (let i = 0; i < 30; i++) {
-    const sx = (i * 137 + frame * 0.2) % W;
-    const sy = (i * 97) % H;
-    ctx.fillRect(sx, sy, 1.5, 1.5);
+    ctx.fillRect((i * 137 + frame * 0.2) % W, (i * 97) % H, 1.5, 1.5);
   }
 
   // Canos
   for (let c of canos) {
-    // Cano de cima
     const gradCano = ctx.createLinearGradient(c.x, 0, c.x + CANO_LARGURA, 0);
     gradCano.addColorStop(0, '#7c3aed');
     gradCano.addColorStop(1, '#a855f7');
     ctx.fillStyle = gradCano;
-    ctx.beginPath();
-    ctx.roundRect(c.x, 0, CANO_LARGURA, c.topo, [0, 0, 8, 8]);
-    ctx.fill();
-    // Cano de baixo
-    ctx.beginPath();
-    ctx.roundRect(c.x, c.topo + CANO_GAP, CANO_LARGURA, H - c.topo - CANO_GAP, [8, 8, 0, 0]);
-    ctx.fill();
-    // Brilho
+    ctx.beginPath(); ctx.roundRect(c.x, 0, CANO_LARGURA, c.topo, [0,0,8,8]); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(c.x, c.topo + CANO_GAP, CANO_LARGURA, H - c.topo - CANO_GAP, [8,8,0,0]); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
     ctx.fillRect(c.x + 4, 0, 6, c.topo);
     ctx.fillRect(c.x + 4, c.topo + CANO_GAP, 6, H - c.topo - CANO_GAP);
   }
 
   // Chão
-  ctx.fillStyle = '#1a1a2e';
-  ctx.fillRect(0, H - 20, W, 20);
-  ctx.fillStyle = '#a855f7';
-  ctx.fillRect(0, H - 20, W, 2);
+  ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, H - 20, W, 20);
+  ctx.fillStyle = '#a855f7'; ctx.fillRect(0, H - 20, W, 2);
 
-  // Pássaro
-  desenharPassaro(passaro.x, passaro.y, passaro.vy, morto);
+  // Bot
+  if (botMode && !botMorto) desenharPassaro(botPassaro.x, botPassaro.y, botPassaro.vy, false, true);
+
+  // Jogador
+  desenharPassaro(passaro.x, passaro.y, passaro.vy, morto, false);
 
   // Pontos
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 28px Segoe UI';
-  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 28px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillText(pontos, W / 2, 45);
-  ctx.font = '14px Segoe UI';
-  ctx.fillStyle = '#888';
+  ctx.font = '14px Segoe UI'; ctx.fillStyle = '#888';
   ctx.fillText('canos', W / 2, 62);
   ctx.textAlign = 'left';
 }
 
-function desenharPassaro(x, y, vy, dead) {
+function desenharPassaro(x, y, vy, dead, isBot) {
   ctx.save();
   ctx.translate(x + 17, y + 14);
-  const rot = Math.min(Math.max(vy * 0.05, -0.4), 0.6);
-  ctx.rotate(rot);
-
-  // Corpo
+  ctx.rotate(Math.min(Math.max(vy * 0.05, -0.4), 0.6));
   const g = ctx.createRadialGradient(-2, -2, 2, 0, 0, 16);
   if (dead) { g.addColorStop(0, '#666'); g.addColorStop(1, '#333'); }
+  else if (isBot) { g.addColorStop(0, '#22c55e'); g.addColorStop(1, '#16a34a'); }
   else { g.addColorStop(0, '#ec4899'); g.addColorStop(1, '#a855f7'); }
   ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Asa
-  ctx.fillStyle = dead ? '#555' : '#9333ea';
-  ctx.beginPath();
-  ctx.ellipse(-4, 2, 10, 5, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Olho
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(7, -3, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = dead ? '#999' : '#1a1a2e';
-  ctx.beginPath();
-  ctx.arc(8, -3, 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Bico
+  ctx.beginPath(); ctx.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = dead ? '#555' : (isBot ? '#15803d' : '#9333ea');
+  ctx.beginPath(); ctx.ellipse(-4, 2, 10, 5, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7, -3, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = dead ? '#999' : '#1a1a2e'; ctx.beginPath(); ctx.arc(8, -3, 3, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#f97316';
-  ctx.beginPath();
-  ctx.moveTo(13, 0);
-  ctx.lineTo(20, -2);
-  ctx.lineTo(20, 3);
-  ctx.closePath();
-  ctx.fill();
-
+  ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(20, -2); ctx.lineTo(20, 3); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
 
@@ -476,46 +502,51 @@ function atualizarPlacar() {
   `).join('');
 }
 
-socket.on('flappy_update', ({ id, pontos: p }) => {
-  if (jogadoresInfo[id]) { jogadoresInfo[id].pontos = p; atualizarPlacar(); }
-});
-
-socket.on('flappy_player_morreu', ({ id }) => {
-  if (jogadoresInfo[id]) { jogadoresInfo[id].morto = true; atualizarPlacar(); }
-});
-
-socket.on('flappy_fim', ({ ranking, premios }) => {
+function mostrarResultadoBot() {
   gameAtivo = false;
   cancelAnimationFrame(animId);
   document.removeEventListener('keydown', pular);
-
-  setTimeout(() => mostrarResultado(ranking, premios), 800);
-});
+  setTimeout(() => {
+    document.getElementById('game-screen').style.display = 'none';
+    document.getElementById('resultado-screen').style.display = 'block';
+    const euGanhei = pontos > botPontos;
+    const empate = pontos === botPontos;
+    const titulo = document.getElementById('resultado-titulo');
+    const valorEl = document.getElementById('resultado-valor');
+    if (empate) { titulo.textContent = '🤝 Empate!'; titulo.className = 'resultado-titulo'; }
+    else if (euGanhei) { titulo.textContent = '🏆 Você Ganhou!'; titulo.className = 'resultado-titulo ganhou'; }
+    else { titulo.textContent = '🤖 Bot Ganhou!'; titulo.className = 'resultado-titulo perdeu'; }
+    valorEl.innerHTML = 'Modo treino — sem apostas';
+    const emojis = ['🥇', '🥈'];
+    const ranking = euGanhei || empate
+      ? [{ nome: myNome || 'Você', pontos }, { nome: '🤖 Bot', pontos: botPontos }]
+      : [{ nome: '🤖 Bot', pontos: botPontos }, { nome: myNome || 'Você', pontos }];
+    document.getElementById('ranking-lista').innerHTML = ranking.map((r, i) => `
+      <div class="ranking-item">
+        <div class="ranking-pos">${emojis[i]}</div>
+        <div class="ranking-nome">${r.nome}</div>
+        <div class="ranking-canos">${r.pontos} canos</div>
+        <div class="ranking-premio">${i === 0 ? '🏆' : '-'}</div>
+      </div>`).join('');
+  }, 800);
+}
 
 function mostrarResultado(ranking, premios) {
   document.getElementById('game-screen').style.display = 'none';
   document.getElementById('resultado-screen').style.display = 'block';
-
-  const meuRanking = ranking.findIndex(r => r.id === myId) + 1;
   const meuPremio = premios[myId] || 0;
-
   const titulo = document.getElementById('resultado-titulo');
   const valorEl = document.getElementById('resultado-valor');
-
   if (meuPremio > valorAposta) {
-    titulo.textContent = '🏆 Você Ganhou!';
-    titulo.className = 'resultado-titulo ganhou';
+    titulo.textContent = '🏆 Você Ganhou!'; titulo.className = 'resultado-titulo ganhou';
     valorEl.innerHTML = `Você recebeu <span>R$ ${meuPremio.toFixed(2)}</span>`;
   } else if (meuPremio === valorAposta) {
-    titulo.textContent = '🔄 Empate!';
-    titulo.className = 'resultado-titulo';
+    titulo.textContent = '🔄 Devolução!'; titulo.className = 'resultado-titulo';
     valorEl.innerHTML = `Você recuperou <span>R$ ${meuPremio.toFixed(2)}</span>`;
   } else {
-    titulo.textContent = '😢 Você Perdeu';
-    titulo.className = 'resultado-titulo perdeu';
+    titulo.textContent = '😢 Você Perdeu'; titulo.className = 'resultado-titulo perdeu';
     valorEl.innerHTML = `Melhor sorte na próxima vez`;
   }
-
   const emojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
   document.getElementById('ranking-lista').innerHTML = ranking.map((r, i) => `
     <div class="ranking-item">
@@ -523,184 +554,14 @@ function mostrarResultado(ranking, premios) {
       <div class="ranking-nome">${r.nome}${r.id === myId ? ' (você)' : ''}</div>
       <div class="ranking-canos">${r.pontos} canos</div>
       <div class="ranking-premio">${premios[r.id] > 0 ? '+R$' + premios[r.id].toFixed(2) : '-'}</div>
-    </div>
-  `).join('');
-
+    </div>`).join('');
   carregarSaldo();
 }
 
 function voltarLobby() {
-  document.getElementById('resultado-screen').style.display = 'none';
-  document.getElementById('lobby').style.display = 'block';
-  document.getElementById('btn-entrar').disabled = false;
-  document.getElementById('btn-entrar').style.display = 'block';
-  document.getElementById('aguardando-box').style.display = 'none';
-}
-
-socket.on('flappy_erro', ({ msg }) => {
-  mostrarMsg(msg, 'erro');
-  sairFila();
-});
-
-
-// ===== MODO BOT =====
-let botMode = false;
-let botDificuldade = 1; // 0=fácil, 1=médio, 2=difícil
-let botY = 250;
-let botVy = 0;
-let botMorto = false;
-let botPontos = 0;
-
-function jogarContraBot() {
-  botMode = true;
-  valorAposta = 0; // sem aposta no bot
-  totalJogadores = 2;
-  myId = myId || 'eu';
-  jogadoresInfo = {
-    'eu': { nome: myNome || 'Você', pontos: 0, morto: false, eu: true },
-    'bot': { nome: '🤖 Bot', pontos: 0, morto: false, eu: false }
-  };
-
-  document.getElementById('lobby').style.display = 'none';
-  document.getElementById('game-screen').style.display = 'flex';
-
-  // Adicionar info de bot no placar
-  atualizarPlacar();
-
-  canvas = document.getElementById('canvas');
-  ctx = canvas.getContext('2d');
-
-  // Mostrar aviso sem aposta
-  document.getElementById('tap-hint').textContent = '🤖 Modo treino — sem apostas! Toque ou ESPAÇO para voar';
-
-  iniciarContagem(3);
-}
-
-let botPassaro = { x: 80, y: 150, vy: 0 };
-let botCanos = []; // bot usa os mesmos canos sincronizados
-
-function atualizarBot() {
-  if (!botMode || botMorto) return;
-
-  botPassaro.vy += GRAVITY;
-  botPassaro.y += botPassaro.vy;
-
-  // IA do bot: encontrar o próximo cano e decidir pular
-  const proximoCano = canos.find(c => c.x + CANO_LARGURA > botPassaro.x);
-  
-  if (proximoCano) {
-    const centroGap = proximoCano.topo + CANO_GAP / 2;
-    const distX = proximoCano.x - botPassaro.x;
-    
-    // Dificuldade: quanto menor o valor, mais preciso o bot
-    const erro = (1 - botDificuldade * 0.4) * 40;
-    const alvo = centroGap + (Math.random() - 0.5) * erro;
-    
-    // Pular se estiver caindo e acima do alvo, ou se estiver muito baixo
-    if (botPassaro.y > alvo - 20 && botPassaro.vy > -2 && distX < 200) {
-      botPassaro.vy = FLAP;
-    }
-    
-    // Segurança: pular se estiver muito perto do chão
-    if (botPassaro.y > canvas.height - 80) {
-      botPassaro.vy = FLAP;
-    }
-    // Segurança: se estiver muito no topo
-    if (botPassaro.y < 30 && botPassaro.vy < 0) {
-      botPassaro.vy = 2;
-    }
-  } else {
-    // Sem canos: manter altura média
-    if (botPassaro.y > 260 && botPassaro.vy > 0) botPassaro.vy = FLAP;
-  }
-
-  // Colisão bot
-  if (botPassaro.y < 0 || botPassaro.y + 28 > canvas.height) {
-    botMorreu();
-    return;
-  }
-  for (let c of canos) {
-    if (botPassaro.x + 28 > c.x && botPassaro.x < c.x + CANO_LARGURA) {
-      if (botPassaro.y < c.topo || botPassaro.y + 28 > c.topo + CANO_GAP) {
-        botMorreu();
-        return;
-      }
-    }
-  }
-
-  // Contar pontos do bot
-  for (let c of canos) {
-    if (!c.botPassou && c.x + CANO_LARGURA < botPassaro.x) {
-      c.botPassou = true;
-      botPontos++;
-      if (jogadoresInfo['bot']) {
-        jogadoresInfo['bot'].pontos = botPontos;
-        atualizarPlacar();
-      }
-    }
-  }
-}
-
-function botMorreu() {
-  if (botMorto) return;
-  botMorto = true;
-  if (jogadoresInfo['bot']) jogadoresInfo['bot'].morto = true;
-  atualizarPlacar();
-  
-  // Se o jogador também morreu, mostrar resultado
-  if (morto) mostrarResultadoBot();
-}
-
-function mostrarResultadoBot() {
   gameAtivo = false;
-  cancelAnimationFrame(animId);
-
-  setTimeout(() => {
-    document.getElementById('game-screen').style.display = 'none';
-    document.getElementById('resultado-screen').style.display = 'block';
-
-    const euGanhei = pontos > botPontos;
-    const empate = pontos === botPontos;
-
-    const titulo = document.getElementById('resultado-titulo');
-    const valorEl = document.getElementById('resultado-valor');
-
-    if (empate) {
-      titulo.textContent = '🤝 Empate!';
-      titulo.className = 'resultado-titulo';
-      valorEl.innerHTML = 'Modo treino — sem apostas';
-    } else if (euGanhei) {
-      titulo.textContent = '🏆 Você Ganhou!';
-      titulo.className = 'resultado-titulo ganhou';
-      valorEl.innerHTML = 'Modo treino — sem apostas';
-    } else {
-      titulo.textContent = '🤖 Bot Ganhou!';
-      titulo.className = 'resultado-titulo perdeu';
-      valorEl.innerHTML = 'Continue treinando!';
-    }
-
-    const ranking = euGanhei || (!empate && pontos > botPontos)
-      ? [{ nome: myNome || 'Você', pontos }, { nome: '🤖 Bot', pontos: botPontos }]
-      : [{ nome: '🤖 Bot', pontos: botPontos }, { nome: myNome || 'Você', pontos }];
-
-    const emojis = ['🥇', '🥈'];
-    document.getElementById('ranking-lista').innerHTML = ranking.map((r, i) => `
-      <div class="ranking-item">
-        <div class="ranking-pos">${emojis[i]}</div>
-        <div class="ranking-nome">${r.nome}</div>
-        <div class="ranking-canos">${r.pontos} canos</div>
-        <div class="ranking-premio">${i === 0 ? '🏆' : '-'}</div>
-      </div>
-    `).join('');
-  }, 800);
-}
-
-function voltarLobby() {
   botMode = false;
   botMorto = false;
-  botPontos = 0;
-  botPassaro = { x: 80, y: 150, vy: 0 };
-  gameAtivo = false;
   cancelAnimationFrame(animId);
   document.removeEventListener('keydown', pular);
   document.getElementById('resultado-screen').style.display = 'none';
@@ -711,170 +572,6 @@ function voltarLobby() {
   document.getElementById('aguardando-box').style.display = 'none';
   document.getElementById('tap-hint').textContent = 'Toque ou pressione ESPAÇO para voar';
   carregarSaldo();
-}
-
-// Override loop para incluir bot
-const _loopOriginal = loop;
-function loop(timestamp) {
-  if (!gameAtivo) return;
-  animId = requestAnimationFrame(loop);
-
-  passaro.vy += GRAVITY;
-  passaro.y += passaro.vy;
-  frame++;
-
-  if (frame % 90 === 0) {
-    const topo = 60 + Math.random() * (canvas.height - CANO_GAP - 120);
-    canos.push({ x: canvas.width, topo, passou: false, botPassou: false });
-  }
-
-  for (let c of canos) {
-    c.x -= CANO_VEL;
-    if (!c.passou && c.x + CANO_LARGURA < passaro.x) {
-      c.passou = true;
-      pontos++;
-      if (botMode) {
-        jogadoresInfo['eu'] && (jogadoresInfo['eu'].pontos = pontos);
-      } else {
-        socket.emit('flappy_ponto', { pontos });
-      }
-      atualizarPlacar();
-    }
-  }
-  canos = canos.filter(c => c.x + CANO_LARGURA > 0);
-
-  if (!morto) {
-    if (passaro.y < 0 || passaro.y + 28 > canvas.height) morreu();
-    for (let c of canos) {
-      if (passaro.x + 28 > c.x && passaro.x < c.x + CANO_LARGURA) {
-        if (passaro.y < c.topo || passaro.y + 28 > c.topo + CANO_GAP) { morreu(); break; }
-      }
-    }
-  }
-
-  if (botMode) {
-    atualizarBot();
-    if (morto && botMorto) mostrarResultadoBot();
-  }
-
-  desenharComBot();
-}
-
-function desenharComBot() {
-  const W = canvas.width, H = canvas.height;
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0a0a1a');
-  grad.addColorStop(1, '#0d0d20');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  for (let i = 0; i < 30; i++) {
-    const sx = (i * 137 + frame * 0.2) % W;
-    const sy = (i * 97) % H;
-    ctx.fillRect(sx, sy, 1.5, 1.5);
-  }
-
-  for (let c of canos) {
-    const gradCano = ctx.createLinearGradient(c.x, 0, c.x + CANO_LARGURA, 0);
-    gradCano.addColorStop(0, '#7c3aed');
-    gradCano.addColorStop(1, '#a855f7');
-    ctx.fillStyle = gradCano;
-    ctx.beginPath();
-    ctx.roundRect(c.x, 0, CANO_LARGURA, c.topo, [0, 0, 8, 8]);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.roundRect(c.x, c.topo + CANO_GAP, CANO_LARGURA, H - c.topo - CANO_GAP, [8, 8, 0, 0]);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(c.x + 4, 0, 6, c.topo);
-    ctx.fillRect(c.x + 4, c.topo + CANO_GAP, 6, H - c.topo - CANO_GAP);
-  }
-
-  ctx.fillStyle = '#1a1a2e';
-  ctx.fillRect(0, H - 20, W, 20);
-  ctx.fillStyle = '#a855f7';
-  ctx.fillRect(0, H - 20, W, 2);
-
-  // Desenhar bot
-  if (botMode && !botMorto) {
-    desenharPassaroBot(botPassaro.x + 40, botPassaro.y, botPassaro.vy);
-  }
-
-  desenharPassaro(passaro.x, passaro.y, passaro.vy, morto);
-
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 28px Segoe UI';
-  ctx.textAlign = 'center';
-  ctx.fillText(pontos, W / 2, 45);
-  ctx.font = '14px Segoe UI';
-  ctx.fillStyle = '#888';
-  ctx.fillText('canos', W / 2, 62);
-  ctx.textAlign = 'left';
-}
-
-function desenharPassaroBot(x, y, vy) {
-  ctx.save();
-  ctx.translate(x + 17, y + 14);
-  const rot = Math.min(Math.max(vy * 0.05, -0.4), 0.6);
-  ctx.rotate(rot);
-  const g = ctx.createRadialGradient(-2, -2, 2, 0, 0, 16);
-  g.addColorStop(0, '#22c55e');
-  g.addColorStop(1, '#16a34a');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#15803d';
-  ctx.beginPath();
-  ctx.ellipse(-4, 2, 10, 5, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(7, -3, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#1a1a2e';
-  ctx.beginPath();
-  ctx.arc(8, -3, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#f97316';
-  ctx.beginPath();
-  ctx.moveTo(13, 0);
-  ctx.lineTo(20, -2);
-  ctx.lineTo(20, 3);
-  ctx.closePath();
-  ctx.fill();
-  // Ícone robô
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🤖', 0, 20);
-  ctx.restore();
-}
-
-// Override iniciarJogo para resetar bot
-const _iniciarJogoOriginal = iniciarJogo;
-function iniciarJogo() {
-  gameAtivo = true;
-  morto = false;
-  canos = [];
-  passaro = { x: 80, y: 250, vy: 0 };
-  pontos = 0;
-  frame = 0;
-
-  if (botMode) {
-    botMorto = false;
-    botPontos = 0;
-    botPassaro = { x: 80, y: 150, vy: 0 };
-    if (jogadoresInfo['bot']) jogadoresInfo['bot'].morto = false;
-    if (jogadoresInfo['eu']) jogadoresInfo['eu'].morto = false;
-  }
-
-  document.addEventListener('keydown', pular);
-  canvas.addEventListener('click', pular);
-  canvas.addEventListener('touchstart', pular);
-
-  requestAnimationFrame(loop);
 }
 
 carregarSaldo();

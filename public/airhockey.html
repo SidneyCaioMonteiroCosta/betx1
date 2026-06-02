@@ -365,8 +365,15 @@ function onGameStart(data) {
 
 function onGameUpdate(state) {
   gameState = state;
-  document.getElementById('p1score').textContent = state.score1;
-  document.getElementById('p2score').textContent = state.score2;
+  // score1 = gols marcados pelo jogador de baixo (p1)
+  // score2 = gols marcados pelo jogador de cima (p2)
+  if (myRole === 'p1') {
+    document.getElementById('p1score').textContent = state.score1;
+    document.getElementById('p2score').textContent = state.score2;
+  } else {
+    document.getElementById('p1score').textContent = state.score2;
+    document.getElementById('p2score').textContent = state.score1;
+  }
 }
 
 function onGameEnd(data) {
