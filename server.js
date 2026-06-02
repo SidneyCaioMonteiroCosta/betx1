@@ -14,7 +14,7 @@ const io = new Server(server);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
 const JWT_SECRET = 'betx1_secret_2026';
