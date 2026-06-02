@@ -124,8 +124,22 @@
         <div class="premio">1º→175% / 2º→150% / 3º→100%</div>
       </div>
 
-    <label<label style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;">Valor da aposta (mín. R$1)</label>
-    <input type="number" id="valor-aposta" min="1" step="1" value="5" placeholder="Ex: 10">
+    <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;">Valor da aposta (mín. R$1)</label>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;" id="valor-grid">
+      <div class="sala-btn" onclick="setValor(1,this)">R$ 1</div>
+      <div class="sala-btn" onclick="setValor(2,this)">R$ 2</div>
+      <div class="sala-btn" onclick="setValor(5,this)">R$ 5</div>
+      <div class="sala-btn" onclick="setValor(10,this)">R$ 10</div>
+      <div class="sala-btn" onclick="setValor(15,this)">R$ 15</div>
+      <div class="sala-btn" onclick="setValor(20,this)">R$ 20</div>
+      <div class="sala-btn" onclick="setValor(25,this)">R$ 25</div>
+      <div class="sala-btn" onclick="setValor(30,this)">R$ 30</div>
+      <div class="sala-btn" onclick="setValor(50,this)">R$ 50</div>
+      <div class="sala-btn" onclick="setValor(60,this)">R$ 60</div>
+      <div class="sala-btn" onclick="setValor(80,this)">R$ 80</div>
+      <div class="sala-btn" onclick="setValor(100,this)">R$ 100</div>
+    </div>
+    <input type="number" id="valor-aposta" min="1" step="1" value="5" placeholder="Ou digite o valor">
   </div>
 
   <button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
@@ -190,6 +204,18 @@ const FLAP = -8;
 const CANO_VEL = 2.5;
 const CANO_GAP = 160;
 const CANO_LARGURA = 60;
+
+function setValor(v, el) {
+  document.querySelectorAll('.grid-salas ~ div .sala-btn').forEach(b => b.classList.remove('ativo'));
+  el.classList.add('ativo');
+  document.getElementById('valor-aposta').value = v;
+}
+
+function setValor(v, el) {
+  document.querySelectorAll('#valor-grid .sala-btn').forEach(b => b.classList.remove('ativo'));
+  el.classList.add('ativo');
+  document.getElementById('valor-aposta').value = v;
+}
 
 function selecionarSala(n) {
   salaAtual = n;
