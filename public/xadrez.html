@@ -140,7 +140,7 @@ let capturedByBlack = [];
 let isBot = false;
 let botThinking = false;
 
-// Peças unicode
+// Peças unicode - brancas usam símbolo vazado, pretas usam símbolo cheio com fundo escuro
 const PIECES = {
   'wK':'♔','wQ':'♕','wR':'♖','wB':'♗','wN':'♘','wP':'♙',
   'bK':'♚','bQ':'♛','bR':'♜','bB':'♝','bN':'♞','bP':'♟'
@@ -183,7 +183,16 @@ function renderBoard() {
       cell.dataset.c = dispC;
 
       const piece = board[dispR][dispC];
-      if(piece) cell.textContent = PIECES[piece];
+      if(piece) {
+        cell.textContent = PIECES[piece];
+        if(piece[0]==='w') {
+          cell.style.color = '#ffffff';
+          cell.style.textShadow = '0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000';
+        } else {
+          cell.style.color = '#111111';
+          cell.style.textShadow = '0 0 3px #fff, 1px 1px 0 #555, -1px -1px 0 #555';
+        }
+      }
 
       if(selectedCell && selectedCell[0]===dispR && selectedCell[1]===dispC) cell.classList.add('selected');
       if(possibleMoves.some(m=>m[0]===dispR&&m[1]===dispC)) {
@@ -541,7 +550,7 @@ function iniciarTimer() {
 function conectar() {
   socket = io();
   socket.on('chess_start', data => {
-    myColor = data.color;
+    myColor = data.color; // servidor define aleatoriamente
     botMode = false;
     iniciarTabuleiro();
     capturedByWhite=[]; capturedByBlack=[];

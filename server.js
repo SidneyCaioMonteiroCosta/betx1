@@ -235,7 +235,7 @@ function criarEstado(valor) {
     ball: { x: 0.5, y: 0.5, vx: 0.003, vy: 0.005, r: 0.03 },
     m1: { x: 0.5, y: 0.75 },
     m2: { x: 0.5, y: 0.25 },
-    mallet_r: 0.06,
+    mallet_r: 0.09,
     score1: 0,
     score2: 0,
     valor
@@ -573,8 +573,10 @@ io.on('connection', (socketX) => {
         socketX.join(roomId);
         oponente.socket.join(roomId);
 
-        oponente.socket.emit('chess_start', { color: 'white', oppName: user.nome, valor });
-        socketX.emit('chess_start', { color: 'black', oppName: oponente.nome, valor });
+        // Cor aleatória
+        const cores = Math.random() > 0.5 ? ['white','black'] : ['black','white'];
+        oponente.socket.emit('chess_start', { color: cores[0], oppName: user.nome, valor });
+        socketX.emit('chess_start', { color: cores[1], oppName: oponente.nome, valor });
 
         xadrezPartidas[roomId].room = roomId;
       } else {

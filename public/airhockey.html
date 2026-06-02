@@ -156,7 +156,7 @@ function iniciarJogoBot() {
     ball: bola,
     m1: { x: 0.5, y: 0.75 }, // jogador (baixo)
     m2: { x: 0.5, y: 0.25 }, // bot (cima)
-    mallet_r: 0.06,
+    mallet_r: 0.09, // mallet maior para melhor jogabilidade
     score1: 0,
     score2: 0,
     valor: 0
@@ -488,7 +488,7 @@ function render() {
   ctx.shadowBlur = 0;
 
   // Mallet P1 (jogador - azul)
-  const mr = s.mallet_r * W;
+  const mr = (s.mallet_r || 0.06) * W * 1.6; // aumentado para melhor controle
   ctx.beginPath();
   ctx.arc(s.m1.x * W, s.m1.y * H, mr, 0, Math.PI*2);
   ctx.fillStyle = myRole === 'p1' ? '#1a8cff' : 'rgba(26,140,255,.6)';
