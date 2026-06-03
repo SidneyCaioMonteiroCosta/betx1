@@ -35,9 +35,22 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
-  if (id === 'wallet') loadTransacoes();
+  if (id === 'wallet') { atualizarSaldoServidor(); loadTransacoes(); }
   if (id === 'admin') loadAdmin();
   if (id === 'profile') carregarPerfil();
+}
+
+async function atualizarSaldoServidor() {
+  try {
+    const res = await fetch('/api/perfil', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (data.saldo !== undefined) {
+      usuario.saldo = data.saldo;
+      usuario.nome = data.nome;
+      localStorage.setItem('superduelo_user', JSON.stringify(usuario));
+      updateBalanceUI();
+    }
+  } catch {}
 }
 
 function showAuth(tab) {
@@ -116,6 +129,23 @@ function enterApp() {
   updateBalanceUI();
   atualizarAvatar();
   showScreen('lobby');
+  // Atualiza saldo do servidor ao entrar
+  atualizarSaldoServidor();
+  // Atualiza a cada 30 segundos
+  setInterval(atualizarSaldoServidor, 30000);
+}
+
+async function atualizarSaldoServidor() {
+  try {
+    const res = await fetch('/api/perfil', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (data.saldo !== undefined) {
+      usuario.saldo = data.saldo;
+      usuario.nome = data.nome;
+      localStorage.setItem('superduelo_user', JSON.stringify(usuario));
+      updateBalanceUI();
+    }
+  } catch {}
 }
 
 function enterAdmin() { showScreen('admin'); loadAdmin(); }
