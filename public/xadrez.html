@@ -76,6 +76,7 @@ header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px 
     <div class="valor-btn" onclick="sel(100,this)">R$ 100</div>
   </div>
   <div class="info-box" id="infoBox"></div>
+  <button onclick="abrirRegras()" style="width:100%;padding:12px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.2);color:#f0c040;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px;">❓ Como Funciona</button>
   <button class="play-btn" id="playBtn" onclick="entrarFila()">♟️ JOGAR (FILA)</button>
   <button id="salaBtn" style="width:100%;padding:14px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);color:#f0c040;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;display:none;" onclick="abrirModalSala('xadrez', valorSel)">🏠 CRIAR / ENTRAR EM SALA</button>
   <button class="bot-btn" id="botBtn" onclick="jogarBot()">🤖 JOGAR CONTRA BOT</button>
@@ -734,5 +735,51 @@ function conectarSocket() {
 }
 
 </script>
+
+<!-- MODAL COMO FUNCIONA -->
+<div id="modalRegras" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)document.getElementById('modalRegras').style.display='none'">
+  <div style="background:#0d1425;border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #1e2d50;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:18px;font-weight:700;color:#f0c040;">❓ Como Funciona — Xadrez</div>
+      <button onclick="document.getElementById('modalRegras').style.display='none'" style="background:none;border:none;color:#6b7db3;font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:20px;flex:1;font-size:13px;color:#e8eaf6;line-height:1.8;">
+      
+<div style="background:rgba(240,192,64,.08);border-left:3px solid #f0c040;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px;">
+  <strong style="color:#f0c040;">🎯 Objetivo</strong><br>
+  Capture o rei adversário (xeque-mate) para vencer!
+</div>
+<strong style="color:#f0c040;">♟️ Peças e movimentos</strong>
+<ul style="margin:8px 0 14px 16px;color:#a0aec0;">
+  <li><strong>♔ Rei:</strong> Move 1 casa em qualquer direção</li>
+  <li><strong>♕ Rainha:</strong> Move quantas casas quiser em qualquer direção</li>
+  <li><strong>♖ Torre:</strong> Move na horizontal e vertical</li>
+  <li><strong>♗ Bispo:</strong> Move na diagonal</li>
+  <li><strong>♘ Cavalo:</strong> Move em "L" (2+1 casas)</li>
+  <li><strong>♙ Peão:</strong> Avança 1 casa (2 no início), captura na diagonal</li>
+</ul>
+<strong style="color:#f0c040;">📋 Regras especiais</strong>
+<ul style="margin:8px 0 14px 16px;color:#a0aec0;">
+  <li><strong>Roque:</strong> Rei e torre se movem juntos (proteção)</li>
+  <li><strong>Promoção:</strong> Peão que chega ao final vira Rainha</li>
+  <li><strong>Afogamento:</strong> Sem movimentos sem estar em xeque = empate</li>
+  <li><strong>Timer:</strong> 10 minutos por jogador</li>
+</ul>
+<strong style="color:#f0c040;">💰 Apostas</strong>
+<ul style="margin:8px 0 0 16px;color:#a0aec0;">
+  <li>Vencedor leva <strong style="color:#f0c040;">175%</strong> do valor apostado</li>
+  <li>Cor (brancas/pretas) é sorteada aleatoriamente</li>
+</ul>
+
+    </div>
+    <div style="padding:16px 20px;border-top:1px solid #1e2d50;">
+      <button onclick="document.getElementById('modalRegras').style.display='none'" style="width:100%;padding:12px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">Entendido! 🎮</button>
+    </div>
+  </div>
+</div>
+<script>
+function abrirRegras(){document.getElementById('modalRegras').style.display='flex';}
+</script>
+
 </body>
 </html>
