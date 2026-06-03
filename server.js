@@ -471,10 +471,11 @@ io.on('connection', (socket) => {
             const loserId = winner === 'p1' ? partida.p2.userId : partida.p1.userId;
             await atualizarNivel(winnerId, 'vitoria');
             await atualizarNivel(loserId, 'derrota');
+            console.log(`🏒 Air Hockey: winner=${winnerId} loser=${loserId}`);
             io.to(roomId).emit('game_end', { winner, prize, valor });
             delete partidas[roomId];
           }
-        }, 1000/60);
+        }, 1000/20); // 20fps - menos sobrecarga na rede
 
       } else {
         filas[valor].push({ socket, userId, nome: userNome });
@@ -509,11 +510,18 @@ io.on('connection', (socket) => {
     if (currentRoom && partidas[currentRoom]) {
       clearInterval(partidas[currentRoom].interval);
       const partida = partidas[currentRoom];
-      const outroSocket = partida.p1.socket.id === socket.id ? partida.p2.socket : partida.p1.socket;
-      const outroId = partida.p1.socket.id === socket.id ? partida.p2.userId : partida.p1.userId;
+      const winner = partida.p1.socket.id === socket.id ? 'p2' : 'p1';
+      const outroSocket = winner === 'p2' ? partida.p2.socket : partida.p1.socket;
+      const outroId = winner === 'p2' ? partida.p2.userId : partida.p1.userId;
+      const perdeuId = winner === 'p2' ? partida.p1.userId : partida.p2.userId;
       const valor = partida.state.valor;
-      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [valor, outroId]);
-      outroSocket.emit('game_end', { winner: partida.p1.socket.id === socket.id ? 'p2' : 'p1', prize: valor * 1.75, valor });
+      const prize = parseFloat((valor * 1.75).toFixed(2));
+      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [prize, outroId]);
+      await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
+        [outroId,'ganho',prize,`Vitória Air Hockey R$${valor} (adversário desconectou)`,'concluido']);
+      await atualizarNivel(outroId, 'vitoria');
+      await atualizarNivel(perdeuId, 'derrota');
+      outroSocket.emit('game_end', { winner, prize, valor });
       delete partidas[currentRoom];
     }
   });
@@ -792,9 +800,14 @@ pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_vitorias INTEGER DE
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_derrotas INTEGER DEFAULT 0').catch(()=>{});
 
 async function atualizarNivel(userId, resultado) {
-  // resultado: 'vitoria', 'derrota', 'empate'
   if (resultado === 'empate') return;
   try {
+    // Garantir colunas existem
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS nivel INTEGER DEFAULT 1').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS vitorias_nivel INTEGER DEFAULT 0').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_vitorias INTEGER DEFAULT 0').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_derrotas INTEGER DEFAULT 0').catch(()=>{});
+
     const { rows } = await pool.query('SELECT nivel, vitorias_nivel, total_vitorias, total_derrotas FROM users WHERE id = $1', [userId]);
     const user = rows[0];
     if (!user) return;
@@ -807,27 +820,18 @@ async function atualizarNivel(userId, resultado) {
     if (resultado === 'vitoria') {
       vitorias++;
       totalVit++;
-      // Sobe de nível a cada 10 vitórias
-      if (vitorias >= 10 && nivel < 100) {
-        nivel++;
-        vitorias = 0; // zera contador para próximo nível
-      }
+      if (vitorias >= 10 && nivel < 100) { nivel++; vitorias = 0; }
     } else if (resultado === 'derrota') {
       totalDer++;
-      // Derrota anula uma vitória
-      if (vitorias > 0) {
-        vitorias--;
-      } else if (nivel > 1) {
-        // Se não tem vitórias acumuladas e perde, volta ao final do nível anterior
-        nivel--;
-        vitorias = 9; // volta com 9/10 no nível anterior
-      }
+      if (vitorias > 0) { vitorias--; }
+      else if (nivel > 1) { nivel--; vitorias = 9; }
     }
 
     await pool.query(
       'UPDATE users SET nivel=$1, vitorias_nivel=$2, total_vitorias=$3, total_derrotas=$4 WHERE id=$5',
       [nivel, vitorias, totalVit, totalDer, userId]
     );
+    console.log(`📊 User ${userId}: nível ${nivel}, vitórias ${totalVit}, derrotas ${totalDer}`);
   } catch(e) { console.error('Erro nivel:', e.message); }
 }
 
@@ -913,7 +917,7 @@ io.on('connection', (socketP) => {
             io.to(roomId).emit('game_end',{winner,prize,valor:sala.valor});
             delete partidas[roomId];
           }
-        },1000/60);
+        },1000/20);
       } else if (jogo === 'xadrez') {
         const cores = Math.random()>0.5?['white','black']:['black','white'];
         sala.socket.emit('chess_start',{color:cores[0],oppName:user.nome,valor:sala.valor});
