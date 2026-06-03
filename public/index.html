@@ -281,18 +281,85 @@
     <div style="margin-left:auto;font-size:11px;color:var(--muted);">PAINEL ADMIN</div>
     <button class="back-btn" style="margin-left:8px;" onclick="logout()">🚪</button>
   </div>
+  <!-- Admin Tabs -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);">
+    <div onclick="adminTab('saques')" id="atSaques" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--gold);border-bottom:2px solid var(--gold);">💰 Saques</div>
+    <div onclick="adminTab('usuarios')" id="atUsers" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">👥 Usuários</div>
+    <div onclick="adminTab('jogos')" id="atJogos" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🎮 Jogos</div>
+    <div onclick="adminTab('stats')" id="atStats" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">📊 Stats</div>
+  </div>
   <div class="scrollable">
     <div style="padding:16px;">
-      <div class="profile-stats" id="adminStats" style="margin:0 0 16px;">
-        <div class="pstat"><div class="pval" id="statUsers">-</div><div class="plbl">Usuários</div></div>
-        <div class="pstat"><div class="pval" id="statDep">-</div><div class="plbl">Depósitos</div></div>
-        <div class="pstat"><div class="pval" id="statPend">-</div><div class="plbl">Saques pend.</div></div>
+
+      <!-- SAQUES -->
+      <div id="tabSaques">
+        <div class="section-label">Saques pendentes</div>
+        <div id="adminSaques"><div class="empty">Carregando...</div></div>
       </div>
-      <div class="section-label">Saques pendentes</div>
-      <div id="adminSaques"><div class="empty">Carregando...</div></div>
-      <div class="section-label" style="margin-top:16px;">Usuários cadastrados</div>
-      <div id="adminUsers"></div>
+
+      <!-- USUÁRIOS -->
+      <div id="tabUsers" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="searchUser" placeholder="🔍 Buscar por nome ou email..." oninput="filtrarUsuarios()" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;"/>
+        </div>
+        <div id="adminUsers"></div>
+      </div>
+
+      <!-- JOGOS -->
+      <div id="tabJogos" style="display:none;">
+        <div class="section-label">Controle de Jogos</div>
+        <div id="adminJogos"><div class="empty">Carregando...</div></div>
+      </div>
+
+      <!-- STATS -->
+      <div id="tabStats" style="display:none;">
+        <div class="section-label">Estatísticas</div>
+        <div class="profile-stats" id="adminStats" style="margin:0 0 16px;">
+          <div class="pstat"><div class="pval" id="statUsers">-</div><div class="plbl">Usuários</div></div>
+          <div class="pstat"><div class="pval" id="statDep">-</div><div class="plbl">Depósitos</div></div>
+          <div class="pstat"><div class="pval" id="statPend">-</div><div class="plbl">Saques pend.</div></div>
+        </div>
+        <div class="profile-stats" style="margin:0 0 16px;">
+          <div class="pstat"><div class="pval" id="statReceita">-</div><div class="plbl">Receita casa</div></div>
+          <div class="pstat"><div class="pval" id="statSaq">-</div><div class="plbl">Total saques</div></div>
+        </div>
+        <div class="section-label">Jogos mais jogados</div>
+        <div id="statsJogos"></div>
+      </div>
+
     </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR USUÁRIO (ADMIN) -->
+<div id="modalEditUser" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)fecharEditUser()">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;max-height:85vh;overflow-y:auto;">
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px;">⚙️ Editar Usuário</div>
+    <div id="editUserInfo" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></div>
+
+    <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">💰 AJUSTAR SALDO</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="number" id="adminSaldoVal" placeholder="Valor (R$)" min="0" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;"/>
+        <button onclick="adminAjustarSaldo('add')" style="padding:8px 14px;background:rgba(0,200,83,.2);border:1px solid rgba(0,200,83,.4);color:#00c853;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">+ ADD</button>
+        <button onclick="adminAjustarSaldo('remove')" style="padding:8px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">- REM</button>
+      </div>
+      <div id="adminSaldoAtual" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+
+    <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">🔑 RESETAR SENHA</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="adminNovaSenha" placeholder="Nova senha (mín. 6 caracteres)" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;"/>
+        <button onclick="adminResetarSenha()" style="padding:8px 14px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">OK</button>
+      </div>
+    </div>
+
+    <div id="adminUserStatus" style="margin-bottom:12px;"></div>
+    <div id="adminEditMsg" style="font-size:13px;min-height:18px;margin-bottom:12px;"></div>
+    <button id="btnBloquear" onclick="adminBloquear()" style="width:100%;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;"></button>
+    <button onclick="fecharEditUser()" style="width:100%;padding:12px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;font-size:14px;cursor:pointer;">Fechar</button>
   </div>
 </div>
 

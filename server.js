@@ -110,6 +110,7 @@ app.post('/api/login', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
   const user = rows[0];
   if (!user) return res.status(400).json({ erro: 'Email não encontrado' });
+  if (user.bloqueado) return res.status(403).json({ erro: 'Conta bloqueada. Entre em contato com o suporte.' });
   const ok = await bcrypt.compare(senha, user.senha);
   if (!ok) return res.status(400).json({ erro: 'Senha incorreta' });
   const token = jwt.sign({ id: user.id, email }, JWT_SECRET, { expiresIn: '7d' });
@@ -848,4 +849,88 @@ io.on('connection', (socketP) => {
   });
 });
 
+
+// ===== ADMIN - CONTROLE DE USUÁRIOS =====
+app.post('/api/admin/usuario/:id/saldo', adminAuth, async (req, res) => {
+  const { valor, operacao } = req.body; // operacao: 'add' ou 'remove'
+  if (!valor || valor <= 0) return res.status(400).json({ erro: 'Valor inválido' });
+  try {
+    if (operacao === 'add') {
+      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [valor, req.params.id]);
+      await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
+        [req.params.id, 'bonus', valor, 'Crédito manual pelo admin', 'concluido']);
+    } else {
+      await pool.query('UPDATE users SET saldo = GREATEST(0, saldo - $1) WHERE id = $2', [valor, req.params.id]);
+    }
+    const { rows } = await pool.query('SELECT saldo FROM users WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true, saldo: rows[0].saldo });
+  } catch(e) { res.status(500).json({ erro: 'Erro ao atualizar saldo' }); }
+});
+
+app.post('/api/admin/usuario/:id/bloquear', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT bloqueado FROM users WHERE id = $1', [req.params.id]);
+    const novoStatus = !rows[0]?.bloqueado;
+    await pool.query('UPDATE users SET bloqueado = $1 WHERE id = $2', [novoStatus, req.params.id]);
+    res.json({ sucesso: true, bloqueado: novoStatus });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+app.post('/api/admin/usuario/:id/senha', adminAuth, async (req, res) => {
+  const { novaSenha } = req.body;
+  if (!novaSenha || novaSenha.length < 6) return res.status(400).json({ erro: 'Senha muito curta' });
+  try {
+    const hash = await bcrypt.hash(novaSenha, 10);
+    await pool.query('UPDATE users SET senha = $1 WHERE id = $2', [hash, req.params.id]);
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+// ===== ADMIN - CONTROLE DE JOGOS =====
+app.get('/api/admin/jogos', adminAuth, async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS jogos_config (
+      id TEXT PRIMARY KEY, nome TEXT, ativo BOOLEAN DEFAULT true
+    )`);
+    const jogos = ['airhockey','flappy','xadrez','sinuca'];
+    const nomes = {'airhockey':'Air Hockey','flappy':'Flappy Duelo','xadrez':'Xadrez','sinuca':'Sinuca'};
+    for (const j of jogos) {
+      await pool.query('INSERT INTO jogos_config (id,nome,ativo) VALUES ($1,$2,true) ON CONFLICT (id) DO NOTHING', [j, nomes[j]]);
+    }
+    const { rows } = await pool.query('SELECT * FROM jogos_config');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+app.post('/api/admin/jogos/:id/toggle', adminAuth, async (req, res) => {
+  try {
+    await pool.query('UPDATE jogos_config SET ativo = NOT ativo WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT ativo FROM jogos_config WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true, ativo: rows[0].ativo });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+app.get('/api/admin/estatisticas', adminAuth, async (req, res) => {
+  try {
+    const { rows: r1 } = await pool.query('SELECT COUNT(*) as total FROM users');
+    const { rows: r2 } = await pool.query("SELECT SUM(valor) as total FROM transacoes WHERE tipo='deposito' AND status='aprovado'");
+    const { rows: r3 } = await pool.query("SELECT SUM(valor) as total FROM transacoes WHERE tipo='saque' AND status='pago'");
+    const { rows: r4 } = await pool.query("SELECT COUNT(*) as total FROM transacoes WHERE tipo='saque' AND status='pendente'");
+    const { rows: r5 } = await pool.query("SELECT SUM(valor)*0.25 as total FROM transacoes WHERE tipo='ganho'");
+    const { rows: r6 } = await pool.query("SELECT descricao, COUNT(*) as total FROM transacoes WHERE tipo='ganho' GROUP BY descricao ORDER BY total DESC");
+    res.json({
+      totalUsers: parseInt(r1[0].total),
+      totalDep: parseFloat(r2[0].total)||0,
+      totalSaq: parseFloat(r3[0].total)||0,
+      saquesPendentes: parseInt(r4[0].total),
+      receitaCasa: parseFloat(r5[0].total)||0,
+      jogosMaisJogados: r6
+    });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+// Add bloqueado column if not exists
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false').catch(()=>{});
+
+// Block login for blocked users
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

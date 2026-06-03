@@ -438,17 +438,24 @@ function recarregarFichas() {
   mostrarToast('✅ Fichas recarregadas!');
 }
 
+let todosUsuarios = [];
+let userEditandoId = null;
+
+function adminTab(tab) {
+  ['saques','usuarios','jogos','stats'].forEach(t => {
+    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? 'block' : 'none';
+    const el = document.getElementById('at' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) { el.style.color = t === tab ? 'var(--gold)' : 'var(--muted)'; el.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent'; }
+  });
+  if (tab === 'usuarios') carregarUsuariosAdmin();
+  if (tab === 'jogos') carregarJogosAdmin();
+  if (tab === 'stats') carregarStatsAdmin();
+}
+
 async function loadAdmin() {
   try {
     const headers = { 'Authorization': 'Bearer ' + token };
-    const [stats, saques, users] = await Promise.all([
-      fetch('/api/admin/stats', { headers }).then(r => r.json()),
-      fetch('/api/admin/saques', { headers }).then(r => r.json()),
-      fetch('/api/admin/usuarios', { headers }).then(r => r.json()),
-    ]);
-    document.getElementById('statUsers').textContent = stats.totalUsers || 0;
-    document.getElementById('statDep').textContent = 'R$' + (stats.totalDep || 0).toFixed(0);
-    document.getElementById('statPend').textContent = stats.saquesPendentes || 0;
+    const saques = await fetch('/api/admin/saques', { headers }).then(r => r.json());
     const saqEl = document.getElementById('adminSaques');
     if (!saques.length) {
       saqEl.innerHTML = '<div class="empty">Nenhum saque pendente. ✅</div>';
@@ -461,18 +468,160 @@ async function loadAdmin() {
             <div class="trans-date">Chave Pix: ${s.chave_pix || 'não informada'}</div>
             <div class="trans-date">${new Date(s.criado_em).toLocaleString('pt-BR')}</div>
           </div>
-          <button onclick="pagarSaque(${s.id})" style="padding:6px 14px;background:var(--green);color:#000;border:none;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">✅ PAGO</button>
+          <button onclick="pagarSaque(${s.id})" style="padding:6px 14px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">✅ PAGO</button>
         </div>
       `).join('');
     }
-    document.getElementById('adminUsers').innerHTML = users.map(u => `
+  } catch(e) { console.log('Erro admin:', e); }
+}
+
+async function carregarUsuariosAdmin() {
+  try {
+    const headers = { 'Authorization': 'Bearer ' + token };
+    todosUsuarios = await fetch('/api/admin/usuarios', { headers }).then(r => r.json());
+    renderUsuarios(todosUsuarios);
+  } catch(e) {}
+}
+
+function renderUsuarios(users) {
+  document.getElementById('adminUsers').innerHTML = users.map(u => `
+    <div class="trans-item" style="cursor:pointer;" onclick="abrirEditUser(${u.id})">
+      <div class="trans-icon dep" style="background:${u.bloqueado?'rgba(239,68,68,.2)':'rgba(0,200,83,.1)'};">${u.bloqueado?'🔒':'👤'}</div>
+      <div class="trans-desc">
+        <div class="trans-name">${u.nome} ${u.bloqueado?'<span style="color:#ef4444;font-size:11px;">(bloqueado)</span>':''}</div>
+        <div class="trans-date">${u.email}</div>
+      </div>
+      <div class="trans-val pos">R$ ${(u.saldo||0).toFixed(2)}</div>
+    </div>
+  `).join('');
+}
+
+function filtrarUsuarios() {
+  const q = document.getElementById('searchUser').value.toLowerCase();
+  renderUsuarios(todosUsuarios.filter(u => u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+}
+
+function abrirEditUser(id) {
+  const u = todosUsuarios.find(u => u.id === id);
+  if (!u) return;
+  userEditandoId = id;
+  document.getElementById('editUserInfo').textContent = `${u.nome} · ${u.email}`;
+  document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${(u.saldo||0).toFixed(2)}`;
+  document.getElementById('adminSaldoVal').value = '';
+  document.getElementById('adminNovaSenha').value = '';
+  document.getElementById('adminEditMsg').textContent = '';
+  const btn = document.getElementById('btnBloquear');
+  if (u.bloqueado) {
+    btn.textContent = '✅ Desbloquear usuário';
+    btn.style.background = 'rgba(0,200,83,.1)';
+    btn.style.border = '1px solid rgba(0,200,83,.3)';
+    btn.style.color = 'var(--green)';
+  } else {
+    btn.textContent = '🔒 Bloquear usuário';
+    btn.style.background = 'rgba(239,68,68,.1)';
+    btn.style.border = '1px solid rgba(239,68,68,.3)';
+    btn.style.color = '#ef4444';
+  }
+  document.getElementById('modalEditUser').style.display = 'flex';
+}
+
+function fecharEditUser() {
+  document.getElementById('modalEditUser').style.display = 'none';
+  userEditandoId = null;
+}
+
+async function adminAjustarSaldo(op) {
+  const valor = parseFloat(document.getElementById('adminSaldoVal').value);
+  if (!valor || valor <= 0) { document.getElementById('adminEditMsg').textContent = 'Informe um valor válido!'; return; }
+  try {
+    const res = await fetch('/api/admin/usuario/' + userEditandoId + '/saldo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ valor, operacao: op })
+    });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('adminEditMsg').textContent = data.erro; return; }
+    document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${data.saldo.toFixed(2)}`;
+    document.getElementById('adminEditMsg').style.color = 'var(--green)';
+    document.getElementById('adminEditMsg').textContent = op === 'add' ? `✅ R$ ${valor.toFixed(2)} adicionado!` : `✅ R$ ${valor.toFixed(2)} removido!`;
+    const u = todosUsuarios.find(u => u.id === userEditandoId);
+    if (u) u.saldo = data.saldo;
+    carregarUsuariosAdmin();
+  } catch(e) { document.getElementById('adminEditMsg').textContent = 'Erro de conexão'; }
+}
+
+async function adminBloquear() {
+  try {
+    const res = await fetch('/api/admin/usuario/' + userEditandoId + '/bloquear', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    document.getElementById('adminEditMsg').style.color = 'var(--gold)';
+    document.getElementById('adminEditMsg').textContent = data.bloqueado ? '🔒 Usuário bloqueado!' : '✅ Usuário desbloqueado!';
+    await carregarUsuariosAdmin();
+    const u = todosUsuarios.find(u => u.id === userEditandoId);
+    if (u) {
+      const btn = document.getElementById('btnBloquear');
+      btn.textContent = u.bloqueado ? '✅ Desbloquear usuário' : '🔒 Bloquear usuário';
+    }
+  } catch(e) {}
+}
+
+async function adminResetarSenha() {
+  const novaSenha = document.getElementById('adminNovaSenha').value.trim();
+  if (!novaSenha || novaSenha.length < 6) { document.getElementById('adminEditMsg').textContent = 'Senha deve ter mínimo 6 caracteres!'; return; }
+  try {
+    const res = await fetch('/api/admin/usuario/' + userEditandoId + '/senha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ novaSenha })
+    });
+    const data = await res.json();
+    document.getElementById('adminEditMsg').style.color = 'var(--green)';
+    document.getElementById('adminEditMsg').textContent = '✅ Senha resetada com sucesso!';
+    document.getElementById('adminNovaSenha').value = '';
+  } catch(e) {}
+}
+
+async function carregarJogosAdmin() {
+  try {
+    const jogos = await fetch('/api/admin/jogos', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json());
+    document.getElementById('adminJogos').innerHTML = jogos.map(j => `
       <div class="trans-item">
-        <div class="trans-icon dep">👤</div>
-        <div class="trans-desc"><div class="trans-name">${u.nome}</div><div class="trans-date">${u.email}</div></div>
-        <div class="trans-val pos">R$ ${(u.saldo || 0).toFixed(2)}</div>
+        <div class="trans-icon dep" style="font-size:20px;">${j.id==='airhockey'?'🏒':j.id==='flappy'?'🐦':j.id==='xadrez'?'♟️':'🎱'}</div>
+        <div class="trans-desc"><div class="trans-name">${j.nome}</div><div class="trans-date">${j.ativo?'✅ Ativo':'❌ Desativado'}</div></div>
+        <button onclick="toggleJogo('${j.id}', this)" style="padding:6px 14px;background:${j.ativo?'rgba(239,68,68,.1)':'rgba(0,200,83,.1)'};border:1px solid ${j.ativo?'rgba(239,68,68,.3)':'rgba(0,200,83,.3)'};color:${j.ativo?'#ef4444':'var(--green)'};border-radius:8px;font-size:13px;cursor:pointer;font-weight:700;">${j.ativo?'Desativar':'Ativar'}</button>
       </div>
     `).join('');
-  } catch(e) { console.log('Erro admin:', e); }
+  } catch(e) {}
+}
+
+async function toggleJogo(id, btn) {
+  try {
+    const res = await fetch('/api/admin/jogos/' + id + '/toggle', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    carregarJogosAdmin();
+    mostrarToast(data.ativo ? '✅ Jogo ativado!' : '❌ Jogo desativado!');
+  } catch(e) {}
+}
+
+async function carregarStatsAdmin() {
+  try {
+    const stats = await fetch('/api/admin/estatisticas', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json());
+    document.getElementById('statUsers').textContent = stats.totalUsers || 0;
+    document.getElementById('statDep').textContent = 'R$' + (stats.totalDep || 0).toFixed(0);
+    document.getElementById('statPend').textContent = stats.saquesPendentes || 0;
+    document.getElementById('statReceita').textContent = 'R$' + (stats.receitaCasa || 0).toFixed(0);
+    document.getElementById('statSaq').textContent = 'R$' + (stats.totalSaq || 0).toFixed(0);
+    if (stats.jogosMaisJogados?.length) {
+      document.getElementById('statsJogos').innerHTML = stats.jogosMaisJogados.map(j => `
+        <div class="trans-item">
+          <div class="trans-desc"><div class="trans-name">${j.descricao}</div></div>
+          <div class="trans-val pos">${j.total}x</div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
 }
 
 async function pagarSaque(id) {
