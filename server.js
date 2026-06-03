@@ -632,4 +632,62 @@ io.on('connection', (socketX) => {
   });
 });
 
+
+// ===== SINUCA MULTIPLAYER =====
+const sinucaFilas = {};
+const sinucaPartidas = {};
+
+io.on('connection', (socketS) => {
+  socketS.on('sinuca_join', async ({ valor, token: tkn }) => {
+    try {
+      const decoded = jwt.verify(tkn, JWT_SECRET);
+      const userId = decoded.id;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = rows[0];
+      if (!user || user.saldo < valor) { socketS.emit('sinuca_error', { msg: 'Saldo insuficiente' }); return; }
+      if (!sinucaFilas[valor]) sinucaFilas[valor] = [];
+      sinucaFilas[valor] = sinucaFilas[valor].filter(j => j.userId !== userId);
+      if (sinucaFilas[valor].length > 0) {
+        const oponente = sinucaFilas[valor].shift();
+        const roomId = `sinuca_${Date.now()}`;
+        await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, userId]);
+        await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, oponente.userId]);
+        sinucaPartidas[roomId] = { p1: oponente, p2: { socket: socketS, userId, nome: user.nome }, valor };
+        socketS.join(roomId);
+        oponente.socket.join(roomId);
+        oponente.socket.emit('sinuca_start', { first: true, oppName: user.nome, valor });
+        socketS.emit('sinuca_start', { first: false, oppName: oponente.nome, valor });
+      } else {
+        sinucaFilas[valor].push({ socket: socketS, userId, nome: user.nome });
+      }
+    } catch(e) { socketS.emit('sinuca_error', { msg: 'Erro' }); }
+  });
+
+  socketS.on('sinuca_shot', (data) => {
+    const partida = Object.values(sinucaPartidas).find(p => p.p1.socket.id===socketS.id || p.p2.socket.id===socketS.id);
+    if (!partida) return;
+    const outro = partida.p1.socket.id===socketS.id ? partida.p2.socket : partida.p1.socket;
+    outro.emit('sinuca_shot', data);
+  });
+
+  socketS.on('sinuca_end', async ({ winner }) => {
+    const entry = Object.entries(sinucaPartidas).find(([,p]) => p.p1.socket.id===socketS.id || p.p2.socket.id===socketS.id);
+    if (!entry) return;
+    const [roomId, partida] = entry;
+    const winnerId = winner==='p1' ? partida.p1.userId : partida.p2.userId;
+    const prize = parseFloat((partida.valor*1.75).toFixed(2));
+    await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [prize, winnerId]);
+    await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
+      [winnerId,'ganho',prize,`Vitória Sinuca R$${partida.valor}`,'concluido']);
+    io.to(roomId).emit('sinuca_end', { winner, reason: 'Fim de jogo' });
+    delete sinucaPartidas[roomId];
+  });
+
+  socketS.on('sinuca_leave', () => {
+    Object.keys(sinucaFilas).forEach(v => {
+      sinucaFilas[v] = sinucaFilas[v].filter(j => j.socket.id !== socketS.id);
+    });
+  });
+});
+
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));
