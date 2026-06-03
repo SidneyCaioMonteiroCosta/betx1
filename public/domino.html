@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Dominó - Super Duelo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#070b14;--surface:#0d1425;--gold:#f0c040;--text:#e8eaf6;--muted:#6b7db3;--border:#1e2d50;--green:#00c853;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo{font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;}
+.back-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+#lobby{width:100%;max-width:480px;padding:16px;display:block;}
+.title{font-size:22px;font-weight:700;color:var(--gold);margin:16px 0 8px;text-align:center;}
+.sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
+.valores-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.valor-btn{padding:14px 8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.valor-btn:hover,.valor-btn.sel{background:rgba(240,192,64,.15);border-color:var(--gold);color:var(--gold);}
+.info-box{background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.8;display:none;}
+.play-btn{width:100%;padding:16px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;display:none;margin-bottom:10px;}
+.bot-btn{width:100%;padding:14px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:none;}
+#waiting{display:none;flex-direction:column;align-items:center;padding:40px 20px;text-align:center;}
+.spinner{width:60px;height:60px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.cancel-btn{margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;}
+#game{display:none;flex-direction:column;align-items:center;width:100%;max-width:520px;}
+.game-hdr{width:100%;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+.pbox{text-align:center;}
+.pbox .pn{font-size:11px;color:var(--muted);text-transform:uppercase;}
+.pbox .pc{font-size:20px;font-weight:700;color:var(--gold);}
+.resign-bar{width:100%;padding:4px 16px;background:var(--surface);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.resign-btn{padding:4px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:11px;cursor:pointer;}
+/* Mesa */
+#board-area{width:100%;background:#0a1a0a;min-height:200px;padding:10px;overflow-x:auto;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--border);}
+#board{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-height:100px;}
+/* Peças */
+.peca{display:inline-flex;flex-direction:column;align-items:center;justify-content:space-between;background:#fff;border:2px solid #ddd;border-radius:4px;padding:2px;cursor:pointer;transition:all .2s;user-select:none;position:relative;}
+.peca.horizontal{flex-direction:row;width:52px;height:26px;}
+.peca.vertical{flex-direction:column;width:26px;height:52px;}
+.peca .lado{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#111;flex:1;}
+.peca .divider-h{width:1px;height:100%;background:#999;}
+.peca .divider-v{height:1px;width:100%;background:#999;}
+.peca.selecionada{border-color:#f0c040;box-shadow:0 0 8px rgba(240,192,64,.6);transform:translateY(-4px);}
+.peca.jogavel{border-color:#00c853;cursor:pointer;}
+.peca.jogavel:hover{box-shadow:0 0 8px rgba(0,200,83,.5);}
+.peca-costas{background:#1e3a5f;border:2px solid #2a5280;border-radius:4px;display:inline-block;}
+/* Mão do jogador */
+#minha-mao{width:100%;padding:10px 8px;background:var(--surface);border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px;justify-content:center;min-height:70px;}
+/* Info */
+.sbar{width:100%;padding:8px 16px;background:var(--surface);text-align:center;font-size:13px;color:var(--gold);border-top:1px solid var(--border);}
+/* Botões de ação */
+.action-bar{width:100%;padding:8px 16px;background:var(--surface);display:flex;gap:8px;border-top:1px solid var(--border);}
+.action-btn{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-pass{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;}
+.btn-comprar{background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);color:var(--gold);}
+#result{display:none;flex-direction:column;align-items:center;padding:40px 20px;text-align:center;}
+.re{font-size:72px;margin-bottom:16px;}
+.rt{font-size:36px;font-weight:900;margin-bottom:8px;}
+.rp{font-size:18px;color:var(--gold);margin-bottom:24px;}
+.rb{padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;}
+</style>
+</head>
+<body>
+<header>
+  <button class="back-btn" onclick="window.location.href='/'">←</button>
+  <div class="logo">🁣 DOMINÓ</div>
+  <div style="margin-left:auto;font-size:13px;color:var(--gold);">💰 R$ <span id="saldoHdr">0,00</span></div>
+</header>
+
+<div id="lobby">
+  <div class="title">🁣 Dominó Brasileiro</div>
+  <div class="sub">1v1 · Vencedor leva <strong style="color:var(--gold);">175%</strong></div>
+  <div class="valores-grid">
+    <div class="valor-btn" onclick="sel(1,this)">R$ 1</div>
+    <div class="valor-btn" onclick="sel(2,this)">R$ 2</div>
+    <div class="valor-btn" onclick="sel(5,this)">R$ 5</div>
+    <div class="valor-btn" onclick="sel(10,this)">R$ 10</div>
+    <div class="valor-btn" onclick="sel(15,this)">R$ 15</div>
+    <div class="valor-btn" onclick="sel(20,this)">R$ 20</div>
+    <div class="valor-btn" onclick="sel(25,this)">R$ 25</div>
+    <div class="valor-btn" onclick="sel(30,this)">R$ 30</div>
+    <div class="valor-btn" onclick="sel(50,this)">R$ 50</div>
+    <div class="valor-btn" onclick="sel(60,this)">R$ 60</div>
+    <div class="valor-btn" onclick="sel(80,this)">R$ 80</div>
+    <div class="valor-btn" onclick="sel(100,this)">R$ 100</div>
+  </div>
+  <div class="info-box" id="infoBox"></div>
+  <button onclick="abrirRegras()" style="width:100%;padding:12px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.2);color:var(--gold);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px;">❓ Como Funciona</button>
+  <button class="play-btn" id="playBtn" onclick="entrarFila()">🁣 JOGAR (FILA)</button>
+  <button class="bot-btn" id="botBtn" onclick="iniciarBot()">🤖 JOGAR CONTRA BOT</button>
+</div>
+
+<div id="waiting">
+  <div class="spinner"></div>
+  <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;">Procurando adversário...</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">R$ <span id="waitVal">0</span></div>
+  <button class="cancel-btn" onclick="cancelar()">Cancelar</button>
+</div>
+
+<div id="game">
+  <div class="game-hdr">
+    <div class="pbox">
+      <div class="pn" id="p1n">Você</div>
+      <div class="pc" id="p1c">7</div>
+    </div>
+    <div style="font-size:12px;color:var(--gold);text-align:center;" id="turnTxt">Sua vez</div>
+    <div class="pbox">
+      <div class="pn" id="p2n">Bot</div>
+      <div class="pc" id="p2c">7</div>
+    </div>
+  </div>
+  <div class="resign-bar">
+    <div style="font-size:11px;color:var(--muted);">Estoque: <span id="estoqueCount">14</span></div>
+    <button class="resign-btn" onclick="desistir()">🏳️ Desistir</button>
+  </div>
+  <div id="board-area"><div id="board"></div></div>
+  <div class="sbar" id="sbar">Aguardando...</div>
+  <div id="minha-mao"></div>
+  <div class="action-bar">
+    <button class="action-btn btn-comprar" id="btnComprar" onclick="comprarPeca()" style="display:none;">📦 Comprar</button>
+    <button class="action-btn btn-pass" id="btnPassar" onclick="passarVez()" style="display:none;">⏭️ Passar</button>
+  </div>
+</div>
+
+<div id="result">
+  <div class="re" id="re">🏆</div>
+  <div class="rt" id="rt">VOCÊ VENCEU!</div>
+  <div class="rp" id="rp"></div>
+  <button class="rb" onclick="voltarLobby()">JOGAR NOVAMENTE</button>
+</div>
+
+<!-- MODAL REGRAS -->
+<div id="modalRegras" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#0d1425;border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #1e2d50;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:18px;font-weight:700;color:#f0c040;">❓ Como Funciona — Dominó</div>
+      <button onclick="document.getElementById('modalRegras').style.display='none'" style="background:none;border:none;color:#6b7db3;font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:20px;flex:1;font-size:13px;color:#e8eaf6;line-height:1.8;">
+      <div style="background:rgba(240,192,64,.08);border-left:3px solid #f0c040;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px;">
+        <strong style="color:#f0c040;">🎯 Objetivo</strong><br>
+        Fique sem peças primeiro ou tenha menos pontos quando o jogo travar!
+      </div>
+      <strong style="color:#f0c040;">🁣 Como jogar</strong>
+      <ul style="margin:8px 0 14px 16px;color:#a0aec0;">
+        <li>Cada jogador recebe 7 peças no início</li>
+        <li>Toque em uma peça para selecioná-la</li>
+        <li>As peças verdes são as que você pode jogar</li>
+        <li>Jogue nas pontas da mesa que combinam com seu número</li>
+      </ul>
+      <strong style="color:#f0c040;">📋 Regras</strong>
+      <ul style="margin:8px 0 14px 16px;color:#a0aec0;">
+        <li>Se não tiver peça para jogar, compre do estoque</li>
+        <li>Se o estoque acabar e não puder jogar, passe a vez</li>
+        <li>Vence quem ficar sem peças primeiro (fechou)</li>
+        <li>Se travar (ninguém consegue jogar), vence quem tiver menos pontos nas peças</li>
+      </ul>
+      <strong style="color:#f0c040;">💰 Apostas</strong>
+      <ul style="margin:8px 0 0 16px;color:#a0aec0;">
+        <li>Vencedor leva <strong style="color:#f0c040;">175%</strong> do valor apostado</li>
+      </ul>
+    </div>
+    <div style="padding:16px 20px;border-top:1px solid #1e2d50;">
+      <button onclick="document.getElementById('modalRegras').style.display='none'" style="width:100%;padding:12px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">Entendido! 🎮</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const token = localStorage.getItem('superduelo_token');
+const usuario = JSON.parse(localStorage.getItem('superduelo_user') || '{}');
+document.getElementById('saldoHdr').textContent = (usuario.saldo||0).toFixed(2).replace('.',',');
+
+let socket = null;
+let valorSel = 0;
+let botMode = false;
+let myTurn = false;
+let gameOver = false;
+
+// Estado do dominó
+let minhaMao = [];
+let maoBot = [];
+let estoque = [];
+let mesa = []; // [{a, b, orientacao}]
+let pontaEsq = -1, pontaDir = -1;
+let pecaSelecionada = null;
+let botTimer = null;
+let passesConsecutivos = 0;
+
+function sel(v, el) {
+  valorSel = v;
+  document.querySelectorAll('.valor-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  const p = (v*1.75).toFixed(2).replace('.',',');
+  document.getElementById('infoBox').style.display='block';
+  document.getElementById('infoBox').innerHTML=`💰 Aposta: <strong>R$ ${v.toFixed(2).replace('.',',')}</strong><br>🏆 Prêmio: <strong style="color:var(--gold)">R$ ${p}</strong>`;
+  document.getElementById('playBtn').style.display='block';
+  document.getElementById('botBtn').style.display='block';
+}
+
+function abrirRegras(){document.getElementById('modalRegras').style.display='flex';}
+
+// ===== LÓGICA DO DOMINÓ =====
+function criarPecas() {
+  const pecas = [];
+  for (let i = 0; i <= 6; i++)
+    for (let j = i; j <= 6; j++)
+      pecas.push({a:i, b:j});
+  return pecas;
+}
+
+function embaralhar(arr) {
+  for (let i=arr.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function iniciarJogo() {
+  const todas = embaralhar(criarPecas());
+  minhaMao = todas.slice(0,7);
+  maoBot = todas.slice(7,14);
+  estoque = todas.slice(14);
+  mesa = [];
+  pontaEsq = -1; pontaDir = -1;
+  pecaSelecionada = null;
+  gameOver = false;
+  passesConsecutivos = 0;
+
+  // Quem tem o [6|6] começa
+  const tem66 = minhaMao.find(p=>p.a===6&&p.b===6);
+  myTurn = !!tem66;
+  if (!tem66) {
+    const bot66 = maoBot.find(p=>p.a===6&&p.b===6);
+    if (!bot66) myTurn = Math.random() > 0.5;
+  }
+
+  atualizarUI();
+  renderMao();
+  renderMesa();
+  setSbar(myTurn ? '⚡ Sua vez! Selecione uma peça.' : '⏳ Vez do adversário...');
+
+  if (!myTurn && botMode) setTimeout(jogadaBot, 1200);
+}
+
+function podePor(peca, ponta) {
+  if (ponta === -1) return true;
+  return peca.a === ponta || peca.b === ponta;
+}
+
+function pecasJogaveis() {
+  if (mesa.length === 0) return minhaMao;
+  return minhaMao.filter(p => podePor(p, pontaEsq) || podePor(p, pontaDir));
+}
+
+function jogarPeca(peca, lado) {
+  // lado: 'esq' ou 'dir'
+  const idx = minhaMao.indexOf(peca);
+  if (idx < 0) return false;
+
+  if (mesa.length === 0) {
+    mesa.push({a:peca.a, b:peca.b});
+    pontaEsq = peca.a;
+    pontaDir = peca.b;
+  } else if (lado === 'esq') {
+    if (peca.b === pontaEsq) {
+      mesa.unshift({a:peca.a, b:peca.b, lado:'esq'});
+      pontaEsq = peca.a;
+    } else if (peca.a === pontaEsq) {
+      mesa.unshift({a:peca.b, b:peca.a, lado:'esq'});
+      pontaEsq = peca.b;
+    } else return false;
+  } else {
+    if (peca.a === pontaDir) {
+      mesa.push({a:peca.a, b:peca.b, lado:'dir'});
+      pontaDir = peca.b;
+    } else if (peca.b === pontaDir) {
+      mesa.push({a:peca.b, b:peca.a, lado:'dir'});
+      pontaDir = peca.a;
+    } else return false;
+  }
+
+  minhaMao.splice(idx, 1);
+  passesConsecutivos = 0;
+
+  if (minhaMao.length === 0) {
+    setTimeout(() => encerrar(true, 'Você fechou! 🎉'), 300);
+    return true;
+  }
+
+  myTurn = false;
+  atualizarUI();
+  renderMao();
+  renderMesa();
+  setSbar('⏳ Vez do adversário...');
+
+  if (botMode) setTimeout(jogadaBot, 1000);
+  return true;
+}
+
+function jogarPecaBot(peca, lado) {
+  const idx = maoBot.indexOf(peca);
+  if (idx < 0) return false;
+
+  if (mesa.length === 0) {
+    mesa.push({a:peca.a, b:peca.b});
+    pontaEsq = peca.a;
+    pontaDir = peca.b;
+  } else if (lado === 'esq') {
+    if (peca.b === pontaEsq) { mesa.unshift({a:peca.a,b:peca.b}); pontaEsq=peca.a; }
+    else { mesa.unshift({a:peca.b,b:peca.a}); pontaEsq=peca.b; }
+  } else {
+    if (peca.a === pontaDir) { mesa.push({a:peca.a,b:peca.b}); pontaDir=peca.b; }
+    else { mesa.push({a:peca.b,b:peca.a}); pontaDir=peca.a; }
+  }
+
+  maoBot.splice(idx, 1);
+  passesConsecutivos = 0;
+
+  if (maoBot.length === 0) {
+    setTimeout(() => encerrar(false, 'Bot fechou!'), 300);
+    return true;
+  }
+
+  myTurn = true;
+  atualizarUI();
+  renderMesa();
+  setSbar('⚡ Sua vez! Selecione uma peça.');
+  verificarAcoes();
+  return true;
+}
+
+function comprarPeca() {
+  if (estoque.length === 0) { passarVez(); return; }
+  const p = estoque.pop();
+  minhaMao.push(p);
+  atualizarUI();
+  renderMao();
+  verificarAcoes();
+  setSbar(`📦 Comprou [${p.a}|${p.b}]. Estoque: ${estoque.length}`);
+}
+
+function passarVez() {
+  passesConsecutivos++;
+  if (passesConsecutivos >= 2) {
+    // Jogo travado
+    const meusPontos = minhaMao.reduce((a,p)=>a+p.a+p.b, 0);
+    const botPontos = maoBot.reduce((a,p)=>a+p.a+p.b, 0);
+    encerrar(meusPontos <= botPontos, `Jogo travado! Você: ${meusPontos}pts / Bot: ${botPontos}pts`);
+    return;
+  }
+  myTurn = false;
+  pecaSelecionada = null;
+  atualizarUI();
+  renderMao();
+  setSbar('⏭️ Vez passada. Aguardando bot...');
+  if (botMode) setTimeout(jogadaBot, 1000);
+}
+
+function verificarAcoes() {
+  const jogaveis = pecasJogaveis();
+  const podeComprar = estoque.length > 0 && myTurn;
+  const podePassar = myTurn && jogaveis.length === 0;
+  document.getElementById('btnComprar').style.display = podeComprar && jogaveis.length===0 ? 'block' : 'none';
+  document.getElementById('btnPassar').style.display = podePassar && estoque.length===0 ? 'block' : 'none';
+}
+
+// ===== BOT IA =====
+function jogadaBot() {
+  botTimer = null;
+  if (myTurn || gameOver) return;
+
+  // Verificar peças jogáveis do bot
+  const jogaveis = maoBot.filter(p => mesa.length===0 || podePor(p,pontaEsq) || podePor(p,pontaDir));
+
+  if (jogaveis.length === 0) {
+    if (estoque.length > 0) {
+      // Comprar
+      const p = estoque.pop();
+      maoBot.push(p);
+      atualizarUI();
+      setTimeout(jogadaBot, 800);
+      return;
+    } else {
+      // Passar
+      passesConsecutivos++;
+      if (passesConsecutivos >= 2) {
+        const meusPontos = minhaMao.reduce((a,p)=>a+p.a+p.b,0);
+        const botPontos = maoBot.reduce((a,p)=>a+p.a+p.b,0);
+        encerrar(meusPontos<=botPontos, `Jogo travado! Você: ${meusPontos}pts / Bot: ${botPontos}pts`);
+        return;
+      }
+      myTurn = true;
+      atualizarUI();
+      setSbar('⚡ Bot passou! Sua vez.');
+      verificarAcoes();
+      return;
+    }
+  }
+
+  // Escolher melhor peça (maior valor ou que fecha)
+  let melhor = jogaveis[0];
+  for (const p of jogaveis) {
+    if (p.a+p.b > melhor.a+melhor.b) melhor = p;
+  }
+
+  // Escolher lado
+  let lado = 'dir';
+  if (mesa.length > 0) {
+    const podeEsq = podePor(melhor, pontaEsq);
+    const podeDir = podePor(melhor, pontaDir);
+    if (podeEsq && !podeDir) lado = 'esq';
+    else if (!podeEsq && podeDir) lado = 'dir';
+    else lado = Math.random() > 0.5 ? 'esq' : 'dir';
+  }
+
+  jogarPecaBot(melhor, lado);
+}
+
+// ===== RENDER =====
+function pontos(n) {
+  const dots = ['','•','••','•••','••••','•••••','••••••'];
+  return dots[n] || n;
+}
+
+function renderMao() {
+  const div = document.getElementById('minha-mao');
+  const jogaveis = pecasJogaveis();
+  div.innerHTML = minhaMao.map((p,i) => {
+    const isJogavel = myTurn && jogaveis.includes(p);
+    const isSel = pecaSelecionada === p;
+    return `<div class="peca horizontal ${isSel?'selecionada':''} ${isJogavel&&!isSel?'jogavel':''}"
+      onclick="selecionarPeca(${i})"
+      style="opacity:${myTurn||isSel?1:0.7}">
+      <div class="lado">${p.a}</div>
+      <div class="divider-h"></div>
+      <div class="lado">${p.b}</div>
+    </div>`;
+  }).join('');
+  verificarAcoes();
+}
+
+function selecionarPeca(idx) {
+  if (!myTurn) return;
+  const peca = minhaMao[idx];
+  const jogaveis = pecasJogaveis();
+  if (!jogaveis.includes(peca)) { setSbar('⚠️ Esta peça não pode ser jogada agora!'); return; }
+
+  if (pecaSelecionada === peca) { pecaSelecionada = null; renderMao(); return; }
+  pecaSelecionada = peca;
+  renderMao();
+
+  if (mesa.length === 0) {
+    jogarPeca(peca, 'dir');
+    pecaSelecionada = null;
+    return;
+  }
+
+  const podeEsq = podePor(peca, pontaEsq);
+  const podeDir = podePor(peca, pontaDir);
+
+  if (podeEsq && podeDir) {
+    setSbar('Escolha: jogar na ⬅️ ESQUERDA ou ➡️ DIREITA?');
+    document.getElementById('btnComprar').style.display='none';
+    document.getElementById('btnPassar').style.display='none';
+    // Mostrar botões de escolha
+    const actionBar = document.querySelector('.action-bar');
+    actionBar.innerHTML = `
+      <button class="action-btn btn-comprar" onclick="confirmarLado('esq')">⬅️ Esquerda (${pontaEsq})</button>
+      <button class="action-btn btn-comprar" onclick="confirmarLado('dir')">➡️ Direita (${pontaDir})</button>
+      <button class="action-btn btn-pass" onclick="cancelarSelecao()">✕</button>
+    `;
+  } else if (podeEsq) {
+    jogarPeca(peca, 'esq');
+    pecaSelecionada = null;
+  } else {
+    jogarPeca(peca, 'dir');
+    pecaSelecionada = null;
+  }
+}
+
+function confirmarLado(lado) {
+  if (pecaSelecionada) {
+    jogarPeca(pecaSelecionada, lado);
+    pecaSelecionada = null;
+  }
+  resetActionBar();
+}
+
+function cancelarSelecao() {
+  pecaSelecionada = null;
+  renderMao();
+  resetActionBar();
+  setSbar('⚡ Selecione uma peça para jogar.');
+}
+
+function resetActionBar() {
+  const ab = document.querySelector('.action-bar');
+  ab.innerHTML = `
+    <button class="action-btn btn-comprar" id="btnComprar" onclick="comprarPeca()" style="display:none;">📦 Comprar</button>
+    <button class="action-btn btn-pass" id="btnPassar" onclick="passarVez()" style="display:none;">⏭️ Passar</button>
+  `;
+  verificarAcoes();
+}
+
+function renderMesa() {
+  const div = document.getElementById('board');
+  if (mesa.length === 0) {
+    div.innerHTML = '<div style="color:#333;font-size:13px;">Mesa vazia — jogue a primeira peça</div>';
+    return;
+  }
+  div.innerHTML = mesa.map(p => `
+    <div class="peca horizontal">
+      <div class="lado">${p.a}</div>
+      <div class="divider-h"></div>
+      <div class="lado">${p.b}</div>
+    </div>
+  `).join('');
+  document.getElementById('estoqueCount').textContent = estoque.length;
+}
+
+function atualizarUI() {
+  document.getElementById('p1c').textContent = minhaMao.length;
+  document.getElementById('p2c').textContent = maoBot.length;
+  document.getElementById('turnTxt').textContent = myTurn ? '⚡ Sua vez' : '⏳ Bot';
+  document.getElementById('estoqueCount').textContent = estoque.length;
+}
+
+function setSbar(msg) { document.getElementById('sbar').textContent = msg; }
+
+function encerrar(ganhou, motivo) {
+  gameOver = true;
+  clearTimeout(botTimer);
+  mostrar('result');
+  document.getElementById('re').textContent = ganhou ? '🏆' : '😢';
+  document.getElementById('rt').textContent = ganhou ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
+  document.getElementById('rt').style.color = ganhou ? 'var(--gold)' : '#ef4444';
+  document.getElementById('rp').textContent = botMode ? motivo + ' — Modo treino' : (ganhou ? `+R$ ${(valorSel*1.75).toFixed(2).replace('.',',')}` : motivo);
+}
+
+function desistir() {
+  if (confirm('Deseja desistir?')) encerrar(false, 'Você desistiu.');
+}
+
+// ===== JOGO =====
+function iniciarBot() {
+  botMode = true;
+  mostrar('game');
+  document.getElementById('p1n').textContent = usuario.nome || 'Você';
+  document.getElementById('p2n').textContent = '🤖 Bot';
+  iniciarJogo();
+}
+
+function voltarLobby() {
+  botMode = false; gameOver = false;
+  clearTimeout(botTimer);
+  mostrar('lobby');
+}
+
+// ===== ONLINE =====
+function conectar() {
+  socket = io();
+  socket.on('domino_start', data => {
+    botMode = false;
+    myTurn = data.first;
+    mostrar('game');
+    document.getElementById('p1n').textContent = usuario.nome || 'Você';
+    document.getElementById('p2n').textContent = data.oppName || 'Adversário';
+    // Receber mão inicial do servidor
+    minhaMao = data.mao;
+    maoBot = Array(7).fill(null);
+    estoque = Array(data.estoque).fill(null);
+    mesa = []; pontaEsq=-1; pontaDir=-1;
+    gameOver = false;
+    atualizarUI(); renderMao(); renderMesa();
+    setSbar(myTurn ? '⚡ Sua vez!' : '⏳ Vez do adversário...');
+  });
+  socket.on('domino_move', data => {
+    // Aplicar jogada do adversário
+    mesa = data.mesa;
+    pontaEsq = data.pontaEsq;
+    pontaDir = data.pontaDir;
+    maoBot = Array(data.pecasAdv).fill(null);
+    estoque = Array(data.estoque).fill(null);
+    myTurn = true;
+    atualizarUI(); renderMesa(); renderMao();
+    setSbar('⚡ Sua vez!');
+    verificarAcoes();
+  });
+  socket.on('domino_end', data => encerrar(data.winner === 'me', data.reason||''));
+}
+
+function entrarFila() {
+  if (!token) { alert('Faça login!'); return; }
+  if ((usuario.saldo||0) < valorSel) { alert('Saldo insuficiente!'); return; }
+  if (!socket) conectar();
+  mostrar('waiting');
+  document.getElementById('waitVal').textContent = valorSel.toFixed(2).replace('.',',');
+  socket.emit('domino_join', { valor: valorSel, token });
+}
+
+function cancelar() { socket?.emit('domino_leave'); mostrar('lobby'); }
+
+function mostrar(id) {
+  ['lobby','waiting','game','result'].forEach(x => {
+    document.getElementById(x).style.display = x===id?(x==='lobby'?'block':'flex'):'none';
+  });
+}
+
+window.addEventListener('beforeunload', e => {
+  if (document.getElementById('game').style.display !== 'none') { e.preventDefault(); e.returnValue=''; }
+});
+</script>
+</body>
+</html>

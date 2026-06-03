@@ -1027,4 +1027,72 @@ app.get('/api/admin/estatisticas', adminAuth, async (req, res) => {
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false').catch(()=>{});
 
 // Block login for blocked users
+
+// ===== DOMINÓ MULTIPLAYER =====
+const dominoFilas = {};
+const dominoPartidas = {};
+
+function criarPecasDomino() {
+  const p = [];
+  for (let i=0;i<=6;i++) for(let j=i;j<=6;j++) p.push({a:i,b:j});
+  return p.sort(()=>Math.random()-0.5);
+}
+
+io.on('connection', (socketD) => {
+  socketD.on('domino_join', async ({ valor, token: tkn }) => {
+    try {
+      const decoded = jwt.verify(tkn, JWT_SECRET);
+      const userId = decoded.id;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = rows[0];
+      if (!user || user.saldo < valor) { socketD.emit('domino_error', {msg:'Saldo insuficiente'}); return; }
+      if (!dominoFilas[valor]) dominoFilas[valor] = [];
+      dominoFilas[valor] = dominoFilas[valor].filter(j => j.userId !== userId);
+      if (dominoFilas[valor].length > 0) {
+        const oponente = dominoFilas[valor].shift();
+        const roomId = `domino_${Date.now()}`;
+        await pool.query('UPDATE users SET saldo=saldo-$1 WHERE id=$2',[valor,userId]);
+        await pool.query('UPDATE users SET saldo=saldo-$1 WHERE id=$2',[valor,oponente.userId]);
+        const pecas = criarPecasDomino();
+        const mao1 = pecas.slice(0,7);
+        const mao2 = pecas.slice(7,14);
+        const estoque = 14;
+        const first = mao1.some(p=>p.a===6&&p.b===6);
+        dominoPartidas[roomId] = {p1:oponente,p2:{socket:socketD,userId,nome:user.nome},valor};
+        socketD.join(roomId); oponente.socket.join(roomId);
+        oponente.socket.emit('domino_start',{first,oppName:user.nome,valor,mao:mao1,estoque});
+        socketD.emit('domino_start',{first:!first,oppName:oponente.nome,valor,mao:mao2,estoque});
+      } else {
+        dominoFilas[valor].push({socket:socketD,userId,nome:user.nome});
+      }
+    } catch(e) { socketD.emit('domino_error',{msg:'Erro'}); }
+  });
+
+  socketD.on('domino_move', data => {
+    const partida = Object.values(dominoPartidas).find(p=>p.p1.socket.id===socketD.id||p.p2.socket.id===socketD.id);
+    if (!partida) return;
+    const outro = partida.p1.socket.id===socketD.id ? partida.p2.socket : partida.p1.socket;
+    outro.emit('domino_move', data);
+  });
+
+  socketD.on('domino_end', async ({ winner }) => {
+    const entry = Object.entries(dominoPartidas).find(([,p])=>p.p1.socket.id===socketD.id||p.p2.socket.id===socketD.id);
+    if (!entry) return;
+    const [roomId, partida] = entry;
+    const winnerId = winner==='p1' ? partida.p1.userId : partida.p2.userId;
+    const prize = parseFloat((partida.valor*1.75).toFixed(2));
+    await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
+    await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',
+      [winnerId,'ganho',prize,`Vitória Dominó R$${partida.valor}`,'concluido']);
+    io.to(roomId).emit('domino_end',{winner,reason:'Fim de jogo'});
+    delete dominoPartidas[roomId];
+  });
+
+  socketD.on('domino_leave', () => {
+    Object.keys(dominoFilas).forEach(v => {
+      dominoFilas[v] = dominoFilas[v].filter(j=>j.socket.id!==socketD.id);
+    });
+  });
+});
+
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));
