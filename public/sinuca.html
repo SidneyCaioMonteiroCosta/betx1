@@ -178,19 +178,27 @@ function iniciarMesa() {
   // Bola branca
   cueBall = { x: W*0.25, y: H/2, vx:0, vy:0, r:BALL_R, id:0, potted:false };
 
-  // Triângulo de bolas
+  // Triângulo de bolas - 3 fileiras (1+2+3 = 6, mas usamos 8 em 4 fileiras)
   balls = [];
-  const ordem = [1,5,3,8,2,6,4,7]; // misturado
-  let bi = 0;
+  const ordem = [1,5,3,8,2,6,4,7];
   const startX = W * 0.65;
-  const rows = [1,2,3,2]; // losango simplificado
+  const sp = BALL_R * 2.1;
+  // Fileira 1: 1 bola
+  // Fileira 2: 2 bolas
+  // Fileira 3: 3 bolas
+  // Fileira 4: 2 bolas (total 8)
+  const fileiras = [
+    [0],           // 1 bola
+    [-1, 1],       // 2 bolas
+    [-2, 0, 2],    // 3 bolas
+    [-1, 1]        // 2 bolas
+  ];
   let idx = 0;
-  for (let row = 0; row < 4; row++) {
-    const count = rows[row] === 1 ? 1 : rows[row] === 2 ? 2 : rows[row] === 3 ? 3 : 2;
-    for (let col = 0; col < count; col++) {
-      const bx = startX + row * (BALL_R*1.8);
-      const by = H/2 - (count-1)*BALL_R + col*(BALL_R*2.05);
-      balls.push({ x:bx, y:by, vx:0, vy:0, r:BALL_R, id:ordem[idx]||1, potted:false });
+  for (let f = 0; f < fileiras.length; f++) {
+    for (let o of fileiras[f]) {
+      const bx = startX + f * sp * 0.87;
+      const by = H/2 + o * sp * 0.5;
+      balls.push({ x:bx, y:by, vx:0, vy:0, r:BALL_R, id:ordem[idx], potted:false });
       idx++;
     }
   }
