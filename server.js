@@ -386,6 +386,31 @@ function resetBall(state, scorer) {
   state.ball.vy = scorer === 'p1' ? -0.005 : 0.005;
 }
 
+// ===== USUÁRIOS ONLINE =====
+const usuariosOnline = new Set();
+
+io.on('connection', (socket) => {
+  socket.on('usuario_online', (userId) => {
+    if (userId) {
+      usuariosOnline.add(userId);
+      io.emit('online_count', usuariosOnline.size);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    // Remove user from online set when disconnected
+    // We'll use token-based tracking
+    if (socket._userId) {
+      usuariosOnline.delete(socket._userId);
+      io.emit('online_count', usuariosOnline.size);
+    }
+  });
+});
+
+app.get('/api/online', (req, res) => {
+  res.json({ online: usuariosOnline.size });
+});
+
 io.on('connection', (socket) => {
   let userId = null;
   let userNome = null;

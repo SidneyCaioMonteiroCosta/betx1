@@ -183,10 +183,28 @@ function enterApp() {
   updateBalanceUI();
   atualizarAvatar();
   showScreen('lobby');
-  // Atualiza saldo do servidor ao entrar
   atualizarSaldoServidor();
-  // Atualiza a cada 30 segundos
   setInterval(atualizarSaldoServidor, 30000);
+  // Conectar socket para rastrear online
+  iniciarSocketOnline();
+}
+
+function iniciarSocketOnline() {
+  try {
+    const socketOnline = io();
+    socketOnline.on('connect', () => {
+      socketOnline.emit('usuario_online', usuario?.email || 'anonimo');
+    });
+    socketOnline.on('online_count', (count) => {
+      const el = document.getElementById('onlineCount');
+      if (el) el.textContent = count;
+    });
+    // Buscar contagem inicial
+    fetch('/api/online').then(r=>r.json()).then(d=>{
+      const el = document.getElementById('onlineCount');
+      if (el) el.textContent = d.online;
+    }).catch(()=>{});
+  } catch(e) {}
 }
 
 async function atualizarSaldoServidor() {
