@@ -11,35 +11,34 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
 .logo{font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;}
 .back-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
-#lobby{width:100%;max-width:480px;padding:16px;}
+#lobby{width:100%;max-width:480px;padding:16px;display:block;}
 .title{font-size:22px;font-weight:700;color:var(--gold);margin:16px 0 8px;text-align:center;}
 .sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
 .valores-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
 .valor-btn{padding:14px 8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
 .valor-btn:hover,.valor-btn.sel{background:rgba(240,192,64,.15);border-color:var(--gold);color:var(--gold);}
 .info-box{background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#A5D6A7;line-height:1.8;display:none;}
-.play-btn{width:100%;padding:16px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;display:none;}
-.bot-btn{width:100%;padding:14px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;display:none;}
-#waiting{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.play-btn{width:100%;padding:16px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;display:none;margin-bottom:10px;}
+.bot-btn{width:100%;padding:14px;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:none;}
+#waiting{display:none;flex-direction:column;align-items:center;padding:40px 20px;text-align:center;}
 .spinner{width:60px;height:60px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
 @keyframes spin{to{transform:rotate(360deg);}}
-.wait-text{font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;}
-.cancel-btn{margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;font-size:14px;}
+.cancel-btn{margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;}
 #game{display:none;flex-direction:column;align-items:center;width:100%;}
-.game-hdr{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
-.player-box{text-align:center;min-width:100px;}
-.player-box .pname{font-size:11px;color:var(--muted);text-transform:uppercase;}
-.player-box .pballs{font-size:13px;margin-top:2px;}
-.turn-ind{font-size:12px;color:var(--gold);text-align:center;}
-.resign-bar{width:100%;max-width:520px;padding:4px 16px;background:var(--surface);display:flex;justify-content:flex-end;border-bottom:1px solid var(--border);}
+.hdr{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+.pbox{text-align:center;}
+.pbox .pn{font-size:11px;color:var(--muted);text-transform:uppercase;}
+.pbox .ps{font-size:14px;font-weight:700;color:var(--gold);margin-top:2px;}
+.resign-bar{width:100%;max-width:520px;padding:4px 16px;background:var(--surface);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.status{font-size:12px;color:var(--muted);}
 .resign-btn{padding:4px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:11px;cursor:pointer;}
-canvas{display:block;touch-action:none;}
-.status-bar{width:100%;max-width:520px;padding:6px 16px;background:var(--surface);border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--gold);min-height:32px;}
-#result{display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
-.res-emoji{font-size:72px;margin-bottom:16px;}
-.res-title{font-size:36px;font-weight:900;margin-bottom:8px;}
-.res-prize{font-size:18px;color:var(--gold);margin-bottom:24px;}
-.res-btn{padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;}
+canvas{display:block;touch-action:none;cursor:crosshair;}
+.sbar{width:100%;max-width:520px;padding:8px 16px;background:var(--surface);border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--gold);}
+#result{display:none;flex-direction:column;align-items:center;padding:40px 20px;text-align:center;}
+.re{font-size:72px;margin-bottom:16px;}
+.rt{font-size:36px;font-weight:900;margin-bottom:8px;}
+.rp{font-size:18px;color:var(--gold);margin-bottom:24px;}
+.rb{padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -50,8 +49,8 @@ canvas{display:block;touch-action:none;}
 </header>
 
 <div id="lobby">
-  <div class="title">🎱 Escolha o valor da aposta</div>
-  <div class="sub">1v1 · Sinuca Brasileira · Vencedor leva <strong style="color:var(--gold);">175%</strong></div>
+  <div class="title">🎱 Sinuca Brasileira</div>
+  <div class="sub">1v1 · Encaçape suas 4 bolas primeiro · Vencedor leva <strong style="color:var(--gold);">175%</strong></div>
   <div class="valores-grid">
     <div class="valor-btn" onclick="sel(1,this)">R$ 1</div>
     <div class="valor-btn" onclick="sel(2,this)">R$ 2</div>
@@ -67,41 +66,42 @@ canvas{display:block;touch-action:none;}
     <div class="valor-btn" onclick="sel(100,this)">R$ 100</div>
   </div>
   <div class="info-box" id="infoBox"></div>
-  <button class="play-btn" id="playBtn" onclick="entrarFila()">🎱 JOGAR</button>
-  <button class="bot-btn" id="botBtn" onclick="jogarBot()">🤖 JOGAR CONTRA BOT</button>
+  <button class="play-btn" id="playBtn" onclick="entrarFila()">🎱 JOGAR ONLINE</button>
+  <button class="bot-btn" id="botBtn" onclick="iniciarBot()">🤖 JOGAR CONTRA BOT</button>
 </div>
 
 <div id="waiting">
   <div class="spinner"></div>
-  <div class="wait-text">Procurando adversário...</div>
+  <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;">Procurando adversário...</div>
   <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">R$ <span id="waitVal">0</span></div>
   <button class="cancel-btn" onclick="cancelar()">Cancelar</button>
 </div>
 
 <div id="game">
-  <div class="game-hdr">
-    <div class="player-box">
-      <div class="pname" id="p1name">Você</div>
-      <div class="pballs" id="p1balls"></div>
+  <div class="hdr">
+    <div class="pbox">
+      <div class="pn" id="p1n">Você</div>
+      <div class="ps" id="p1s">0/4</div>
     </div>
-    <div class="turn-ind" id="turnInd">Sua vez</div>
-    <div class="player-box">
-      <div class="pname" id="p2name">Adversário</div>
-      <div class="pballs" id="p2balls"></div>
+    <div style="font-size:12px;color:var(--gold);text-align:center;" id="turnTxt">Sua vez</div>
+    <div class="pbox">
+      <div class="pn" id="p2n">Adversário</div>
+      <div class="ps" id="p2s">0/4</div>
     </div>
   </div>
   <div class="resign-bar">
-    <button class="resign-btn" onclick="confirmarDesistir()">🏳️ Desistir</button>
+    <div class="status" id="statusMsg">Arraste para mirar</div>
+    <button class="resign-btn" onclick="desistir()">🏳️ Desistir</button>
   </div>
   <canvas id="canvas"></canvas>
-  <div class="status-bar" id="statusBar">Preparando...</div>
+  <div class="sbar" id="sbar">⚡ Sua vez! Toque na mesa para mirar e solte para atirar.</div>
 </div>
 
 <div id="result">
-  <div class="res-emoji" id="resEmoji">🏆</div>
-  <div class="res-title" id="resTitle">VOCÊ VENCEU!</div>
-  <div class="res-prize" id="resPrize"></div>
-  <button class="res-btn" onclick="voltarLobby()">JOGAR NOVAMENTE</button>
+  <div class="re" id="re">🏆</div>
+  <div class="rt" id="rt">VOCÊ VENCEU!</div>
+  <div class="rp" id="rp"></div>
+  <button class="rb" onclick="voltarLobby()">JOGAR NOVAMENTE</button>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -110,526 +110,441 @@ const token = localStorage.getItem('superduelo_token');
 const usuario = JSON.parse(localStorage.getItem('superduelo_user') || '{}');
 document.getElementById('saldoHdr').textContent = (usuario.saldo||0).toFixed(2).replace('.',',');
 
-let socket = null;
+// ===== CONFIG =====
+const R = 13; // raio das bolas
+const PR = 18; // raio das caçapas
+const FRIC = 0.983;
+const COLORS = ['#ffffff','#f5c542','#3b82f6','#ef4444','#8b5cf6','#f97316','#10b981','#ec4899','#111827'];
+
+let W, H, canvas, ctx;
+let balls = [], pockets = [];
+let myTurn = false, botMode = false, gameOver = false;
+let myGroup = null, oppGroup = null, firstPot = true;
+let myPotted = 0, oppPotted = 0;
 let valorSel = 0;
-let botMode = false;
-let myTurn = false;
-let canvas, ctx, W, H;
-let animId = null;
+let socket = null;
 
-// Física
-const FRICTION = 0.985;
-const BALL_R = 14;
-const POCKET_R = 20;
-
-// Estado do jogo
-let balls = [];
-let cueBall = null;
-let pockets = [];
-let dragging = false;
-let dragStart = { x: 0, y: 0 };
-let power = 0;
-let aimAngle = 0;
-let shooting = false;
-let myBalls = []; // bolas do jogador (1-4)
-let oppBalls = []; // bolas do oponente (5-8)
-let myScore = 0;
-let oppScore = 0;
-let gameOver = false;
-let botThinkTimer = null;
-let myColorGroup = null; // 'low' (1-4) ou 'high' (5-8)
-let oppColorGroup = null;
-let firstPot = true; // primeira bola encaçapada define grupos
-
-// Cores das bolas
-const BALL_COLORS = {
-  1:'#f5c542', 2:'#3b82f6', 3:'#ef4444', 4:'#8b5cf6',
-  5:'#f97316', 6:'#10b981', 7:'#ec4899', 8:'#1f2937',
-  0:'#fff' // bola branca
-};
+// Mira
+let aiming = false, aimAngle = 0, pullDist = 0;
+let touchStart = {x:0,y:0};
+let animId = null, botTimer = null;
 
 function sel(v, el) {
   valorSel = v;
   document.querySelectorAll('.valor-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
-  const premio = (v*1.75).toFixed(2).replace('.',',');
-  document.getElementById('infoBox').style.display = 'block';
-  document.getElementById('infoBox').innerHTML = `💰 Aposta: <strong>R$ ${v.toFixed(2).replace('.',',')}</strong><br>🏆 Prêmio: <strong style="color:var(--gold);">R$ ${premio}</strong>`;
-  document.getElementById('playBtn').style.display = 'block';
-  document.getElementById('botBtn').style.display = 'block';
+  const p = (v*1.75).toFixed(2).replace('.',',');
+  document.getElementById('infoBox').style.display='block';
+  document.getElementById('infoBox').innerHTML=`💰 Aposta: <strong>R$ ${v.toFixed(2).replace('.',',')}</strong><br>🏆 Prêmio: <strong style="color:var(--gold)">R$ ${p}</strong>`;
+  document.getElementById('playBtn').style.display='block';
+  document.getElementById('botBtn').style.display='block';
 }
 
-function iniciarMesa() {
+function criarMesa() {
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
   W = Math.min(window.innerWidth, 520);
-  H = Math.round(W * 0.55);
+  H = Math.round(W * 0.56);
   canvas.width = W;
   canvas.height = H;
 
-  // Caçapas
+  // Caçapas (6)
   pockets = [
-    {x:POCKET_R, y:POCKET_R},
-    {x:W/2, y:POCKET_R-4},
-    {x:W-POCKET_R, y:POCKET_R},
-    {x:POCKET_R, y:H-POCKET_R},
-    {x:W/2, y:H-POCKET_R+4},
-    {x:W-POCKET_R, y:H-POCKET_R}
+    {x:PR, y:PR},
+    {x:W/2, y:PR*0.5},
+    {x:W-PR, y:PR},
+    {x:PR, y:H-PR},
+    {x:W/2, y:H-PR*0.5},
+    {x:W-PR, y:H-PR}
   ];
 
   // Bola branca
-  cueBall = { x: W*0.25, y: H/2, vx:0, vy:0, r:BALL_R, id:0, potted:false };
-
-  // Triângulo de bolas - 3 fileiras (1+2+3 = 6, mas usamos 8 em 4 fileiras)
   balls = [];
-  const ordem = [1,5,3,8,2,6,4,7];
-  const startX = W * 0.65;
-  const sp = BALL_R * 2.1;
-  // Fileira 1: 1 bola
-  // Fileira 2: 2 bolas
-  // Fileira 3: 3 bolas
-  // Fileira 4: 2 bolas (total 8)
-  const fileiras = [
-    [0],           // 1 bola
-    [-1, 1],       // 2 bolas
-    [-2, 0, 2],    // 3 bolas
-    [-1, 1]        // 2 bolas
+  balls.push({x:W*0.28, y:H/2, vx:0, vy:0, id:0, potted:false});
+
+  // Triângulo: 4 fileiras
+  const cx = W*0.67, cy = H/2;
+  const sp = R*2.1;
+  // fileira 1 (ponta): 1 bola
+  // fileira 2: 2 bolas
+  // fileira 3: 3 bolas
+  // fileira 4: 2 bolas
+  const config = [
+    [{dy:0, id:1}],
+    [{dy:-sp*0.5, id:5}, {dy:sp*0.5, id:2}],
+    [{dy:-sp, id:3}, {dy:0, id:8}, {dy:sp, id:6}],
+    [{dy:-sp*0.5, id:4}, {dy:sp*0.5, id:7}],
   ];
-  let idx = 0;
-  for (let f = 0; f < fileiras.length; f++) {
-    for (let o of fileiras[f]) {
-      const bx = startX + f * sp * 0.87;
-      const by = H/2 + o * sp * 0.5;
-      balls.push({ x:bx, y:by, vx:0, vy:0, r:BALL_R, id:ordem[idx], potted:false });
-      idx++;
-    }
-  }
 
-  myScore = 0; oppScore = 0;
-  myColorGroup = null; oppColorGroup = null;
-  firstPot = true;
-  gameOver = false;
-  myTurn = true;
-  atualizarUI();
+  config.forEach((fileira, fi) => {
+    fileira.forEach(b => {
+      balls.push({
+        x: cx + fi * sp * 0.87,
+        y: cy + b.dy,
+        vx: 0, vy: 0,
+        id: b.id,
+        potted: false
+      });
+    });
+  });
+
+  myPotted = 0; oppPotted = 0;
+  myGroup = null; oppGroup = null;
+  firstPot = true; gameOver = false;
 }
 
-function getAllBalls() { return [cueBall, ...balls].filter(b=>!b.potted); }
+function cue() { return balls[0]; }
+function numBalls() { return balls.filter(b=>!b.potted&&b.id>0); }
+function moving() { return balls.some(b=>!b.potted&&(Math.abs(b.vx)>0.15||Math.abs(b.vy)>0.15)); }
 
-function atualizarUI() {
-  const minha = balls.filter(b=>!b.potted && myColorGroup && (myColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8)).length;
-  const opp = balls.filter(b=>!b.potted && oppColorGroup && (oppColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8)).length;
-  document.getElementById('p1balls').textContent = myColorGroup ? `${4-minha}/4 ✓` : '?';
-  document.getElementById('p2balls').textContent = oppColorGroup ? `${4-opp}/4 ✓` : '?';
-  const turno = myTurn ? '⚡ Sua vez!' : '⏳ Vez do adversário';
-  document.getElementById('turnInd').textContent = turno;
-}
-
-function tudoParado() {
-  return getAllBalls().every(b => Math.abs(b.vx) < 0.1 && Math.abs(b.vy) < 0.1);
-}
-
-// Física
-function stepPhysics() {
-  const allB = getAllBalls();
-  for (const b of allB) {
+function stepFisica() {
+  const ativos = balls.filter(b=>!b.potted);
+  for (const b of ativos) {
     b.x += b.vx; b.y += b.vy;
-    b.vx *= FRICTION; b.vy *= FRICTION;
-    if (Math.abs(b.vx) < 0.05) b.vx = 0;
-    if (Math.abs(b.vy) < 0.05) b.vy = 0;
+    b.vx *= FRIC; b.vy *= FRIC;
+    if (Math.abs(b.vx)<0.08) b.vx=0;
+    if (Math.abs(b.vy)<0.08) b.vy=0;
     // Paredes
-    if (b.x - b.r < POCKET_R*1.2) { b.x = POCKET_R*1.2+b.r; b.vx = Math.abs(b.vx)*0.8; }
-    if (b.x + b.r > W-POCKET_R*1.2) { b.x = W-POCKET_R*1.2-b.r; b.vx = -Math.abs(b.vx)*0.8; }
-    if (b.y - b.r < POCKET_R*0.8) { b.y = POCKET_R*0.8+b.r; b.vy = Math.abs(b.vy)*0.8; }
-    if (b.y + b.r > H-POCKET_R*0.8) { b.y = H-POCKET_R*0.8-b.r; b.vy = -Math.abs(b.vy)*0.8; }
+    const mx=PR*1.1+R, my=PR*0.6+R;
+    if(b.x<mx){b.x=mx;b.vx=Math.abs(b.vx)*0.75;}
+    if(b.x>W-mx){b.x=W-mx;b.vx=-Math.abs(b.vx)*0.75;}
+    if(b.y<my){b.y=my;b.vy=Math.abs(b.vy)*0.75;}
+    if(b.y>H-my){b.y=H-my;b.vy=-Math.abs(b.vy)*0.75;}
   }
-  // Colisões bola-bola
-  for (let i=0;i<allB.length;i++) {
-    for (let j=i+1;j<allB.length;j++) {
-      collideBalls(allB[i], allB[j]);
+  // Colisões
+  for(let i=0;i<ativos.length;i++){
+    for(let j=i+1;j<ativos.length;j++){
+      colidir(ativos[i],ativos[j]);
     }
   }
   // Caçapas
-  verificarCacapas();
-}
-
-function collideBalls(a, b) {
-  const dx = b.x-a.x, dy = b.y-a.y;
-  const dist = Math.sqrt(dx*dx+dy*dy);
-  if (dist < a.r+b.r && dist > 0) {
-    const nx = dx/dist, ny = dy/dist;
-    const overlap = (a.r+b.r-dist)/2;
-    a.x -= nx*overlap; a.y -= ny*overlap;
-    b.x += nx*overlap; b.y += ny*overlap;
-    const dvx = a.vx-b.vx, dvy = a.vy-b.vy;
-    const dot = dvx*nx+dvy*ny;
-    if (dot > 0) {
-      a.vx -= dot*nx; a.vy -= dot*ny;
-      b.vx += dot*nx; b.vy += dot*ny;
-    }
-  }
-}
-
-function verificarCacapas() {
-  let potted = [];
-  for (const b of getAllBalls()) {
-    for (const p of pockets) {
-      const dx = b.x-p.x, dy = b.y-p.y;
-      if (Math.sqrt(dx*dx+dy*dy) < POCKET_R) {
-        b.potted = true;
-        b.vx = 0; b.vy = 0;
-        potted.push(b);
+  for(const b of ativos){
+    for(const p of pockets){
+      if(dist(b,p)<PR*0.85){
+        b.potted=true; b.vx=0; b.vy=0;
+        onPotted(b);
         break;
       }
     }
   }
-  if (potted.length > 0) processarCacapas(potted);
 }
 
-function processarCacapas(potted) {
-  let brancaEncacapada = potted.some(b=>b.id===0);
-  let normais = potted.filter(b=>b.id!==0);
+function colidir(a,b){
+  const dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy);
+  if(d<R*2&&d>0){
+    const nx=dx/d, ny=dy/d;
+    const ov=(R*2-d)/2;
+    a.x-=nx*ov; a.y-=ny*ov;
+    b.x+=nx*ov; b.y+=ny*ov;
+    const dv=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;
+    if(dv>0){
+      a.vx-=dv*nx; a.vy-=dv*ny;
+      b.vx+=dv*nx; b.vy+=dv*ny;
+    }
+  }
+}
+
+function dist(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);}
+
+function onPotted(b){
+  if(b.id===0){
+    // Falta: reposicionar bola branca
+    setTimeout(()=>{
+      b.potted=false; b.x=W*0.28; b.y=H/2; b.vx=0; b.vy=0;
+      setSbar('⚠️ Falta! Bola branca reposicionada.');
+      myTurn=!myTurn;
+      atualizarHdr();
+    },600);
+    return;
+  }
 
   // Definir grupos na primeira bola
-  if (firstPot && normais.length > 0) {
-    firstPot = false;
-    const firstId = normais[0].id;
-    if (myTurn) {
-      myColorGroup = firstId <= 4 ? 'low' : 'high';
-      oppColorGroup = myColorGroup === 'low' ? 'high' : 'low';
+  if(firstPot){
+    firstPot=false;
+    if(myTurn){
+      myGroup=b.id<=4?'low':'high';
+      oppGroup=myGroup==='low'?'high':'low';
     } else {
-      oppColorGroup = firstId <= 4 ? 'low' : 'high';
-      myColorGroup = oppColorGroup === 'low' ? 'high' : 'low';
+      oppGroup=b.id<=4?'low':'high';
+      myGroup=oppGroup==='low'?'high':'low';
     }
-    const myGrp = myColorGroup === 'low' ? '1-4 (amarela/azul/verm/roxo)' : '5-8 (laranja/verde/rosa/preta)';
-    setStatus(`Grupos definidos! Você joga com bolas ${myGrp}`);
+    const gn=myGroup==='low'?'bolas 1-4 🟡':'bolas 5-8 🔴';
+    setSbar(`Seus grupos: ${gn}`);
   }
 
-  // Contar pontos
-  let marcouPonto = false;
-  for (const b of normais) {
-    const eMinhasBolas = myTurn && myColorGroup && (myColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8);
-    const eDelaBolas = !myTurn && oppColorGroup && (oppColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8);
-    if (eMinhasBolas) { myScore++; marcouPonto = true; }
-    else if (eDelaBolas) { oppScore++; marcouPonto = true; }
-  }
+  const eMin=myGroup&&(myGroup==='low'?b.id<=4:b.id>=5&&b.id<=8);
+  const eOpp=oppGroup&&(oppGroup==='low'?b.id<=4:b.id>=5&&b.id<=8);
 
-  // Bola branca encaçapada = falta
-  if (brancaEncacapada) {
-    setTimeout(() => {
-      cueBall.potted = false;
-      cueBall.x = W*0.25; cueBall.y = H/2;
-      cueBall.vx = 0; cueBall.vy = 0;
-      setStatus('⚠️ Falta! Bola branca reposicionada.');
-      myTurn = !myTurn;
-      atualizarUI();
-    }, 500);
-    return;
-  }
+  let marcou=false;
+  if(myTurn&&eMin){myPotted++;marcou=true;}
+  else if(!myTurn&&eOpp){oppPotted++;marcou=true;}
 
-  // Verificar vitória
-  const minhasRestantes = myColorGroup ? balls.filter(b=>!b.potted&&(myColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8)).length : 4;
-  const oppRestantes = oppColorGroup ? balls.filter(b=>!b.potted&&(oppColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8)).length : 4;
+  atualizarHdr();
 
-  if (minhasRestantes === 0 && myColorGroup) {
-    setTimeout(() => encerrar(true, 'Você encaçapou todas as suas bolas!'), 500);
-    return;
-  }
-  if (oppRestantes === 0 && oppColorGroup) {
-    setTimeout(() => encerrar(false, 'Adversário encaçapou todas as bolas!'), 500);
-    return;
-  }
+  if(myPotted>=4){setTimeout(()=>encerrar(true,'Você encaçapou todas suas bolas! 🏆'),500);return;}
+  if(oppPotted>=4){setTimeout(()=>encerrar(false,'Adversário encaçapou todas as bolas.'),500);return;}
 
-  // Trocar turno se não marcou ponto
-  if (!marcouPonto) myTurn = !myTurn;
-  atualizarUI();
+  if(!marcou) myTurn=!myTurn;
 }
 
-function setStatus(msg) {
-  document.getElementById('statusBar').textContent = msg;
+function atualizarHdr(){
+  document.getElementById('p1s').textContent=`${myPotted}/4`;
+  document.getElementById('p2s').textContent=`${oppPotted}/4`;
+  document.getElementById('turnTxt').textContent=myTurn?'⚡ Sua vez':'⏳ Adversário';
 }
 
-// Renderização
-function render() {
-  animId = requestAnimationFrame(render);
-  stepPhysics();
+function setSbar(msg){document.getElementById('sbar').textContent=msg;}
 
-  ctx.clearRect(0,0,W,H);
-  // Mesa verde
-  const tableGrad = ctx.createLinearGradient(0,0,0,H);
-  tableGrad.addColorStop(0,'#1a5c2a');
-  tableGrad.addColorStop(1,'#154d22');
-  ctx.fillStyle = tableGrad;
+// ===== RENDER =====
+function render(){
+  animId=requestAnimationFrame(render);
+  stepFisica();
+
+  // Fundo mesa
+  ctx.fillStyle='#1a5c2a';
   ctx.fillRect(0,0,W,H);
 
   // Borda
-  ctx.strokeStyle = '#6b3a1f';
-  ctx.lineWidth = POCKET_R*1.5;
-  ctx.strokeRect(POCKET_R*0.75, POCKET_R*0.75, W-POCKET_R*1.5, H-POCKET_R*1.5);
+  ctx.strokeStyle='#5a2d0c';
+  ctx.lineWidth=PR*1.4;
+  ctx.strokeRect(PR*0.7,PR*0.4,W-PR*1.4,H-PR*0.8);
 
-  // Linhas da mesa
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(W/2,POCKET_R); ctx.lineTo(W/2,H-POCKET_R); ctx.stroke();
-  ctx.beginPath(); ctx.arc(W/2, H/2, H*0.12, 0, Math.PI*2); ctx.stroke();
+  // Feltro interno
+  ctx.fillStyle='#1e6b30';
+  ctx.fillRect(PR*1.1,PR*0.5,W-PR*2.2,H-PR);
+
+  // Linhas decorativas
+  ctx.strokeStyle='rgba(255,255,255,0.08)';
+  ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(W/2,PR);ctx.lineTo(W/2,H-PR);ctx.stroke();
+  ctx.beginPath();ctx.arc(W/2,H/2,H*0.1,0,Math.PI*2);ctx.stroke();
 
   // Caçapas
-  for (const p of pockets) {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, POCKET_R, 0, Math.PI*2);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-    ctx.strokeStyle = '#6b3a1f';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  for(const p of pockets){
+    ctx.beginPath();ctx.arc(p.x,p.y,PR,0,Math.PI*2);
+    ctx.fillStyle='#000';ctx.fill();
+    ctx.strokeStyle='#3d1a08';ctx.lineWidth=3;ctx.stroke();
   }
 
-  // Linha de mira
-  if (myTurn && !shooting && tudoParado() && !gameOver) {
-    const cue = cueBall;
-    if (cue && !cue.potted) {
-      ctx.save();
-      ctx.setLineDash([8,6]);
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(cue.x, cue.y);
-      ctx.lineTo(cue.x + Math.cos(aimAngle)*W*0.5, cue.y + Math.sin(aimAngle)*W*0.5);
-      ctx.stroke();
-      ctx.restore();
+  // Linha de mira + taco
+  const c=cue();
+  if(!c.potted&&myTurn&&!moving()&&!gameOver){
+    // Linha pontilhada
+    ctx.save();
+    ctx.setLineDash([8,5]);
+    ctx.strokeStyle='rgba(255,255,255,0.35)';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(c.x,c.y);
+    ctx.lineTo(c.x+Math.cos(aimAngle)*W*0.6, c.y+Math.sin(aimAngle)*W*0.6);
+    ctx.stroke();
+    ctx.restore();
 
-      // Taco
-      const tLen = 80 + power * 0.3;
-      ctx.save();
-      ctx.translate(cue.x, cue.y);
-      ctx.rotate(aimAngle + Math.PI);
-      ctx.strokeStyle = '#d4a020';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(BALL_R+4, 0);
-      ctx.lineTo(BALL_R+4+tLen, 0);
-      ctx.stroke();
-      ctx.restore();
+    // Taco
+    const tLen=60+pullDist*0.4;
+    const tOff=R+6+pullDist*0.15;
+    ctx.save();
+    ctx.translate(c.x,c.y);
+    ctx.rotate(aimAngle+Math.PI);
+    const tacoGrad=ctx.createLinearGradient(tOff,0,tOff+tLen,0);
+    tacoGrad.addColorStop(0,'#8B4513');
+    tacoGrad.addColorStop(1,'#D2691E');
+    ctx.strokeStyle=tacoGrad;
+    ctx.lineWidth=6;
+    ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(tOff,0);ctx.lineTo(tOff+tLen,0);ctx.stroke();
+    ctx.restore();
 
-      // Barra de força
-      if (dragging) {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(W/2-60, H-20, 120, 12);
-        const pct = power/300;
-        const col = pct < 0.5 ? `rgb(${Math.round(pct*510)},200,0)` : `rgb(255,${Math.round((1-pct)*510)},0)`;
-        ctx.fillStyle = col;
-        ctx.fillRect(W/2-60, H-20, 120*pct, 12);
-      }
+    // Barra de força
+    if(aiming&&pullDist>5){
+      const bw=120, bh=10, bx=W/2-bw/2, by=H-18;
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.beginPath();ctx.roundRect(bx,by,bw,bh,5);ctx.fill();
+      const pct=Math.min(pullDist/200,1);
+      const fc=pct<0.5?`rgb(${Math.round(pct*510)},220,0)`:`rgb(255,${Math.round((1-pct)*510)},0)`;
+      ctx.fillStyle=fc;
+      ctx.beginPath();ctx.roundRect(bx,by,bw*pct,bh,5);ctx.fill();
     }
   }
 
   // Bolas
-  const allB = [cueBall, ...balls];
-  for (const b of allB) {
-    if (b.potted) continue;
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
-    const grad = ctx.createRadialGradient(b.x-b.r*0.3, b.y-b.r*0.3, b.r*0.1, b.x, b.y, b.r);
-    const c = BALL_COLORS[b.id] || '#fff';
-    grad.addColorStop(0, lighten(c));
-    grad.addColorStop(1, c);
-    ctx.fillStyle = grad;
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 5;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    if (b.id > 0) {
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${b.r*0.9}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(b.id, b.x, b.y);
+  for(const b of balls){
+    if(b.potted) continue;
+    const c2=COLORS[b.id]||'#fff';
+    const g=ctx.createRadialGradient(b.x-R*0.35,b.y-R*0.35,R*0.05,b.x,b.y,R);
+    g.addColorStop(0,lighten(c2,70));
+    g.addColorStop(0.6,c2);
+    g.addColorStop(1,darken(c2,40));
+    ctx.beginPath();ctx.arc(b.x,b.y,R,0,Math.PI*2);
+    ctx.fillStyle=g;
+    ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=6;
+    ctx.fill();ctx.shadowBlur=0;
+    if(b.id>0){
+      ctx.fillStyle=b.id===8?'#fff':'#000';
+      ctx.font=`bold ${R*0.9}px sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(b.id,b.x,b.y);
     }
+    // Reflexo
+    ctx.beginPath();ctx.arc(b.x-R*0.3,b.y-R*0.3,R*0.3,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fill();
   }
 
-  // Mostrar turno se bolas pararam
-  if (tudoParado() && !gameOver && !shooting) {
-    shooting = false;
-    if (!myTurn && botMode) {
-      if (!botThinkTimer) botThinkTimer = setTimeout(jogadaBot, 800);
-    }
-  }
-}
-
-function lighten(hex) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return `rgb(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)})`;
-}
-
-// Controles
-function setupControls() {
-  canvas.addEventListener('mousedown', onDown);
-  canvas.addEventListener('mousemove', onMove);
-  canvas.addEventListener('mouseup', onUp);
-  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); onDown(e.touches[0]); }, {passive:false});
-  canvas.addEventListener('touchmove', e=>{ e.preventDefault(); onMove(e.touches[0]); }, {passive:false});
-  canvas.addEventListener('touchend', e=>{ e.preventDefault(); onUp(e.changedTouches[0]); }, {passive:false});
-}
-
-function getPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  return { x: (e.clientX||e.pageX) - rect.left, y: (e.clientY||e.pageY) - rect.top };
-}
-
-function onDown(e) {
-  if (!myTurn || !tudoParado() || gameOver || cueBall.potted) return;
-  const pos = getPos(e);
-  dragStart = pos;
-  dragging = true;
-  aimAngle = Math.atan2(pos.y - cueBall.y, pos.x - cueBall.x);
-}
-
-function onMove(e) {
-  if (!dragging) return;
-  const pos = getPos(e);
-  aimAngle = Math.atan2(pos.y - cueBall.y, pos.x - cueBall.x);
-  const dx = pos.x - dragStart.x, dy = pos.y - dragStart.y;
-  power = Math.min(300, Math.sqrt(dx*dx+dy*dy) * 2);
-}
-
-function onUp(e) {
-  if (!dragging) return;
-  dragging = false;
-  if (power > 5) {
-    atirar();
-  }
-  power = 0;
-}
-
-function atirar(angulo, forca) {
-  const ang = angulo !== undefined ? angulo : aimAngle + Math.PI;
-  const pow = forca !== undefined ? forca : power;
-  cueBall.vx = Math.cos(ang) * pow * 0.12;
-  cueBall.vy = Math.sin(ang) * pow * 0.12;
-  shooting = true;
-  power = 0;
-  if (!botMode) {
-    socket?.emit('sinuca_shot', { angle: ang, force: pow });
-  }
-  setTimeout(() => { shooting = false; }, 3000);
-}
-
-// Bot IA
-function jogadaBot() {
-  botThinkTimer = null;
-  if (myTurn || gameOver || !tudoParado() || cueBall.potted) return;
-
-  // Encontrar melhor bola para encaçapar
-  const minhasBolas = balls.filter(b => !b.potted && oppColorGroup && (oppColorGroup==='low'?b.id<=4:b.id>=5&&b.id<=8));
-  const alvo = minhasBolas.length > 0 ? minhasBolas[0] : balls.filter(b=>!b.potted)[0];
-
-  if (!alvo) { myTurn = true; return; }
-
-  // Encontrar melhor caçapa
-  let melhorAng = 0, melhorPow = 180;
-  let melhorDist = Infinity;
-  for (const p of pockets) {
-    const ang1 = Math.atan2(alvo.y - p.y, alvo.x - p.x);
-    const ang2 = Math.atan2(alvo.y - cueBall.y, alvo.x - cueBall.x);
-    const dist = Math.sqrt((alvo.x-cueBall.x)**2+(alvo.y-cueBall.y)**2);
-    if (dist < melhorDist) { melhorDist = dist; melhorAng = ang2; }
-  }
-
-  // Adicionar pequeno erro para não ser perfeito
-  melhorAng += (Math.random()-0.5)*0.3;
-  melhorPow = 150 + Math.random()*100;
-
-  atirar(melhorAng + Math.PI, melhorPow);
-}
-
-function encerrar(ganhou, motivo) {
-  gameOver = true;
-  cancelAnimationFrame(animId);
-  clearTimeout(botThinkTimer);
-  mostrar('result');
-  document.getElementById('resEmoji').textContent = ganhou ? '🏆' : '😢';
-  document.getElementById('resTitle').textContent = ganhou ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
-  document.getElementById('resTitle').style.color = ganhou ? 'var(--gold)' : '#ef4444';
-  if (botMode) {
-    document.getElementById('resPrize').textContent = motivo + ' — Modo treino';
-  } else {
-    const prize = (valorSel*1.75).toFixed(2).replace('.',',');
-    document.getElementById('resPrize').textContent = ganhou ? `🏆 +R$ ${prize}` : motivo;
+  // Turno do bot
+  if(!myTurn&&botMode&&!moving()&&!gameOver){
+    if(!botTimer) botTimer=setTimeout(jogadaBot,900);
   }
 }
 
-function jogarBot() {
-  botMode = true;
-  myTurn = true;
+function lighten(hex,amt){
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.min(255,r+amt)},${Math.min(255,g+amt)},${Math.min(255,b+amt)})`;
+}
+function darken(hex,amt){
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.max(0,r-amt)},${Math.max(0,g-amt)},${Math.max(0,b-amt)})`;
+}
+
+// ===== CONTROLES =====
+function setupControls(){
+  canvas.addEventListener('mousedown',e=>startAim(getPos(e)));
+  canvas.addEventListener('mousemove',e=>moveAim(getPos(e)));
+  canvas.addEventListener('mouseup',e=>shoot(getPos(e)));
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();startAim(getPos(e.touches[0]));},{passive:false});
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();moveAim(getPos(e.touches[0]));},{passive:false});
+  canvas.addEventListener('touchend',e=>{e.preventDefault();shoot(getPos(e.changedTouches[0]));},{passive:false});
+}
+
+function getPos(e){
+  const rect=canvas.getBoundingClientRect();
+  return{x:(e.clientX||e.pageX)-rect.left,y:(e.clientY||e.pageY)-rect.top};
+}
+
+function startAim(pos){
+  if(!myTurn||moving()||gameOver||cue().potted) return;
+  aiming=true;
+  touchStart=pos;
+  aimAngle=Math.atan2(pos.y-cue().y, pos.x-cue().x);
+  pullDist=0;
+}
+
+function moveAim(pos){
+  if(!aiming) return;
+  aimAngle=Math.atan2(pos.y-cue().y, pos.x-cue().x);
+  const dx=pos.x-touchStart.x, dy=pos.y-touchStart.y;
+  pullDist=Math.min(200,Math.sqrt(dx*dx+dy*dy));
+}
+
+function shoot(pos){
+  if(!aiming) return;
+  aiming=false;
+  if(pullDist<5){pullDist=0;return;}
+  const c=cue();
+  const force=pullDist*0.13;
+  c.vx=Math.cos(aimAngle+Math.PI)*force;
+  c.vy=Math.sin(aimAngle+Math.PI)*force;
+  pullDist=0;
+  if(!botMode&&socket) socket.emit('sinuca_shot',{angle:aimAngle,force});
+}
+
+// ===== BOT =====
+function jogadaBot(){
+  botTimer=null;
+  if(myTurn||moving()||gameOver||cue().potted) return;
+
+  const alvo=balls.find(b=>!b.potted&&b.id>0&&(oppGroup?(oppGroup==='low'?b.id<=4:b.id>=5&&b.id<=8):true));
+  if(!alvo){myTurn=true;return;}
+
+  // Mirar na bola alvo
+  const c=cue();
+  let bestAngle=Math.atan2(alvo.y-c.y, alvo.x-c.x);
+  // Adicionar erro pequeno
+  bestAngle+=(Math.random()-0.5)*0.25;
+  const force=120+Math.random()*80;
+
+  c.vx=Math.cos(bestAngle+Math.PI)*force*0.13;
+  c.vy=Math.sin(bestAngle+Math.PI)*force*0.13;
+}
+
+// ===== JOGO =====
+function iniciarBot(){
+  botMode=true; myTurn=true;
   mostrar('game');
-  document.getElementById('p1name').textContent = usuario.nome || 'Você';
-  document.getElementById('p2name').textContent = '🤖 Bot';
-  canvas = document.getElementById('canvas');
-  ctx = canvas.getContext('2d');
-  iniciarMesa();
+  document.getElementById('p1n').textContent=usuario.nome||'Você';
+  document.getElementById('p2n').textContent='🤖 Bot';
+  criarMesa();
   setupControls();
-  setStatus('⚡ Sua vez! Arraste para mirar e solte para atirar.');
+  setSbar('⚡ Sua vez! Arraste para mirar e solte para atirar.');
+  atualizarHdr();
   render();
 }
 
-function confirmarDesistir() {
-  if (confirm('Deseja desistir? Você perderá a aposta.')) {
+function encerrar(ganhou, motivo){
+  gameOver=true;
+  cancelAnimationFrame(animId);
+  clearTimeout(botTimer);
+  mostrar('result');
+  document.getElementById('re').textContent=ganhou?'🏆':'😢';
+  document.getElementById('rt').textContent=ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
+  document.getElementById('rt').style.color=ganhou?'var(--gold)':'#ef4444';
+  document.getElementById('rp').textContent=botMode?motivo+' — Modo treino':(ganhou?`+R$ ${(valorSel*1.75).toFixed(2).replace('.',',')}`:'Boa sorte na próxima!');
+}
+
+function desistir(){
+  if(confirm('Deseja desistir?')){
     cancelAnimationFrame(animId);
-    encerrar(false, 'Você desistiu.');
+    encerrar(false,'Você desistiu.');
   }
 }
 
-// Online
-function conectar() {
-  socket = io();
-  socket.on('sinuca_start', data => {
-    botMode = false;
-    myTurn = data.first;
+function voltarLobby(){
+  cancelAnimationFrame(animId);
+  clearTimeout(botTimer);
+  botMode=false;gameOver=false;
+  mostrar('lobby');
+}
+
+// ===== ONLINE =====
+function conectar(){
+  socket=io();
+  socket.on('sinuca_start',data=>{
+    botMode=false; myTurn=data.first;
     mostrar('game');
-    document.getElementById('p1name').textContent = usuario.nome || 'Você';
-    document.getElementById('p2name').textContent = data.oppName || 'Adversário';
-    canvas = document.getElementById('canvas');
-    ctx = canvas.getContext('2d');
-    iniciarMesa();
-    setupControls();
-    setStatus(myTurn ? '⚡ Sua vez!' : '⏳ Vez do adversário');
+    document.getElementById('p1n').textContent=usuario.nome||'Você';
+    document.getElementById('p2n').textContent=data.oppName||'Adversário';
+    criarMesa(); setupControls(); atualizarHdr();
+    setSbar(myTurn?'⚡ Sua vez!':'⏳ Vez do adversário');
     render();
   });
-  socket.on('sinuca_shot', data => {
-    myTurn = false;
-    atirar(data.angle, data.force);
+  socket.on('sinuca_shot',data=>{
+    myTurn=false;
+    const c=cue();
+    c.vx=Math.cos(data.angle+Math.PI)*data.force*0.13;
+    c.vy=Math.sin(data.angle+Math.PI)*data.force*0.13;
   });
-  socket.on('sinuca_end', data => encerrar(data.winner === 'me', data.reason||''));
+  socket.on('sinuca_end',data=>encerrar(data.winner==='me',data.reason||''));
 }
 
-function entrarFila() {
-  if (!token) { alert('Faça login!'); return; }
-  if ((usuario.saldo||0) < valorSel) { alert('Saldo insuficiente!'); return; }
-  if (!socket) conectar();
+function entrarFila(){
+  if(!token){alert('Faça login!');return;}
+  if((usuario.saldo||0)<valorSel){alert('Saldo insuficiente!');return;}
+  if(!socket) conectar();
   mostrar('waiting');
-  document.getElementById('waitVal').textContent = valorSel.toFixed(2).replace('.',',');
-  socket.emit('sinuca_join', { valor: valorSel, token });
+  document.getElementById('waitVal').textContent=valorSel.toFixed(2).replace('.',',');
+  socket.emit('sinuca_join',{valor:valorSel,token});
 }
 
-function cancelar() {
-  socket?.emit('sinuca_leave');
-  mostrar('lobby');
-}
+function cancelar(){socket?.emit('sinuca_leave');mostrar('lobby');}
 
-function voltarLobby() {
-  cancelAnimationFrame(animId);
-  clearTimeout(botThinkTimer);
-  botMode = false; gameOver = false;
-  mostrar('lobby');
-}
-
-function mostrar(id) {
-  ['lobby','waiting','game','result'].forEach(x => {
-    document.getElementById(x).style.display = x===id?(x==='lobby'?'block':'flex'):'none';
+function mostrar(id){
+  ['lobby','waiting','game','result'].forEach(x=>{
+    const el=document.getElementById(x);
+    el.style.display=x===id?(x==='lobby'?'block':'flex'):'none';
   });
 }
 
-window.addEventListener('beforeunload', e => {
-  if (document.getElementById('game').style.display !== 'none') {
-    e.preventDefault(); e.returnValue = '';
-  }
+window.addEventListener('beforeunload',e=>{
+  if(document.getElementById('game').style.display!=='none'){e.preventDefault();e.returnValue='';}
 });
 </script>
 </body>
