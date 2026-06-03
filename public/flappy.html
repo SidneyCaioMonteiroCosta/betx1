@@ -468,11 +468,28 @@ function desenhar() {
   // Jogador
   desenharPassaro(passaro.x, passaro.y, passaro.vy, morto, false);
 
-  // Pontos
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 28px Segoe UI'; ctx.textAlign = 'center';
-  ctx.fillText(pontos, W / 2, 45);
-  ctx.font = '14px Segoe UI'; ctx.fillStyle = '#888';
-  ctx.fillText('canos', W / 2, 62);
+  // Pontos separados no canvas
+  ctx.textAlign = 'center';
+  if (botMode) {
+    // Você (esquerda)
+    ctx.fillStyle = '#ec4899'; ctx.font = 'bold 22px Segoe UI';
+    ctx.fillText(pontos, W * 0.25, 40);
+    ctx.fillStyle = '#888'; ctx.font = '11px Segoe UI';
+    ctx.fillText('você', W * 0.25, 55);
+    // Bot (direita)
+    ctx.fillStyle = '#22c55e'; ctx.font = 'bold 22px Segoe UI';
+    ctx.fillText(botPontos, W * 0.75, 40);
+    ctx.fillStyle = '#888'; ctx.font = '11px Segoe UI';
+    ctx.fillText('bot', W * 0.75, 55);
+    // Divisor
+    ctx.fillStyle = '#444'; ctx.font = 'bold 18px Segoe UI';
+    ctx.fillText('vs', W * 0.5, 45);
+  } else {
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 28px Segoe UI';
+    ctx.fillText(pontos, W / 2, 45);
+    ctx.font = '14px Segoe UI'; ctx.fillStyle = '#888';
+    ctx.fillText('canos', W / 2, 62);
+  }
   ctx.textAlign = 'left';
 }
 
