@@ -406,115 +406,108 @@ io.on('connection', (socket) => {
   let currentRoom = null;
   let currentValor = null;
 
+  // ===== AIR HOCKEY: servidor só faz relay, física roda no cliente =====
   socket.on('join_queue', async ({ valor, token: tkn }) => {
     try {
       const decoded = jwt.verify(tkn, JWT_SECRET);
       userId = decoded.id;
       const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
       const user = rows[0];
-      if (!user || user.saldo < valor) {
-        socket.emit('error', { msg: 'Saldo insuficiente' });
-        return;
-      }
+      if (!user || user.saldo < valor) { socket.emit('error',{msg:'Saldo insuficiente'}); return; }
       userNome = user.nome;
       currentValor = valor;
-
       if (!filas[valor]) filas[valor] = [];
-
       if (filas[valor].length > 0) {
         const oponente = filas[valor].shift();
         const roomId = `room_${Date.now()}`;
         currentRoom = roomId;
-
-        await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, userId]);
-        await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, oponente.userId]);
-
-        const state = criarEstado(valor);
+        oponente.currentRoom = roomId;
+        await pool.query('UPDATE users SET saldo=saldo-$1 WHERE id=$2',[valor,userId]);
+        await pool.query('UPDATE users SET saldo=saldo-$1 WHERE id=$2',[valor,oponente.userId]);
         partidas[roomId] = {
-          p1: oponente, p2: { socket, userId, nome: userNome },
-          state, interval: null
+          p1: oponente,
+          p2: { socket, userId, nome: userNome },
+          valor, interval: null
         };
-
         socket.join(roomId);
         oponente.socket.join(roomId);
-
-        oponente.socket.emit('game_start', { role: 'p1', p1name: oponente.nome, p2name: userNome, valor });
-        socket.emit('game_start', { role: 'p2', p1name: oponente.nome, p2name: userNome, valor });
-
-        partidas[roomId].interval = setInterval(async () => {
-          const partida = partidas[roomId];
-          if (!partida) return;
-          simularFisica(partida.state);
-          io.to(roomId).emit('game_update', partida.state);
-
-          if (partida.state.score1 >= 7 || partida.state.score2 >= 7) {
-            clearInterval(partida.interval);
-            const winner = partida.state.score1 >= 7 ? 'p1' : 'p2';
-            const winnerId = winner === 'p1' ? partida.p1.userId : partida.p2.userId;
-            const prize = parseFloat((valor * 1.75).toFixed(2));
-            await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [prize, winnerId]);
-            await pool.query(
-              'INSERT INTO transacoes (user_id, tipo, valor, descricao, status) VALUES ($1, $2, $3, $4, $5)',
-              [winnerId, 'ganho', prize, `Vitória Air Hockey R$${valor}`, 'concluido']
-            );
-            const loserId = winner === 'p1' ? partida.p2.userId : partida.p1.userId;
-            await atualizarNivel(winnerId, 'vitoria');
-            await atualizarNivel(loserId, 'derrota');
-            console.log(`🏒 Air Hockey: winner=${winnerId} loser=${loserId}`);
-            io.to(roomId).emit('game_end', { winner, prize, valor });
-            delete partidas[roomId];
-          }
-        }, 1000/20); // 20fps - menos sobrecarga na rede
-
+        oponente.socket.emit('game_start',{role:'p1',p1name:oponente.nome,p2name:userNome,valor});
+        socket.emit('game_start',{role:'p2',p1name:oponente.nome,p2name:userNome,valor});
       } else {
-        filas[valor].push({ socket, userId, nome: userNome });
+        const entry = { socket, userId, nome: userNome, currentRoom: null };
+        filas[valor].push(entry);
+        socket._filaEntry = entry;
       }
-    } catch(e) {
-      socket.emit('error', { msg: 'Erro de autenticação' });
+    } catch(e) { socket.emit('error',{msg:'Erro de autenticação'}); }
+  });
+
+  // Relay: repassa posição do mallet para o outro jogador
+  socket.on('mallet_move', ({x,y}) => {
+    if (!currentRoom || !partidas[currentRoom]) return;
+    const partida = partidas[currentRoom];
+    const outro = partida.p1.socket.id===socket.id ? partida.p2.socket : partida.p1.socket;
+    outro.emit('mallet_update', {x,y});
+  });
+
+  // Jogador marcou gol — repassa para o outro e salva resultado
+  socket.on('ah_gol', async ({myScore, oppScore, winner}) => {
+    if (!currentRoom || !partidas[currentRoom]) return;
+    const partida = partidas[currentRoom];
+    const outro = partida.p1.socket.id===socket.id ? partida.p2.socket : partida.p1.socket;
+    outro.emit('ah_gol_sync', {myScore, oppScore});
+    if (winner) {
+      // Encerrar partida
+      const isP1 = partida.p1.socket.id===socket.id;
+      const realWinner = isP1 ? 'p1' : 'p2';
+      await encerrarAirHockey(roomId=currentRoom, winner=realWinner, motivo='normal');
     }
   });
 
-  socket.on('mallet_move', ({ x, y }) => {
+  // Desistir
+  socket.on('ah_desistir', async () => {
     if (!currentRoom || !partidas[currentRoom]) return;
     const partida = partidas[currentRoom];
-    if (partida.p1.socket.id === socket.id) {
-      partida.state.m1.x = Math.max(0.06, Math.min(0.94, x));
-      partida.state.m1.y = Math.max(0.5, Math.min(0.94, y));
-    } else {
-      partida.state.m2.x = Math.max(0.06, Math.min(0.94, x));
-      partida.state.m2.y = Math.max(0.06, Math.min(0.5, y));
-    }
+    const isP1 = partida.p1.socket.id===socket.id;
+    const winnerRole = isP1 ? 'p2' : 'p1';
+    const outro = isP1 ? partida.p2.socket : partida.p1.socket;
+    outro.emit('oponente_desistiu');
+    await encerrarAirHockey(currentRoom, winnerRole, 'desistiu');
   });
 
   socket.on('leave_queue', () => {
-    if (currentValor && filas[currentValor]) {
-      filas[currentValor] = filas[currentValor].filter(p => p.socket.id !== socket.id);
-    }
+    if (currentValor && filas[currentValor])
+      filas[currentValor] = filas[currentValor].filter(p=>p.socket.id!==socket.id);
   });
 
   socket.on('disconnect', async () => {
-    if (currentValor && filas[currentValor]) {
-      filas[currentValor] = filas[currentValor].filter(p => p.socket.id !== socket.id);
-    }
+    if (currentValor && filas[currentValor])
+      filas[currentValor] = filas[currentValor].filter(p=>p.socket.id!==socket.id);
     if (currentRoom && partidas[currentRoom]) {
-      clearInterval(partidas[currentRoom].interval);
       const partida = partidas[currentRoom];
-      const winner = partida.p1.socket.id === socket.id ? 'p2' : 'p1';
-      const outroSocket = winner === 'p2' ? partida.p2.socket : partida.p1.socket;
-      const outroId = winner === 'p2' ? partida.p2.userId : partida.p1.userId;
-      const perdeuId = winner === 'p2' ? partida.p1.userId : partida.p2.userId;
-      const valor = partida.state.valor;
-      const prize = parseFloat((valor * 1.75).toFixed(2));
-      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [prize, outroId]);
-      await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
-        [outroId,'ganho',prize,`Vitória Air Hockey R$${valor} (adversário desconectou)`,'concluido']);
-      await atualizarNivel(outroId, 'vitoria');
-      await atualizarNivel(perdeuId, 'derrota');
-      outroSocket.emit('game_end', { winner, prize, valor });
-      delete partidas[currentRoom];
+      const isP1 = partida.p1.socket.id===socket.id;
+      const winnerRole = isP1 ? 'p2' : 'p1';
+      const outro = isP1 ? partida.p2.socket : partida.p1.socket;
+      outro.emit('oponente_desistiu');
+      await encerrarAirHockey(currentRoom, winnerRole, 'desconectou');
     }
   });
 });
+
+async function encerrarAirHockey(roomId, winnerRole, motivo) {
+  const partida = partidas[roomId];
+  if (!partida) return;
+  if (partida.interval) clearInterval(partida.interval);
+  const winnerId = winnerRole==='p1' ? partida.p1.userId : partida.p2.userId;
+  const loserId  = winnerRole==='p1' ? partida.p2.userId : partida.p1.userId;
+  const prize = parseFloat((partida.valor*1.75).toFixed(2));
+  await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
+  await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',
+    [winnerId,'ganho',prize,`Vitória Air Hockey R$${partida.valor} (${motivo})`,'concluido']);
+  await atualizarNivel(winnerId,'vitoria');
+  await atualizarNivel(loserId,'derrota');
+  io.to(roomId).emit('game_end',{winner:winnerRole,prize,valor:partida.valor});
+  delete partidas[roomId];
+}
 
 
 // ===== FLAPPY BIRD MULTIPLAYER =====
