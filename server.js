@@ -168,6 +168,51 @@ app.post('/api/pix/depositar', auth, async (req, res) => {
   }
 });
 
+
+// ===== WEBHOOK MERCADO PAGO =====
+app.post('/api/webhook/mp', async (req, res) => {
+  res.status(200).send('OK'); // responder rápido para o MP
+  try {
+    const { type, data } = req.body;
+    if (type !== 'payment') return;
+
+    const pixId = data?.id;
+    if (!pixId) return;
+
+    // Buscar status do pagamento no MP
+    const pix = await payment.get({ id: pixId });
+    if (pix.status !== 'approved') return;
+
+    // Verificar se já foi creditado
+    const { rows: existing } = await pool.query(
+      'SELECT id FROM transacoes WHERE pix_id = $1', [String(pixId)]
+    );
+    if (existing.length > 0) return; // já processado
+
+    // Encontrar o usuário pelo email do pagador
+    const payerEmail = pix.payer?.email;
+    if (!payerEmail) return;
+
+    const { rows: users } = await pool.query(
+      'SELECT id FROM users WHERE email = $1', [payerEmail]
+    );
+    if (!users.length) return;
+
+    const userId = users[0].id;
+    const valor = pix.transaction_amount;
+
+    // Creditar saldo
+    await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [valor, userId]);
+    await pool.query(
+      'INSERT INTO transacoes (user_id, tipo, valor, descricao, status, pix_id) VALUES ($1, $2, $3, $4, $5, $6)',
+      [userId, 'deposito', valor, 'Depósito via Pix', 'aprovado', String(pixId)]
+    );
+    console.log(`✅ Webhook: Depósito R$${valor} creditado para user ${userId}`);
+  } catch(e) {
+    console.error('Erro webhook MP:', e.message);
+  }
+});
+
 app.get('/api/pix/status/:pixId', auth, async (req, res) => {
   try {
     const pix = await payment.get({ id: req.params.pixId });
