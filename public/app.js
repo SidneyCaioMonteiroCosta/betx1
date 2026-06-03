@@ -1,3 +1,56 @@
+function getNivelTitulo(nivel) {
+  if (nivel <= 5) return 'Novato';
+  if (nivel <= 10) return 'Iniciante';
+  if (nivel <= 20) return 'Aprendiz';
+  if (nivel <= 30) return 'Amador';
+  if (nivel <= 40) return 'Regular';
+  if (nivel <= 50) return 'Competidor';
+  if (nivel <= 60) return 'Veterano';
+  if (nivel <= 70) return 'Expert';
+  if (nivel <= 80) return 'Mestre';
+  if (nivel <= 90) return 'Grão-Mestre';
+  if (nivel <= 99) return 'Lendário';
+  return '👑 CAMPEÃO';
+}
+
+function getNivelCor(nivel) {
+  if (nivel <= 20) return 'linear-gradient(135deg,#6b7db3,#4a5568)';
+  if (nivel <= 40) return 'linear-gradient(135deg,#22c55e,#16a34a)';
+  if (nivel <= 60) return 'linear-gradient(135deg,#3b82f6,#2563eb)';
+  if (nivel <= 80) return 'linear-gradient(135deg,#a855f7,#7c3aed)';
+  if (nivel <= 99) return 'linear-gradient(135deg,#f0c040,#d4a020)';
+  return 'linear-gradient(135deg,#ef4444,#dc2626)';
+}
+
+function atualizarNivelUI(nivel, vitoriasNivel, totalVit, totalDer) {
+  const badge = document.getElementById('nivelBadge');
+  const titulo = document.getElementById('nivelTitulo');
+  const bar = document.getElementById('nivelBar');
+  const progress = document.getElementById('nivelProgress');
+  const partidas = document.getElementById('profilePartidas');
+  const vitorias = document.getElementById('profileVitorias');
+  const winrate = document.getElementById('profileWinRate');
+
+  if (!badge) return;
+  nivel = nivel || 1;
+  vitoriasNivel = vitoriasNivel || 0;
+  totalVit = totalVit || 0;
+  totalDer = totalDer || 0;
+
+  badge.textContent = nivel >= 100 ? '👑 100' : `Nível ${nivel}`;
+  badge.style.background = getNivelCor(nivel);
+  titulo.textContent = getNivelTitulo(nivel);
+  bar.style.width = (vitoriasNivel / 10 * 100) + '%';
+  bar.style.background = getNivelCor(nivel);
+  progress.textContent = nivel >= 100 ? 'MAX' : `${vitoriasNivel}/10 vitórias`;
+
+  const totalPartidas = totalVit + totalDer;
+  const wr = totalPartidas > 0 ? Math.round(totalVit / totalPartidas * 100) : 0;
+  if (partidas) partidas.textContent = totalPartidas;
+  if (vitorias) vitorias.textContent = totalVit;
+  if (winrate) winrate.textContent = wr + '%';
+}
+
 const API = '';
 let token = localStorage.getItem('superduelo_token');
 let usuario = JSON.parse(localStorage.getItem('superduelo_user') || 'null');
@@ -182,11 +235,16 @@ async function carregarPerfil() {
     usuario.nome = d.nome;
     usuario.email = d.email;
     usuario.saldo = d.saldo;
+    usuario.nivel = d.nivel;
+    usuario.vitorias_nivel = d.vitorias_nivel;
+    usuario.total_vitorias = d.total_vitorias;
+    usuario.total_derrotas = d.total_derrotas;
     localStorage.setItem('superduelo_user', JSON.stringify(usuario));
+    atualizarNivelUI(d.nivel, d.vitorias_nivel, d.total_vitorias, d.total_derrotas);
   } catch {}
   document.getElementById('profileName').textContent = usuario.nome || '-';
   document.getElementById('profileEmail').textContent = usuario.email || '-';
-  document.querySelector('.profile-avatar').textContent = usuario.avatar || '😎';
+  document.querySelectorAll('.profile-avatar').forEach(el => el.textContent = usuario.avatar || '😎');
 }
 
 function abrirEditarPerfil() {

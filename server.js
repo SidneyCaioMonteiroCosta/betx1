@@ -154,7 +154,7 @@ app.get('/api/historico', auth, async (req, res) => {
 });
 
 app.get('/api/perfil', auth, async (req, res) => {
-  const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino FROM users WHERE id = $1', [req.user.id]);
+  const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino, nivel, vitorias_nivel, total_vitorias, total_derrotas FROM users WHERE id = $1', [req.user.id]);
   res.json(rows[0]);
 });
 
@@ -443,6 +443,9 @@ io.on('connection', (socket) => {
               'INSERT INTO transacoes (user_id, tipo, valor, descricao, status) VALUES ($1, $2, $3, $4, $5)',
               [winnerId, 'ganho', prize, `Vitória Air Hockey R$${valor}`, 'concluido']
             );
+            const loserId = winner === 'p1' ? partida.p2.userId : partida.p1.userId;
+            await atualizarNivel(winnerId, 'vitoria');
+            await atualizarNivel(loserId, 'derrota');
             io.to(roomId).emit('game_end', { winner, prize, valor });
             delete partidas[roomId];
           }
@@ -754,6 +757,54 @@ io.on('connection', (socketS) => {
   });
 });
 
+
+
+// ===== SISTEMA DE NÍVEIS =====
+// Adicionar colunas se não existirem
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS nivel INTEGER DEFAULT 1').catch(()=>{});
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS vitorias_nivel INTEGER DEFAULT 0').catch(()=>{});
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_vitorias INTEGER DEFAULT 0').catch(()=>{});
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_derrotas INTEGER DEFAULT 0').catch(()=>{});
+
+async function atualizarNivel(userId, resultado) {
+  // resultado: 'vitoria', 'derrota', 'empate'
+  if (resultado === 'empate') return;
+  try {
+    const { rows } = await pool.query('SELECT nivel, vitorias_nivel, total_vitorias, total_derrotas FROM users WHERE id = $1', [userId]);
+    const user = rows[0];
+    if (!user) return;
+
+    let nivel = user.nivel || 1;
+    let vitorias = user.vitorias_nivel || 0;
+    let totalVit = user.total_vitorias || 0;
+    let totalDer = user.total_derrotas || 0;
+
+    if (resultado === 'vitoria') {
+      vitorias++;
+      totalVit++;
+      // Sobe de nível a cada 10 vitórias
+      if (vitorias >= 10 && nivel < 100) {
+        nivel++;
+        vitorias = 0; // zera contador para próximo nível
+      }
+    } else if (resultado === 'derrota') {
+      totalDer++;
+      // Derrota anula uma vitória
+      if (vitorias > 0) {
+        vitorias--;
+      } else if (nivel > 1) {
+        // Se não tem vitórias acumuladas e perde, volta ao final do nível anterior
+        nivel--;
+        vitorias = 9; // volta com 9/10 no nível anterior
+      }
+    }
+
+    await pool.query(
+      'UPDATE users SET nivel=$1, vitorias_nivel=$2, total_vitorias=$3, total_derrotas=$4 WHERE id=$5',
+      [nivel, vitorias, totalVit, totalDer, userId]
+    );
+  } catch(e) { console.error('Erro nivel:', e.message); }
+}
 
 // ===== SISTEMA DE SALAS PRIVADAS =====
 const salasPrivadas = {}; // codigo -> { jogo, valor, senha, dono, socketDono, nomesDono, aguardando }
