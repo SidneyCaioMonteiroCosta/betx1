@@ -256,19 +256,14 @@ function handleMove(e) {
   const cx = ((e.clientX||e.pageX)-rect.left)/W;
   const cy = ((e.clientY||e.pageY)-rect.top)/H;
 
-  // P1 joga na metade de BAIXO, P2 joga na metade de CIMA
-  // Canvas de P2 é rotacionado 180°, então controles ficam naturais
-  if (myRole==='p1') {
-    myMallet.x = Math.max(0.06, Math.min(0.94, cx));
-    myMallet.y = Math.max(0.52, Math.min(0.94, cy));
-  } else {
-    // P2: tela invertida, então y é espelhado
-    myMallet.x = Math.max(0.06, Math.min(0.94, 1-cx));
-    myMallet.y = Math.max(0.52, Math.min(0.94, 1-cy));
-  }
+  // Canvas de P2 é rotacionado 180°, então os controles já chegam espelhados
+  // Ambos sempre jogam na metade de baixo do SEU canvas (y > 0.5)
+  myMallet.x = Math.max(0.06, Math.min(0.94, cx));
+  myMallet.y = Math.max(0.52, Math.min(0.96, cy)); // restrito à metade de baixo
 
   const now = Date.now();
-  if (now - lastSent > 33 && socket && !botMode) { // ~30fps
+  if (now - lastSent > 33 && socket && !botMode) {
+    // Enviar posição no referencial do jogador (y > 0.5 = metade de baixo)
     socket.emit('mallet_move', {x:myMallet.x, y:myMallet.y});
     lastSent = now;
   }
@@ -287,28 +282,33 @@ function stepPhysics() {
 
   const gw=0.35, gx=(1-0.35)/2;
 
-  // Gol de cima (P1 marcou)
+  // Gol de cima — P1 marcou (gol adversário de P1)
   if (ball.y-ball.r < 0) {
     if (ball.x>gx && ball.x<gx+gw) {
-      const isMyGoal1 = myRole==='p1';
-      if (isMyGoal1) { myScore++; spawnGoal('me'); } else { oppScore++; spawnGoal('opp'); }
+      // P1 marcou = gol no campo de cima
+      const euMarquei = myRole==='p1';
+      if (euMarquei) { myScore++; spawnGoal('me'); } else { oppScore++; spawnGoal('opp'); }
       updateScore();
-      const won1 = myScore>=7||oppScore>=7;
-      if (!botMode && socket) socket.emit('ah_gol',{myScore,oppScore,winner:won1});
-      if (won1) { endGame(); return; }
+      // Só P1 reporta gols (evita duplicação)
+      if (!botMode && socket && myRole==='p1') {
+        socket.emit('ah_gol',{scorerRole:'p1'});
+      }
+      if (myScore>=7||oppScore>=7) { endGame(); return; }
       resetBall('p1');
     } else { ball.y=ball.r; ball.vy=Math.abs(ball.vy); }
   }
 
-  // Gol de baixo (P2 marcou)
+  // Gol de baixo — P2 marcou
   if (ball.y+ball.r > 1) {
     if (ball.x>gx && ball.x<gx+gw) {
-      const isMyGoal2 = myRole==='p2';
-      if (isMyGoal2) { myScore++; spawnGoal('me'); } else { oppScore++; spawnGoal('opp'); }
+      const euMarquei = myRole==='p2';
+      if (euMarquei) { myScore++; spawnGoal('me'); } else { oppScore++; spawnGoal('opp'); }
       updateScore();
-      const won2 = myScore>=7||oppScore>=7;
-      if (!botMode && socket) socket.emit('ah_gol',{myScore,oppScore,winner:won2});
-      if (won2) { endGame(); return; }
+      // Só P1 reporta gols (evita duplicação)
+      if (!botMode && socket && myRole==='p1') {
+        socket.emit('ah_gol',{scorerRole:'p2'});
+      }
+      if (myScore>=7||oppScore>=7) { endGame(); return; }
       resetBall('p2');
     } else { ball.y=1-ball.r; ball.vy=-Math.abs(ball.vy); }
   }
@@ -559,17 +559,29 @@ function conectar() {
   });
 
   socket.on('mallet_update', data=>{
-    // Posição do mallet adversário vem no referencial DELE
-    // P1 recebe posição de P2 e vice-versa, então invertemos
+    // Adversário envia no SEU referencial (y > 0.5 = metade dele)
+    // No nosso referencial, ele está na metade de CIMA (y < 0.5)
+    // Então: x espelhado, y espelhado (1 - y que era > 0.5 = fica < 0.5)
     oppMallet.x = 1 - data.x;
-    oppMallet.y = 1 - data.y;
+    oppMallet.y = 1 - data.y; // fica entre 0.04 e 0.48
   });
 
   socket.on('ah_gol_sync', data=>{
-    // Sincronizar placar com o que o outro jogador enviou (invertido)
-    oppScore = data.myScore;
-    myScore = data.oppScore;
+    // Servidor informa placar atualizado
+    // data: { p1score, p2score, winner }
+    if (myRole==='p1') {
+      myScore = data.p1score;
+      oppScore = data.p2score;
+    } else {
+      myScore = data.p2score;
+      oppScore = data.p1score;
+    }
+    spawnGoal(data.scorerRole===myRole?'me':'opp');
     updateScore();
+    if (data.winner) {
+      // Servidor decidiu o vencedor
+      gameRunning = false;
+    }
   });
 
   socket.on('game_end', data=>{

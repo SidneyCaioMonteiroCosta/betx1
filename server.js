@@ -427,7 +427,7 @@ io.on('connection', (socket) => {
         partidas[roomId] = {
           p1: oponente,
           p2: { socket, userId, nome: userNome },
-          valor, interval: null
+          valor, score1: 0, score2: 0, interval: null
         };
         socket.join(roomId);
         oponente.socket.join(roomId);
@@ -449,17 +449,29 @@ io.on('connection', (socket) => {
     outro.emit('mallet_update', {x,y});
   });
 
-  // Jogador marcou gol — repassa para o outro e salva resultado
-  socket.on('ah_gol', async ({myScore, oppScore, winner}) => {
+  // Só P1 envia gols — servidor é autoridade do placar
+  socket.on('ah_gol', async ({scorerRole}) => {
     if (!currentRoom || !partidas[currentRoom]) return;
     const partida = partidas[currentRoom];
-    const outro = partida.p1.socket.id===socket.id ? partida.p2.socket : partida.p1.socket;
-    outro.emit('ah_gol_sync', {myScore, oppScore});
-    if (winner) {
-      // Encerrar partida
-      const isP1 = partida.p1.socket.id===socket.id;
-      const realWinner = isP1 ? 'p1' : 'p2';
-      await encerrarAirHockey(roomId=currentRoom, winner=realWinner, motivo='normal');
+    // Só aceita gols de P1 (evita duplicação)
+    if (partida.p1.socket.id !== socket.id) return;
+
+    if (scorerRole==='p1') partida.score1 = (partida.score1||0) + 1;
+    else partida.score2 = (partida.score2||0) + 1;
+
+    const s1 = partida.score1||0;
+    const s2 = partida.score2||0;
+    const won = s1>=7 || s2>=7;
+
+    // Notificar ambos do placar atualizado
+    io.to(currentRoom).emit('ah_gol_sync', {
+      p1score: s1, p2score: s2,
+      scorerRole, winner: won
+    });
+
+    if (won) {
+      const winnerRole = s1>=7 ? 'p1' : 'p2';
+      await encerrarAirHockey(currentRoom, winnerRole, 'normal');
     }
   });
 
@@ -469,6 +481,7 @@ io.on('connection', (socket) => {
     const partida = partidas[currentRoom];
     const isP1 = partida.p1.socket.id===socket.id;
     const winnerRole = isP1 ? 'p2' : 'p1';
+    // Notificar o outro ANTES de encerrar
     const outro = isP1 ? partida.p2.socket : partida.p1.socket;
     outro.emit('oponente_desistiu');
     await encerrarAirHockey(currentRoom, winnerRole, 'desistiu');
@@ -497,6 +510,7 @@ async function encerrarAirHockey(roomId, winnerRole, motivo) {
   const partida = partidas[roomId];
   if (!partida) return;
   if (partida.interval) clearInterval(partida.interval);
+  partida._encerrado = true; // evita dupla chamada
   const winnerId = winnerRole==='p1' ? partida.p1.userId : partida.p2.userId;
   const loserId  = winnerRole==='p1' ? partida.p2.userId : partida.p1.userId;
   const prize = parseFloat((partida.valor*1.75).toFixed(2));
@@ -505,7 +519,9 @@ async function encerrarAirHockey(roomId, winnerRole, motivo) {
     [winnerId,'ganho',prize,`Vitória Air Hockey R$${partida.valor} (${motivo})`,'concluido']);
   await atualizarNivel(winnerId,'vitoria');
   await atualizarNivel(loserId,'derrota');
+  // Enviar game_end com prize para ambos
   io.to(roomId).emit('game_end',{winner:winnerRole,prize,valor:partida.valor});
+  console.log(`🏒 Partida ${roomId} encerrada: winner=${winnerRole}, motivo=${motivo}`);
   delete partidas[roomId];
 }
 
