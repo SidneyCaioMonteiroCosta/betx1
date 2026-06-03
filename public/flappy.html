@@ -118,7 +118,22 @@
     <input type="number" id="valor-aposta" min="1" step="1" value="5" style="display:none;">
   </div>
   <button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
-  <button class="btn btn-secondary" onclick="jogarContraBot()">🤖 Jogar contra Bot</button>
+  <div class="card" style="margin-top:10px;">
+    <h3>Escolha seu pássaro</h3>
+    <div id="bird-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+      <div class="sala-btn ativo" onclick="selecionarPassaro(0,this)" style="font-size:1.8rem;padding:10px;">🐦</div>
+      <div class="sala-btn" onclick="selecionarPassaro(1,this)" style="font-size:1.8rem;padding:10px;">🦜</div>
+      <div class="sala-btn" onclick="selecionarPassaro(2,this)" style="font-size:1.8rem;padding:10px;">🦅</div>
+      <div class="sala-btn" onclick="selecionarPassaro(3,this)" style="font-size:1.8rem;padding:10px;">🦆</div>
+      <div class="sala-btn" onclick="selecionarPassaro(4,this)" style="font-size:1.8rem;padding:10px;">🦉</div>
+      <div class="sala-btn" onclick="selecionarPassaro(5,this)" style="font-size:1.8rem;padding:10px;">🐧</div>
+      <div class="sala-btn" onclick="selecionarPassaro(6,this)" style="font-size:1.8rem;padding:10px;">🦚</div>
+      <div class="sala-btn" onclick="selecionarPassaro(7,this)" style="font-size:1.8rem;padding:10px;">🦩</div>
+      <div class="sala-btn" onclick="selecionarPassaro(8,this)" style="font-size:1.8rem;padding:10px;">🐓</div>
+      <div class="sala-btn" onclick="selecionarPassaro(9,this)" style="font-size:1.8rem;padding:10px;">🦤</div>
+    </div>
+  </div>
+<button class="btn btn-secondary" onclick="jogarContraBot()">🤖 Jogar contra Bot</button>
   <div id="aguardando-box" style="display:none">
     <div class="card aguardando">
       <div class="spinner"></div>
@@ -162,7 +177,7 @@ let valorAposta = 5;
 let gameAtivo = false;
 let morto = false;
 let canos = [];
-let passaro = { x: 80, y: 250, vy: 0 };
+let passaro = { x: 60, y: 250, vy: 0 };
 let pontos = 0;
 let frame = 0;
 let animId = null;
@@ -173,7 +188,17 @@ let canvas, ctx;
 let botMode = false;
 let botMorto = false;
 let botPontos = 0;
-let botPassaro = { x: 120, y: 150, vy: 0 };
+let botPassaro = { x: 200, y: 150, vy: 0 }; // bot bem separado do jogador
+
+// Pássaros disponíveis
+const PASSAROS = ['🐦','🦜','🦅','🦆','🦉','🐧','🦚','🦩','🐓','🦤'];
+let passaroSelecionado = 0;
+
+function selecionarPassaro(idx, el) {
+  passaroSelecionado = idx;
+  document.querySelectorAll('#bird-grid .sala-btn').forEach(b => b.classList.remove('ativo'));
+  el.classList.add('ativo');
+}
 
 const GRAVITY = 0.45;
 const FLAP = -8;
@@ -264,7 +289,7 @@ function jogarContraBot() {
   botMode = true;
   botMorto = false;
   botPontos = 0;
-  botPassaro = { x: 120, y: 150, vy: 0 };
+  botPassaro = { x: 200, y: 150, vy: 0 };
   valorAposta = 0;
   jogadoresInfo = {
     [myId || 'eu']: { nome: myNome || 'Você', pontos: 0, morto: false, eu: true },
@@ -344,8 +369,8 @@ function iniciarJogo() {
   morto = false;
   botMorto = false;
   canos = [];
-  passaro = { x: 80, y: 250, vy: 0 };
-  botPassaro = { x: 120, y: 150, vy: 0 };
+  passaro = { x: 60, y: 250, vy: 0 };
+  botPassaro = { x: 200, y: 150, vy: 0 };
   pontos = 0;
   botPontos = 0;
   frame = 0;
@@ -406,7 +431,7 @@ function loop() {
   if (!morto) {
     if (passaro.y < 0 || passaro.y + 28 > canvas.height) morreu();
     for (let c of canos) {
-      if (passaro.x + 28 > c.x && passaro.x < c.x + CANO_LARGURA) {
+      if (passaro.x + 24 > c.x && passaro.x + 4 < c.x + CANO_LARGURA) {
         if (passaro.y < c.topo || passaro.y + 28 > c.topo + CANO_GAP) { morreu(); break; }
       }
     }
@@ -496,19 +521,27 @@ function desenhar() {
 function desenharPassaro(x, y, vy, dead, isBot) {
   ctx.save();
   ctx.translate(x + 17, y + 14);
-  ctx.rotate(Math.min(Math.max(vy * 0.05, -0.4), 0.6));
-  const g = ctx.createRadialGradient(-2, -2, 2, 0, 0, 16);
-  if (dead) { g.addColorStop(0, '#666'); g.addColorStop(1, '#333'); }
-  else if (isBot) { g.addColorStop(0, '#22c55e'); g.addColorStop(1, '#16a34a'); }
-  else { g.addColorStop(0, '#ec4899'); g.addColorStop(1, '#a855f7'); }
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = dead ? '#555' : (isBot ? '#15803d' : '#9333ea');
-  ctx.beginPath(); ctx.ellipse(-4, 2, 10, 5, -0.3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7, -3, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = dead ? '#999' : '#1a1a2e'; ctx.beginPath(); ctx.arc(8, -3, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#f97316';
-  ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(20, -2); ctx.lineTo(20, 3); ctx.closePath(); ctx.fill();
+  const rot = Math.min(Math.max(vy * 0.05, -0.4), 0.6);
+  ctx.rotate(rot);
+  if (isBot) {
+    // Bot sempre verde
+    const g = ctx.createRadialGradient(-2,-2,2,0,0,16);
+    g.addColorStop(0,'#22c55e'); g.addColorStop(1,'#16a34a');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(0,0,16,13,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#15803d'; ctx.beginPath(); ctx.ellipse(-4,2,10,5,-0.3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(7,-3,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#1a1a2e'; ctx.beginPath(); ctx.arc(8,-3,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#f97316'; ctx.beginPath(); ctx.moveTo(13,0); ctx.lineTo(20,-2); ctx.lineTo(20,3); ctx.closePath(); ctx.fill();
+  } else {
+    // Jogador usa emoji selecionado
+    ctx.globalAlpha = dead ? 0.5 : 1;
+    ctx.font = '28px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(PASSAROS[passaroSelecionado], 0, 0);
+    ctx.globalAlpha = 1;
+  }
   ctx.restore();
 }
 
