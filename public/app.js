@@ -442,10 +442,20 @@ let todosUsuarios = [];
 let userEditandoId = null;
 
 function adminTab(tab) {
-  ['saques','usuarios','jogos','stats'].forEach(t => {
-    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? 'block' : 'none';
-    const el = document.getElementById('at' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (el) { el.style.color = t === tab ? 'var(--gold)' : 'var(--muted)'; el.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent'; }
+  const tabMap = {
+    'saques': { div: 'tabSaques', btn: 'atSaques' },
+    'usuarios': { div: 'tabUsers', btn: 'atUsers' },
+    'jogos': { div: 'tabJogos', btn: 'atJogos' },
+    'stats': { div: 'tabStats', btn: 'atStats' }
+  };
+  Object.entries(tabMap).forEach(([t, ids]) => {
+    const divEl = document.getElementById(ids.div);
+    const btnEl = document.getElementById(ids.btn);
+    if (divEl) divEl.style.display = t === tab ? 'block' : 'none';
+    if (btnEl) {
+      btnEl.style.color = t === tab ? 'var(--gold)' : 'var(--muted)';
+      btnEl.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent';
+    }
   });
   if (tab === 'usuarios') carregarUsuariosAdmin();
   if (tab === 'jogos') carregarJogosAdmin();
