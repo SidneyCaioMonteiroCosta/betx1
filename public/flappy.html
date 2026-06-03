@@ -301,14 +301,7 @@ function atualizarBot() {
     }
   }
 
-  // Pontos bot
-  for (let c of canos) {
-    if (!c.botPassou && c.x + CANO_LARGURA < botPassaro.x) {
-      c.botPassou = true;
-      botPontos++;
-      if (jogadoresInfo['bot']) { jogadoresInfo['bot'].pontos = botPontos; atualizarPlacar(); }
-    }
-  }
+  // Pontos bot são contados no loop principal
 }
 
 function botMorreu() {
@@ -388,6 +381,7 @@ function loop() {
   // Mover canos e contar pontos
   for (let c of canos) {
     c.x -= CANO_VEL;
+    // Pontos do jogador — só conta quando o passaro do jogador passa
     if (!c.passou && c.x + CANO_LARGURA < passaro.x) {
       c.passou = true;
       pontos++;
@@ -398,6 +392,12 @@ function loop() {
         socket.emit('flappy_ponto', { pontos });
       }
       atualizarPlacar();
+    }
+    // Pontos do bot — só conta quando o passaro do BOT passa (posição diferente)
+    if (botMode && !c.botPassou && c.x + CANO_LARGURA < botPassaro.x) {
+      c.botPassou = true;
+      botPontos++;
+      if (jogadoresInfo['bot']) { jogadoresInfo['bot'].pontos = botPontos; atualizarPlacar(); }
     }
   }
   canos = canos.filter(c => c.x + CANO_LARGURA > 0);
