@@ -690,4 +690,117 @@ io.on('connection', (socketS) => {
   });
 });
 
+
+// ===== SISTEMA DE SALAS PRIVADAS =====
+const salasPrivadas = {}; // codigo -> { jogo, valor, senha, dono, socketDono, nomesDono, aguardando }
+
+function gerarCodigo() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+io.on('connection', (socketP) => {
+  socketP.on('criar_sala', async ({ token: tkn, jogo, valor, senha }) => {
+    try {
+      const decoded = jwt.verify(tkn, JWT_SECRET);
+      const userId = decoded.id;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = rows[0];
+      if (!user || user.saldo < valor) { socketP.emit('sala_erro', { msg: 'Saldo insuficiente' }); return; }
+
+      // Remover sala anterior do mesmo jogador
+      Object.keys(salasPrivadas).forEach(k => {
+        if (salasPrivadas[k].userId === userId) delete salasPrivadas[k];
+      });
+
+      let codigo;
+      do { codigo = gerarCodigo(); } while (salasPrivadas[codigo]);
+
+      salasPrivadas[codigo] = { jogo, valor, senha: senha || '', userId, socket: socketP, nome: user.nome, aguardando: true };
+      socketP.join('sala_' + codigo);
+      socketP.emit('sala_criada', { codigo, jogo, valor });
+    } catch(e) { socketP.emit('sala_erro', { msg: 'Erro ao criar sala' }); }
+  });
+
+  socketP.on('entrar_sala', async ({ token: tkn, codigo, senha }) => {
+    try {
+      const decoded = jwt.verify(tkn, JWT_SECRET);
+      const userId = decoded.id;
+      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = rows[0];
+
+      const sala = salasPrivadas[codigo.toUpperCase()];
+      if (!sala) { socketP.emit('sala_erro', { msg: 'Sala não encontrada!' }); return; }
+      if (!sala.aguardando) { socketP.emit('sala_erro', { msg: 'Sala já está em jogo!' }); return; }
+      if (sala.userId === userId) { socketP.emit('sala_erro', { msg: 'Você criou esta sala!' }); return; }
+      if (sala.senha && sala.senha !== senha) { socketP.emit('sala_erro', { msg: 'Senha incorreta!' }); return; }
+      if (!user || user.saldo < sala.valor) { socketP.emit('sala_erro', { msg: 'Saldo insuficiente' }); return; }
+
+      sala.aguardando = false;
+      socketP.join('sala_' + codigo);
+
+      // Debitar os dois
+      await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [sala.valor, sala.userId]);
+      await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [sala.valor, userId]);
+
+      // Iniciar o jogo correto
+      const roomId = 'sala_' + codigo;
+      const jogo = sala.jogo;
+
+      if (jogo === 'airhockey') {
+        const state = {
+          ball: { x:0.5,y:0.5,vx:0.003,vy:0.005,r:0.03 },
+          m1:{x:0.5,y:0.75}, m2:{x:0.5,y:0.25},
+          mallet_r:0.075, score1:0, score2:0, valor:sala.valor
+        };
+        partidas[roomId] = { p1:{socket:sala.socket,userId:sala.userId,nome:sala.nome}, p2:{socket:socketP,userId,nome:user.nome}, state, interval:null };
+        sala.socket.emit('game_start',{role:'p1',p1name:sala.nome,p2name:user.nome,valor:sala.valor});
+        socketP.emit('game_start',{role:'p2',p1name:sala.nome,p2name:user.nome,valor:sala.valor});
+        partidas[roomId].interval = setInterval(async () => {
+          const partida = partidas[roomId];
+          if(!partida) return;
+          simularFisica(partida.state);
+          io.to(roomId).emit('game_update',partida.state);
+          if(partida.state.score1>=7||partida.state.score2>=7){
+            clearInterval(partida.interval);
+            const winner=partida.state.score1>=7?'p1':'p2';
+            const winnerId=winner==='p1'?partida.p1.userId:partida.p2.userId;
+            const prize=parseFloat((sala.valor*1.75).toFixed(2));
+            await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
+            await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',[winnerId,'ganho',prize,`Vitória Air Hockey Sala R$${sala.valor}`,'concluido']);
+            io.to(roomId).emit('game_end',{winner,prize,valor:sala.valor});
+            delete partidas[roomId];
+          }
+        },1000/60);
+      } else if (jogo === 'xadrez') {
+        const cores = Math.random()>0.5?['white','black']:['black','white'];
+        sala.socket.emit('chess_start',{color:cores[0],oppName:user.nome,valor:sala.valor});
+        socketP.emit('chess_start',{color:cores[1],oppName:sala.nome,valor:sala.valor});
+        xadrezPartidas[roomId] = {p1:{socket:sala.socket,userId:sala.userId,nome:sala.nome},p2:{socket:socketP,userId,nome:user.nome},valor:sala.valor,room:roomId};
+      } else if (jogo === 'flappy') {
+        const salaKey = roomId;
+        flappySalas[salaKey] = { jogadores:[{socketId:sala.socket.id,userId:sala.userId,nome:sala.nome,pontos:0,morto:false},{socketId:socketP.id,userId,nome:user.nome,pontos:0,morto:false}], valor:sala.valor, tamanho:2, iniciada:true, finalizada:false };
+        flappyConns[sala.socket.id] = {userId:sala.userId,nome:sala.nome,salaKey,pontos:0,morto:false};
+        flappyConns[socketP.id] = {userId,nome:user.nome,salaKey,pontos:0,morto:false};
+        sala.socket.emit('flappy_start',{jogadores:[{id:sala.userId,nome:sala.nome},{id:userId,nome:user.nome}],valor:sala.valor,countdown:3});
+        socketP.emit('flappy_start',{jogadores:[{id:sala.userId,nome:sala.nome},{id:userId,nome:user.nome}],valor:sala.valor,countdown:3});
+      } else if (jogo === 'sinuca') {
+        sinucaPartidas[roomId]={p1:{socket:sala.socket,userId:sala.userId,nome:sala.nome},p2:{socket:socketP,userId,nome:user.nome},valor:sala.valor};
+        sala.socket.emit('sinuca_start',{first:true,oppName:user.nome,valor:sala.valor});
+        socketP.emit('sinuca_start',{first:false,oppName:sala.nome,valor:sala.valor});
+      }
+
+      delete salasPrivadas[codigo];
+    } catch(e) { socketP.emit('sala_erro', { msg: 'Erro ao entrar na sala' }); }
+  });
+
+  socketP.on('cancelar_sala', ({ codigo }) => {
+    if (salasPrivadas[codigo] && salasPrivadas[codigo].socket.id === socketP.id) {
+      delete salasPrivadas[codigo];
+    }
+  });
+});
+
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

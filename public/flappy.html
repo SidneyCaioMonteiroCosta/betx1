@@ -118,6 +118,7 @@
     <input type="number" id="valor-aposta" min="1" step="1" value="5" style="display:none;">
   </div>
   <button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
+<button id="salaBtn" style="width:100%;padding:14px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;" onclick="abrirModalSalaFlappy()">🏠 CRIAR / ENTRAR EM SALA</button>
   <div class="card" style="margin-top:10px;">
     <h3>Escolha seu pássaro</h3>
     <div id="bird-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
@@ -252,6 +253,17 @@ function sairFila() {
   document.getElementById('btn-entrar').disabled = false;
 }
 
+socket.on('sala_criada', ({ codigo }) => {
+  salaCodAtual = codigo;
+  document.getElementById('codigoGerado').textContent = codigo;
+  document.getElementById('salaCodigoCriado').style.display = 'block';
+  document.getElementById('salaAguardando').style.display = 'block';
+  document.getElementById('btnCriarSala').style.display = 'none';
+});
+socket.on('sala_erro', ({ msg }) => {
+  document.getElementById('salaErro').textContent = msg;
+  mostrarMsg(msg, 'erro');
+});
 socket.on('flappy_sala_update', ({ jogadores, total }) => {
   document.getElementById('aguardando-texto').textContent = `${jogadores.length} / ${total} na sala`;
   document.getElementById('jogadores-lista').innerHTML = jogadores.map(j => `<div class="jogador-chip">${j.nome}</div>`).join('');
@@ -612,7 +624,12 @@ function mostrarResultado(ranking, premios) {
       <div class="ranking-canos">${r.pontos} canos</div>
       <div class="ranking-premio">${premios[r.id] > 0 ? '+R$' + premios[r.id].toFixed(2) : '-'}</div>
     </div>`).join('');
-  carregarSaldo();
+  function abrirModalSalaFlappy() {
+  const v = parseFloat(document.getElementById('valor-aposta').value);
+  if (!v || v < 1) { mostrarMsg('Selecione um valor primeiro!', 'erro'); return; }
+  abrirModalSala('flappy', v);
+}
+carregarSaldo();
 }
 
 function confirmarDesistir() {
@@ -655,10 +672,137 @@ function voltarLobby() {
   document.getElementById('btn-entrar').style.display = 'block';
   document.getElementById('aguardando-box').style.display = 'none';
   document.getElementById('tap-hint').textContent = 'Toque ou pressione ESPAÇO para voar';
-  carregarSaldo();
+  function abrirModalSalaFlappy() {
+  const v = parseFloat(document.getElementById('valor-aposta').value);
+  if (!v || v < 1) { mostrarMsg('Selecione um valor primeiro!', 'erro'); return; }
+  abrirModalSala('flappy', v);
+}
+carregarSaldo();
 }
 
+function abrirModalSalaFlappy() {
+  const v = parseFloat(document.getElementById('valor-aposta').value);
+  if (!v || v < 1) { mostrarMsg('Selecione um valor primeiro!', 'erro'); return; }
+  abrirModalSala('flappy', v);
+}
 carregarSaldo();
+</script>
+<!-- MODAL SALA PRIVADA -->
+<div id="modalSala" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)fecharModalSala()">
+  <div style="background:#0d1425;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;">
+    <div style="width:40px;height:4px;background:#1e2d50;border-radius:2px;margin:0 auto 16px;"></div>
+    <div id="salaTabs" style="display:flex;gap:8px;margin-bottom:16px;">
+      <button onclick="trocarAbaSala('criar')" id="tabCriar" style="flex:1;padding:10px;border:2px solid #f0c040;background:rgba(240,192,64,.15);color:#f0c040;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">🏠 Criar Sala</button>
+      <button onclick="trocarAbaSala('entrar')" id="tabEntrar" style="flex:1;padding:10px;border:2px solid #1e2d50;background:transparent;color:#6b7db3;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">🚪 Entrar na Sala</button>
+    </div>
+
+    <!-- Criar Sala -->
+    <div id="abaCriar">
+      <div style="background:#070b14;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:12px;color:#6b7db3;margin-bottom:4px;">Valor da aposta</div>
+        <div style="font-size:18px;font-weight:700;color:#f0c040;" id="salaValorDisplay">R$ 0,00</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:#6b7db3;display:block;margin-bottom:6px;">Senha da sala (opcional)</label>
+        <input type="text" id="salaSenha" maxlength="8" placeholder="Deixe vazio para sala aberta" style="width:100%;background:#070b14;border:1px solid #1e2d50;border-radius:8px;padding:10px 12px;color:#e8eaf6;font-size:15px;"/>
+      </div>
+      <div id="salaCodigoCriado" style="display:none;background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;">
+        <div style="font-size:12px;color:#6b7db3;margin-bottom:6px;">Código da sala</div>
+        <div id="codigoGerado" style="font-size:42px;font-weight:900;color:#f0c040;letter-spacing:8px;"></div>
+        <div style="font-size:12px;color:#6b7db3;margin-top:6px;">Compartilhe com seu amigo!</div>
+        <button onclick="copiarCodigo()" style="margin-top:10px;padding:8px 20px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:#f0c040;border-radius:8px;cursor:pointer;font-size:13px;">📋 Copiar código</button>
+      </div>
+      <div id="salaAguardando" style="display:none;text-align:center;padding:10px 0;color:#6b7db3;font-size:13px;">
+        <div style="width:30px;height:30px;border:3px solid #1e2d50;border-top-color:#f0c040;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px;"></div>
+        Aguardando adversário...
+      </div>
+      <button id="btnCriarSala" onclick="confirmarCriarSala()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;">CRIAR SALA</button>
+      <button onclick="fecharModalSala()" style="width:100%;padding:12px;background:transparent;border:1px solid #1e2d50;color:#6b7db3;border-radius:12px;font-size:14px;cursor:pointer;margin-top:8px;">Cancelar</button>
+    </div>
+
+    <!-- Entrar na Sala -->
+    <div id="abaEntrar" style="display:none;">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:#6b7db3;display:block;margin-bottom:6px;">Código da sala</label>
+        <input type="text" id="inputCodigo" maxlength="4" placeholder="Ex: AB12" oninput="this.value=this.value.toUpperCase()" style="width:100%;background:#070b14;border:1px solid #1e2d50;border-radius:8px;padding:12px;color:#f0c040;font-size:28px;font-weight:700;text-align:center;letter-spacing:8px;"/>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;color:#6b7db3;display:block;margin-bottom:6px;">Senha (se necessário)</label>
+        <input type="text" id="inputSenhaSala" maxlength="8" placeholder="Deixe vazio se não tiver senha" style="width:100%;background:#070b14;border:1px solid #1e2d50;border-radius:8px;padding:10px 12px;color:#e8eaf6;font-size:15px;"/>
+      </div>
+      <div id="salaErro" style="color:#ef4444;font-size:13px;margin-bottom:10px;min-height:18px;"></div>
+      <button onclick="confirmarEntrarSala()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;">ENTRAR NA SALA</button>
+      <button onclick="fecharModalSala()" style="width:100%;padding:12px;background:transparent;border:1px solid #1e2d50;color:#6b7db3;border-radius:12px;font-size:14px;cursor:pointer;margin-top:8px;">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem("superduelo_token");
+// ===== SISTEMA DE SALAS PRIVADAS =====
+let salaJogoAtual = '';
+let salaValorAtual = 0;
+let salaCodAtual = '';
+
+function abrirModalSala(jogo, valor) {
+  salaJogoAtual = jogo;
+  salaValorAtual = valor;
+  document.getElementById('salaValorDisplay').textContent = 'R$ ' + valor.toFixed(2).replace('.', ',');
+  document.getElementById('salaSenha').value = '';
+  document.getElementById('inputCodigo').value = '';
+  document.getElementById('inputSenhaSala').value = '';
+  document.getElementById('salaErro').textContent = '';
+  document.getElementById('salaCodigoCriado').style.display = 'none';
+  document.getElementById('salaAguardando').style.display = 'none';
+  document.getElementById('btnCriarSala').style.display = 'block';
+  trocarAbaSala('criar');
+  document.getElementById('modalSala').style.display = 'flex';
+}
+
+function fecharModalSala() {
+  if (salaCodAtual) {
+    socket && socket.emit('cancelar_sala', { codigo: salaCodAtual });
+    salaCodAtual = '';
+  }
+  document.getElementById('modalSala').style.display = 'none';
+}
+
+function trocarAbaSala(aba) {
+  document.getElementById('abaCriar').style.display = aba === 'criar' ? 'block' : 'none';
+  document.getElementById('abaEntrar').style.display = aba === 'entrar' ? 'block' : 'none';
+  document.getElementById('tabCriar').style.borderColor = aba === 'criar' ? '#f0c040' : '#1e2d50';
+  document.getElementById('tabCriar').style.color = aba === 'criar' ? '#f0c040' : '#6b7db3';
+  document.getElementById('tabCriar').style.background = aba === 'criar' ? 'rgba(240,192,64,.15)' : 'transparent';
+  document.getElementById('tabEntrar').style.borderColor = aba === 'entrar' ? '#f0c040' : '#1e2d50';
+  document.getElementById('tabEntrar').style.color = aba === 'entrar' ? '#f0c040' : '#6b7db3';
+  document.getElementById('tabEntrar').style.background = aba === 'entrar' ? 'rgba(240,192,64,.15)' : 'transparent';
+}
+
+function confirmarCriarSala() {
+  const senha = document.getElementById('salaSenha').value.trim();
+  if (!conectarSocket()) return;
+  socket.emit('criar_sala', { token, jogo: salaJogoAtual, valor: salaValorAtual, senha });
+}
+
+function confirmarEntrarSala() {
+  const codigo = document.getElementById('inputCodigo').value.trim().toUpperCase();
+  const senha = document.getElementById('inputSenhaSala').value.trim();
+  if (codigo.length !== 4) { document.getElementById('salaErro').textContent = 'Digite o código de 4 caracteres!'; return; }
+  if (!conectarSocket()) return;
+  socket.emit('entrar_sala', { token, codigo, senha });
+}
+
+function copiarCodigo() {
+  navigator.clipboard?.writeText(salaCodAtual);
+  alert('Código ' + salaCodAtual + ' copiado!');
+}
+
+function conectarSocket() {
+  if (!token) { alert('Faça login primeiro!'); return false; }
+  if (!socket || !socket.connected) conectar();
+  return true;
+}
+
 </script>
 </body>
 </html>
