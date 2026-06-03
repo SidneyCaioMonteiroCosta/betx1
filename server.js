@@ -530,10 +530,10 @@ io.on('connection', (socketF) => {
 
   socketF.on('flappy_ponto', ({ pontos }) => {
     const conn = flappyConns[socketF.id];
-    if (!conn) return;
+    if (!conn || conn.morto) return; // ignora pontos se já morreu
     conn.pontos = pontos;
     const s = flappySalas[conn.salaKey];
-    if (s) { const j = s.jogadores.find(j => j.userId === conn.userId); if (j) j.pontos = pontos; }
+    if (s) { const j = s.jogadores.find(j => j.userId === conn.userId); if (j && !j.morto) j.pontos = pontos; }
     io.to(conn.salaKey).emit('flappy_update', { id: conn.userId, pontos });
   });
 
