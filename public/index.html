@@ -200,6 +200,7 @@
       <div class="pstat"><div class="pval">0%</div><div class="plbl">Win Rate</div></div>
     </div>
     <div class="menu-list">
+      <div class="menu-item" onclick="showScreen('stats')"><span>📊</span><div><div class="mname">Meu Painel</div><div class="msub">Saldo, partidas e histórico</div></div><span>›</span></div>
       <div class="menu-item" onclick="abrirEditarPerfil()"><span>👤</span><div><div class="mname">Editar perfil</div><div class="msub">Nome, senha e foto</div></div><span>›</span></div>
       <div class="menu-item" onclick="abrirNotificacoes()"><span>🔔</span><div><div class="mname">Notificações</div><div class="msub">Depósito e saque</div></div><span>›</span></div>
       <button class="logout-btn" onclick="logout()">🚪 SAIR DA CONTA</button>
@@ -406,6 +407,55 @@
   </div>
 </div>
 
+
+<!-- STATS SCREEN -->
+<div id="stats" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('profile')">←</button>
+    <div class="topbar-title">📊 MEU PAINEL</div>
+  </div>
+  <div class="scrollable">
+    <div style="padding:16px;">
+
+      <!-- Saldo + resumo -->
+      <div style="background:linear-gradient(135deg,#0d1a2e,#1a2e4a);border:1px solid var(--gold);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Saldo disponível</div>
+        <div style="font-size:36px;font-weight:900;color:var(--gold);margin:4px 0;" id="statsSaldo">R$ 0,00</div>
+        <div style="display:flex;justify-content:center;gap:24px;margin-top:12px;">
+          <div style="text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:#00c853;" id="statsGanhos">R$ 0</div>
+            <div style="font-size:11px;color:var(--muted);">Ganhos</div>
+          </div>
+          <div style="width:1px;background:var(--border);"></div>
+          <div style="text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:#ef4444;" id="statsPerda">R$ 0</div>
+            <div style="font-size:11px;color:var(--muted);">Perdas</div>
+          </div>
+          <div style="width:1px;background:var(--border);"></div>
+          <div style="text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:var(--gold);" id="statsPartidas">0</div>
+            <div style="font-size:11px;color:var(--muted);">Partidas</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;">
+        <div onclick="statsTab('depositos')" id="stDep" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--gold);border-bottom:2px solid var(--gold);">💳 Depósitos</div>
+        <div onclick="statsTab('saques')" id="stSaq" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🏦 Saques</div>
+        <div onclick="statsTab('partidas')" id="stPart" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🎮 Partidas</div>
+      </div>
+
+      <div id="statsTabContent"></div>
+
+    </div>
+  </div>
+  <div class="bottomnav">
+    <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
+    <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
+    <div class="navitem active" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
+  </div>
+</div>
 <script src="app.js"></script>
 
 <!-- MODAL TERMOS DE USO -->

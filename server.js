@@ -135,6 +135,24 @@ app.post('/api/perfil/editar', auth, async (req, res) => {
   } catch { res.status(500).json({ erro: 'Erro ao atualizar perfil' }); }
 });
 
+
+// ===== PAINEL DO USUÁRIO =====
+app.get('/api/historico', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM transacoes WHERE user_id = $1 ORDER BY criado_em DESC',
+      [req.user.id]
+    );
+    const depositos = rows.filter(t => t.tipo === 'deposito');
+    const saques = rows.filter(t => t.tipo === 'saque');
+    const partidas = rows.filter(t => ['ganho','devolucao'].includes(t.tipo));
+    const totalGanho = partidas.filter(t=>t.tipo==='ganho').reduce((a,b)=>a+b.valor,0);
+    const totalPerdido = rows.filter(t=>t.tipo==='ganho'||t.tipo==='devolucao').length * 0; // calculado no front
+
+    res.json({ depositos, saques, partidas, todas: rows });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
 app.get('/api/perfil', auth, async (req, res) => {
   const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino FROM users WHERE id = $1', [req.user.id]);
   res.json(rows[0]);

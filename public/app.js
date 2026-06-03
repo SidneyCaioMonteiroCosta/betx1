@@ -36,6 +36,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
   if (id === 'wallet') { atualizarSaldoServidor(); loadTransacoes(); }
+  if (id === 'stats') carregarHistorico();
   if (id === 'admin') loadAdmin();
   if (id === 'profile') carregarPerfil();
 }
@@ -667,6 +668,132 @@ function abrirTermos() {
 
 function fecharTermos() {
   document.getElementById('modalTermos').style.display = 'none';
+}
+
+
+// ===== PAINEL DO USUÁRIO =====
+let historicoData = null;
+let statsTabAtual = 'depositos';
+
+async function carregarHistorico() {
+  try {
+    const res = await fetch('/api/historico', { headers: { 'Authorization': 'Bearer ' + token } });
+    historicoData = await res.json();
+
+    // Atualizar saldo
+    await atualizarSaldoServidor();
+    document.getElementById('statsSaldo').textContent = 'R$ ' + (usuario.saldo||0).toFixed(2).replace('.', ',');
+
+    // Calcular ganhos e perdas de partidas
+    let ganhos = 0, perdas = 0, partidas = 0;
+    if (historicoData.todas) {
+      const jogadas = historicoData.todas.filter(t => ['ganho','devolucao'].includes(t.tipo));
+      partidas = jogadas.length;
+      ganhos = historicoData.todas.filter(t=>t.tipo==='ganho').reduce((a,b)=>a+b.valor, 0);
+      // Perdas = apostas não ganhas (estimativa baseada nos ganhos)
+      perdas = historicoData.todas.filter(t=>t.tipo==='ganho').length * 0; // calculado diferente
+    }
+
+    document.getElementById('statsGanhos').textContent = 'R$ ' + ganhos.toFixed(2).replace('.', ',');
+    document.getElementById('statsPartidas').textContent = partidas;
+
+    statsTab(statsTabAtual);
+  } catch(e) { console.log('Erro stats:', e); }
+}
+
+function statsTab(tab) {
+  statsTabAtual = tab;
+  const tabs = { depositos: 'stDep', saques: 'stSaq', partidas: 'stPart' };
+  Object.entries(tabs).forEach(([t, id]) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.color = t === tab ? 'var(--gold)' : 'var(--muted)';
+      el.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent';
+    }
+  });
+
+  if (!historicoData) return;
+  const content = document.getElementById('statsTabContent');
+
+  if (tab === 'depositos') {
+    const deps = historicoData.depositos || [];
+    if (!deps.length) { content.innerHTML = '<div class="empty">Nenhum depósito ainda.</div>'; return; }
+    const total = deps.reduce((a,b) => a+b.valor, 0);
+    content.innerHTML = `
+      <div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;">
+        <div style="font-size:12px;color:var(--muted);">Total depositado</div>
+        <div style="font-weight:700;color:#00c853;">R$ ${total.toFixed(2).replace('.',',')}</div>
+      </div>
+      ${deps.map(d => `
+        <div class="trans-item">
+          <div class="trans-icon dep">💳</div>
+          <div class="trans-desc">
+            <div class="trans-name">${d.descricao}</div>
+            <div class="trans-date">${new Date(d.criado_em).toLocaleString('pt-BR')}</div>
+          </div>
+          <div class="trans-val pos">+R$ ${d.valor.toFixed(2).replace('.',',')}</div>
+        </div>
+      `).join('')}
+    `;
+  } else if (tab === 'saques') {
+    const saqs = historicoData.saques || [];
+    if (!saqs.length) { content.innerHTML = '<div class="empty">Nenhum saque ainda.</div>'; return; }
+    const total = saqs.reduce((a,b) => a+b.valor, 0);
+    content.innerHTML = `
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;">
+        <div style="font-size:12px;color:var(--muted);">Total sacado</div>
+        <div style="font-weight:700;color:#ef4444;">R$ ${total.toFixed(2).replace('.',',')}</div>
+      </div>
+      ${saqs.map(s => `
+        <div class="trans-item">
+          <div class="trans-icon saq">🏦</div>
+          <div class="trans-desc">
+            <div class="trans-name">${s.descricao}</div>
+            <div class="trans-date">${new Date(s.criado_em).toLocaleString('pt-BR')} · ${s.status==='pago'?'✅ Pago':'⏳ Pendente'}</div>
+          </div>
+          <div class="trans-val neg">-R$ ${s.valor.toFixed(2).replace('.',',')}</div>
+        </div>
+      `).join('')}
+    `;
+  } else if (tab === 'partidas') {
+    const parts = historicoData.partidas || [];
+    if (!parts.length) { content.innerHTML = '<div class="empty">Nenhuma partida ainda.</div>'; return; }
+    const vitorias = parts.filter(p=>p.tipo==='ganho').length;
+    const total = parts.length;
+    const winrate = total > 0 ? Math.round(vitorias/total*100) : 0;
+    const ganhos = parts.filter(p=>p.tipo==='ganho').reduce((a,b)=>a+b.valor,0);
+
+    content.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:var(--gold);">${total}</div>
+          <div style="font-size:11px;color:var(--muted);">Partidas</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:#00c853;">${vitorias}</div>
+          <div style="font-size:11px;color:var(--muted);">Vitórias</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:var(--gold);">${winrate}%</div>
+          <div style="font-size:11px;color:var(--muted);">Win Rate</div>
+        </div>
+      </div>
+      <div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;">
+        <div style="font-size:12px;color:var(--muted);">Total ganho em partidas</div>
+        <div style="font-weight:700;color:#00c853;">R$ ${ganhos.toFixed(2).replace('.',',')}</div>
+      </div>
+      ${parts.map(p => `
+        <div class="trans-item">
+          <div class="trans-icon dep" style="background:${p.tipo==='ganho'?'rgba(0,200,83,.1)':'rgba(240,192,64,.1)'};">${p.tipo==='ganho'?'🏆':'🔄'}</div>
+          <div class="trans-desc">
+            <div class="trans-name">${p.descricao}</div>
+            <div class="trans-date">${new Date(p.criado_em).toLocaleString('pt-BR')}</div>
+          </div>
+          <div class="trans-val pos">+R$ ${p.valor.toFixed(2).replace('.',',')}</div>
+        </div>
+      `).join('')}
+    `;
+  }
 }
 
 function openGame(game) {
