@@ -189,6 +189,7 @@ let botMode = false;
 let botMorto = false;
 let botPontos = 0;
 let botPassaro = { x: 200, y: 150, vy: 0 }; // bot bem separado do jogador
+let botRenderX = 200; // posição visual do bot (separada da lógica)
 
 // Pássaros disponíveis
 const PASSAROS = ['🐦','🦜','🦅','🦆','🦉','🐧','🦚','🦩','🐓','🦤'];
@@ -301,6 +302,7 @@ function jogarContraBot() {
 
 function atualizarBot() {
   if (!botMode || botMorto) return;
+  botRenderX = botPassaro.x; // salvar posição visual antes de mover
   botPassaro.vy += GRAVITY;
   botPassaro.y += botPassaro.vy;
 
@@ -332,6 +334,7 @@ function atualizarBot() {
 function botMorreu() {
   if (botMorto) return;
   botMorto = true;
+  botPassaro.x = -9999; // tira da tela para não contar mais pontos
   if (jogadoresInfo['bot']) jogadoresInfo['bot'].morto = true;
   atualizarPlacar();
   if (morto) mostrarResultadoBot();
@@ -406,8 +409,8 @@ function loop() {
   // Mover canos e contar pontos
   for (let c of canos) {
     c.x -= CANO_VEL;
-    // Pontos do jogador — só conta quando o passaro do jogador passa
-    if (!c.passou && c.x + CANO_LARGURA < passaro.x) {
+    // Pontos do jogador — só conta se jogador está vivo
+    if (!morto && !c.passou && c.x + CANO_LARGURA < passaro.x) {
       c.passou = true;
       pontos++;
       if (botMode) {
@@ -418,8 +421,8 @@ function loop() {
       }
       atualizarPlacar();
     }
-    // Pontos do bot — só conta quando o passaro do BOT passa (posição diferente)
-    if (botMode && !c.botPassou && c.x + CANO_LARGURA < botPassaro.x) {
+    // Pontos do bot — só conta se bot está vivo E o cano passou pela posição do bot
+    if (botMode && !botMorto && !c.botPassou && c.x + CANO_LARGURA < botPassaro.x) {
       c.botPassou = true;
       botPontos++;
       if (jogadoresInfo['bot']) { jogadoresInfo['bot'].pontos = botPontos; atualizarPlacar(); }
@@ -449,6 +452,7 @@ function loop() {
 function morreu() {
   if (morto) return;
   morto = true;
+  passaro.x = -9999; // tira da tela para não contar mais pontos
   if (!botMode) socket.emit('flappy_morreu', { pontos });
   const uid = myId || 'eu';
   if (jogadoresInfo[uid]) jogadoresInfo[uid].morto = true;
@@ -488,7 +492,7 @@ function desenhar() {
   ctx.fillStyle = '#a855f7'; ctx.fillRect(0, H - 20, W, 2);
 
   // Bot
-  if (botMode && !botMorto) desenharPassaro(botPassaro.x, botPassaro.y, botPassaro.vy, false, true);
+  if (botMode && !botMorto && botPassaro.x > 0) desenharPassaro(botRenderX, botPassaro.y, botPassaro.vy, false, true);
 
   // Jogador
   desenharPassaro(passaro.x, passaro.y, passaro.vy, morto, false);
