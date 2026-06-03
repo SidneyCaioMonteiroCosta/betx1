@@ -387,28 +387,17 @@ function resetBall(state, scorer) {
 }
 
 // ===== USUÁRIOS ONLINE =====
-const usuariosOnline = new Set();
-
-io.on('connection', (socket) => {
-  socket.on('usuario_online', (userId) => {
-    if (userId) {
-      usuariosOnline.add(userId);
-      io.emit('online_count', usuariosOnline.size);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    // Remove user from online set when disconnected
-    // We'll use token-based tracking
-    if (socket._userId) {
-      usuariosOnline.delete(socket._userId);
-      io.emit('online_count', usuariosOnline.size);
-    }
-  });
+// Usa contagem de sockets conectados diretamente
+app.get('/api/online', (req, res) => {
+  res.json({ online: io.engine.clientsCount || 0 });
 });
 
-app.get('/api/online', (req, res) => {
-  res.json({ online: usuariosOnline.size });
+io.on('connection', (socket) => {
+  // Notificar todos quando alguém conecta
+  io.emit('online_count', io.engine.clientsCount);
+  socket.on('disconnect', () => {
+    io.emit('online_count', io.engine.clientsCount);
+  });
 });
 
 io.on('connection', (socket) => {

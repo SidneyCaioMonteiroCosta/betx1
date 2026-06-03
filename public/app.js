@@ -191,19 +191,22 @@ function enterApp() {
 
 function iniciarSocketOnline() {
   try {
-    const socketOnline = io();
-    socketOnline.on('connect', () => {
-      socketOnline.emit('usuario_online', usuario?.email || 'anonimo');
-    });
-    socketOnline.on('online_count', (count) => {
+    // Buscar contagem a cada 10 segundos
+    const atualizarOnline = () => {
+      fetch('/api/online').then(r=>r.json()).then(d=>{
+        const el = document.getElementById('onlineCount');
+        if (el) el.textContent = d.online || 0;
+      }).catch(()=>{});
+    };
+    atualizarOnline();
+    setInterval(atualizarOnline, 10000);
+
+    // Também ouvir via socket
+    const s = io();
+    s.on('online_count', count => {
       const el = document.getElementById('onlineCount');
       if (el) el.textContent = count;
     });
-    // Buscar contagem inicial
-    fetch('/api/online').then(r=>r.json()).then(d=>{
-      const el = document.getElementById('onlineCount');
-      if (el) el.textContent = d.online;
-    }).catch(()=>{});
   } catch(e) {}
 }
 
