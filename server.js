@@ -406,12 +406,12 @@ io.on('connection', (socket) => {
   let currentRoom = null;
   let currentValor = null;
 
-  // ===== AIR HOCKEY: servidor só faz relay, física roda no cliente =====
+  // ===== AIR HOCKEY: servidor roda física e envia estado para AMBOS =====
   socket.on('join_queue', async ({ valor, token: tkn }) => {
     try {
       const decoded = jwt.verify(tkn, JWT_SECRET);
       userId = decoded.id;
-      const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const { rows } = await pool.query('SELECT * FROM users WHERE id=$1',[userId]);
       const user = rows[0];
       if (!user || user.saldo < valor) { socket.emit('error',{msg:'Saldo insuficiente'}); return; }
       userNome = user.nome;
@@ -424,66 +424,41 @@ io.on('connection', (socket) => {
         oponente.currentRoom = roomId;
         await pool.query('UPDATE users SET saldo=saldo-$1 WHERE id=$2',[valor,userId]);
         await pool.query('UPDATE users SET saldo=saldo-$1 WHERE id=$2',[valor,oponente.userId]);
-        partidas[roomId] = {
-          p1: oponente,
-          p2: { socket, userId, nome: userNome },
-          valor, score1: 0, score2: 0, interval: null
+        // Estado inicial da física
+        const state = {
+          bx:.5, by:.5, bvx:.006, bvy:.008, br:.03,
+          m1x:.5, m1y:.82, m2x:.5, m2y:.18,
+          s1:0, s2:0, valor
         };
-        socket.join(roomId);
-        oponente.socket.join(roomId);
+        partidas[roomId] = {
+          p1: oponente, p2: { socket, userId, nome: userNome },
+          state, interval: null, valor, score1:0, score2:0
+        };
+        socket.join(roomId); oponente.socket.join(roomId);
         oponente.socket.emit('game_start',{role:'p1',p1name:oponente.nome,p2name:userNome,valor});
         socket.emit('game_start',{role:'p2',p1name:oponente.nome,p2name:userNome,valor});
+        // Loop de física no servidor 20fps
+        partidas[roomId].interval = setInterval(() => tickAH(roomId), 1000/20);
       } else {
-        const entry = { socket, userId, nome: userNome, currentRoom: null };
-        filas[valor].push(entry);
-        socket._filaEntry = entry;
+        filas[valor].push({ socket, userId, nome: userNome, currentRoom: null });
       }
-    } catch(e) { socket.emit('error',{msg:'Erro de autenticação'}); }
+    } catch(e) { socket.emit('error',{msg:'Erro'}); }
   });
 
-  // Relay: repassa posição do mallet para o outro jogador
-  // P2 envia posição do mallet → P1 recebe
-  socket.on('mallet_move', ({role,x,y}) => {
+  // Receber posição do mallet do jogador
+  socket.on('ah_mallet', ({x,y}) => {
     if (!currentRoom || !partidas[currentRoom]) return;
-    const partida = partidas[currentRoom];
-    // Só P2 envia mallet para P1
-    if (partida.p2.socket.id===socket.id) {
-      partida.p1.socket.emit('mallet_update', {x,y});
-    }
-  });
-
-  // P1 envia estado completo → relay para P2
-  socket.on('state_update', (data) => {
-    if (!currentRoom || !partidas[currentRoom]) return;
-    const partida = partidas[currentRoom];
-    if (partida.p1.socket.id===socket.id) {
-      partida.p2.socket.emit('state_update', data);
-    }
-  });
-
-  // Gol — só P1 envia, servidor confirma placar e encerra se necessário
-  socket.on('ah_gol', async ({s1,s2}) => {
-    if (!currentRoom || !partidas[currentRoom]) return;
-    const partida = partidas[currentRoom];
-    if (partida.p1.socket.id !== socket.id) return; // só P1
-    const scorerIsP1 = s1 > (partida.prevS1||0);
-    partida.score1=s1; partida.score2=s2; partida.prevS1=s1;
-    // Enviar placar para P2
-    partida.p2.socket.emit('ah_gol_sync', {s1,s2,scorerIsP1});
-    if (s1>=7||s2>=7) {
-      const winnerRole=s1>=7?'p1':'p2';
-      await encerrarAirHockey(currentRoom, winnerRole, 'normal');
-    }
+    const p = partidas[currentRoom];
+    if (p.p1.socket.id===socket.id) { p.state.m1x=x; p.state.m1y=y; }
+    else { p.state.m2x=x; p.state.m2y=y; }
   });
 
   // Desistir
   socket.on('ah_desistir', async () => {
     if (!currentRoom || !partidas[currentRoom]) return;
-    const partida = partidas[currentRoom];
-    const isP1 = partida.p1.socket.id===socket.id;
-    const winnerRole = isP1 ? 'p2' : 'p1';
-    // Notificar o outro ANTES de encerrar
-    const outro = isP1 ? partida.p2.socket : partida.p1.socket;
+    const p = partidas[currentRoom];
+    const winnerRole = p.p1.socket.id===socket.id ? 'p2' : 'p1';
+    const outro = p.p1.socket.id===socket.id ? p.p2.socket : p.p1.socket;
     outro.emit('oponente_desistiu');
     await encerrarAirHockey(currentRoom, winnerRole, 'desistiu');
   });
@@ -497,15 +472,77 @@ io.on('connection', (socket) => {
     if (currentValor && filas[currentValor])
       filas[currentValor] = filas[currentValor].filter(p=>p.socket.id!==socket.id);
     if (currentRoom && partidas[currentRoom]) {
-      const partida = partidas[currentRoom];
-      const isP1 = partida.p1.socket.id===socket.id;
-      const winnerRole = isP1 ? 'p2' : 'p1';
-      const outro = isP1 ? partida.p2.socket : partida.p1.socket;
+      const p = partidas[currentRoom];
+      const winnerRole = p.p1.socket.id===socket.id ? 'p2' : 'p1';
+      const outro = p.p1.socket.id===socket.id ? p.p2.socket : p.p1.socket;
       outro.emit('oponente_desistiu');
       await encerrarAirHockey(currentRoom, winnerRole, 'desconectou');
     }
   });
 });
+
+// Física do Air Hockey no servidor
+const MR = 0.074;
+function tickAH(roomId) {
+  const partida = partidas[roomId];
+  if (!partida || partida._encerrado) return;
+  const S = partida.state;
+
+  S.bx += S.bvx; S.by += S.bvy;
+
+  // Fricção
+  S.bvx *= 0.988; S.bvy *= 0.988;
+  const sp = Math.sqrt(S.bvx**2+S.bvy**2);
+  if (sp < .004) { S.bvx = S.bvx/sp*.005; S.bvy = S.bvy/sp*.005; }
+  if (sp > .022) { S.bvx = S.bvx/sp*.022; S.bvy = S.bvy/sp*.022; }
+
+  // Paredes
+  if (S.bx-S.br<0) { S.bx=S.br; S.bvx=Math.abs(S.bvx); }
+  if (S.bx+S.br>1) { S.bx=1-S.br; S.bvx=-Math.abs(S.bvx); }
+
+  // Colisão mallets
+  colideAH(S, S.m1x, S.m1y);
+  colideAH(S, S.m2x, S.m2y);
+
+  // Gols
+  const gw=.36, gx=(1-gw)/2;
+  let scorer = null;
+  if (S.by-S.br<0) {
+    if (S.bx>gx && S.bx<gx+gw) { S.s1++; scorer='p1'; resetAHBall(S,'up'); }
+    else { S.by=S.br; S.bvy=Math.abs(S.bvy); }
+  }
+  if (S.by+S.br>1) {
+    if (S.bx>gx && S.bx<gx+gw) { S.s2++; scorer='p2'; resetAHBall(S,'down'); }
+    else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); }
+  }
+
+  // Enviar estado para os dois jogadores
+  io.to(roomId).emit('ah_state', {bx:S.bx,by:S.by,m1x:S.m1x,m1y:S.m1y,m2x:S.m2x,m2y:S.m2y});
+
+  if (scorer) {
+    io.to(roomId).emit('ah_gol', {s1:S.s1, s2:S.s2, scorer});
+    if (S.s1>=7||S.s2>=7) {
+      const winnerRole = S.s1>=7?'p1':'p2';
+      encerrarAirHockey(roomId, winnerRole, 'normal');
+    }
+  }
+}
+
+function colideAH(S, mx, my) {
+  const dx=S.bx-mx, dy=S.by-my, d=Math.sqrt(dx*dx+dy*dy);
+  if (d<S.br+MR && d>0) {
+    const nx=dx/d, ny=dy/d;
+    const spd=Math.sqrt(S.bvx**2+S.bvy**2);
+    S.bvx=nx*(spd+.004); S.bvy=ny*(spd+.004);
+    S.bx=mx+nx*(S.br+MR+.002); S.by=my+ny*(S.br+MR+.002);
+  }
+}
+
+function resetAHBall(S, dir) {
+  S.bx=.5; S.by=.5;
+  S.bvx=(Math.random()-.5)*.01;
+  S.bvy=dir==='up'?.008:-.008;
+}
 
 async function encerrarAirHockey(roomId, winnerRole, motivo) {
   const partida = partidas[roomId];
