@@ -172,20 +172,13 @@ const token = localStorage.getItem('superduelo_token');
 const usuario = JSON.parse(localStorage.getItem('superduelo_user') || '{}');
 document.getElementById('saldoHeader').textContent = (usuario.saldo||0).toFixed(2).replace('.',',');
 
-let socket = null;
-let valorSel = 0;
-let myRole = null;
-let animFrame = null;
-let canvas, ctx, W, H;
-let botMode = false;
-
 // =============================================
 // ARQUITETURA: P1 roda a física e envia estado
 // completo para P2. Servidor só faz relay.
 // =============================================
-
+let socket = null;
 let valorSel = 0;
-let myRole = null; // 'p1' ou 'p2'
+let myRole = null;
 let botMode = false;
 let canvas, ctx, W, H;
 let animFrame = null;
@@ -521,7 +514,6 @@ function jogarContraBot(){
 }
 
 // ===== ONLINE =====
-let socket=null;
 function conectar(){
   socket=io();
 
@@ -701,8 +693,6 @@ window.addEventListener('beforeunload',e=>{
     <button onclick="document.getElementById('modalSala').style.display='none'" style="width:100%;padding:12px;margin-top:10px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;cursor:pointer;">Fechar</button>
   </div>
 </div>
-<script>
-function abrirModalSala(j,v){document.getElementById('modalSala').style.display='flex';}
-</script>
+
 </body>
 </html>
