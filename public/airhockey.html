@@ -223,8 +223,10 @@ let animId = null;
 let lastMove = 0;
 let salaCod = '';
 
-// Estado recebido do servidor
+// Estado recebido do servidor (alvo)
 let gs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18, s1:0, s2:0 };
+// Estado renderizado — interpola suavemente até gs (deixa fluido mesmo com lag)
+let rs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18 };
 // Meu mallet local
 let mx = .5, my = .82;
 // Efeitos
@@ -419,6 +421,11 @@ function onMove(e){
 function renderFrame(){
   if(!ctx)return;
   const A=ARENAS[arenaId];
+  // Interpolação suave: rs se aproxima de gs (online). No bot, gs já é o estado.
+  const k = botMode ? 1 : 0.35;
+  rs.bx += (gs.bx-rs.bx)*k; rs.by += (gs.by-rs.by)*k;
+  rs.m1x += (gs.m1x-rs.m1x)*k; rs.m1y += (gs.m1y-rs.m1y)*k;
+  rs.m2x += (gs.m2x-rs.m2x)*k; rs.m2y += (gs.m2y-rs.m2y)*k;
   ctx.clearRect(0,0,W,H);
   ctx.save();
   // Fix #3: P2 vê canvas rotacionado 180°
@@ -444,11 +451,11 @@ function renderFrame(){
   ctx.strokeRect(gx,0,gw,10);ctx.strokeRect(gx,H-10,gw,10);
   ctx.shadowBlur=0;
 
-  // Converter coordenadas: no estado global P1=embaixo, P2=cima
-  // No canvas de P1: direto. No canvas de P2: rotacionado, mas como ctx já está rotacionado,
-  // usamos (1-x, 1-y) para as coordenadas globais
-  function px(nx){return myRole==='p2'?(1-nx)*W:nx*W;}
-  function py(ny){return myRole==='p2'?(1-ny)*H:ny*H;}
+  // Canvas já está rotacionado para P2 (ctx.rotate above).
+  // Por isso usamos coordenadas DIRETAS do estado global — a rotação do
+  // canvas cuida de virar tudo para a perspectiva de P2.
+  function px(nx){return nx*W;}
+  function py(ny){return ny*H;}
 
   const mr=MR*W;
 
@@ -463,19 +470,17 @@ function renderFrame(){
     ctx.shadowBlur=0;
   }
 
-  // Fix #3: Meu mallet sempre na cor C1, oponente C2
-  // P1: meu=m1(embaixo), opp=m2(cima)
-  // P2: meu=m2(cima no global, mas embaixo visualmente pois canvas rotacionado), opp=m1
+  // Meu mallet usa minha posição LOCAL (sem lag), oponente usa estado interpolado
   if(myRole==='p1'){
-    drawM(gs.m1x,gs.m1y,A.c1); // eu
-    drawM(gs.m2x,gs.m2y,A.c2); // oponente
+    drawM(botMode?rs.m1x:mx, botMode?rs.m1y:my, A.c1); // eu (azul, resposta instantânea)
+    drawM(rs.m2x,rs.m2y,A.c2); // oponente (vermelho, interpolado)
   } else {
-    drawM(gs.m2x,gs.m2y,A.c1); // eu (aparece embaixo no canvas rotacionado)
-    drawM(gs.m1x,gs.m1y,A.c2); // oponente
+    drawM(botMode?rs.m2x:mx, botMode?rs.m2y:my, A.c1); // eu (azul, instantâneo)
+    drawM(rs.m1x,rs.m1y,A.c2); // oponente (vermelho, interpolado)
   }
 
-  // Bola
-  const bx2=px(gs.bx),by2=py(gs.by),br=.03*W;
+  // Bola — coordenadas diretas interpoladas (canvas rotacionado cuida da perspectiva)
+  const bx2=px(rs.bx),by2=py(rs.by),br=.03*W;
   ctx.shadowColor='#fff';ctx.shadowBlur=16;
   const bg=ctx.createRadialGradient(bx2-br*.3,by2-br*.3,br*.05,bx2,by2,br);
   bg.addColorStop(0,'#fff');bg.addColorStop(1,'rgba(200,220,255,.5)');
@@ -507,6 +512,7 @@ function conectarSocket(){
     arenaId=arenaId||1;
     flash=0;goalAlpha=0;
     gs={bx:.5,by:.5,m1x:.5,m1y:.82,m2x:.5,m2y:.18,s1:0,s2:0};
+    rs={bx:.5,by:.5,m1x:.5,m1y:.82,m2x:.5,m2y:.18};
     mx=.5; my=myRole==='p1'?.82:.18;
     document.getElementById('p1name').textContent=myRole==='p1'?(usuario.nome||'Você'):data.p1name;
     document.getElementById('p2name').textContent=myRole==='p2'?(usuario.nome||'Você'):data.p2name;

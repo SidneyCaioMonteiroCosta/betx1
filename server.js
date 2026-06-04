@@ -445,22 +445,34 @@ io.on('connection', (socket) => {
     } catch(e) { socket.emit('error',{msg:'Erro'}); }
   });
 
+  // Busca a sala onde este socket está jogando (funciona para P1 E P2)
+  function acharSalaAH() {
+    for (const [roomId, p] of Object.entries(partidas)) {
+      if (p.p1?.socket?.id === socket.id || p.p2?.socket?.id === socket.id) {
+        return roomId;
+      }
+    }
+    return null;
+  }
+
   // Receber posição do mallet do jogador
   socket.on('ah_mallet', ({x,y}) => {
-    if (!currentRoom || !partidas[currentRoom]) return;
-    const p = partidas[currentRoom];
+    const roomId = acharSalaAH();
+    if (!roomId) return;
+    const p = partidas[roomId];
     if (p.p1.socket.id===socket.id) { p.state.m1x=x; p.state.m1y=y; }
     else { p.state.m2x=x; p.state.m2y=y; }
   });
 
   // Desistir
   socket.on('ah_desistir', async () => {
-    if (!currentRoom || !partidas[currentRoom]) return;
-    const p = partidas[currentRoom];
+    const roomId = acharSalaAH();
+    if (!roomId) return;
+    const p = partidas[roomId];
     const winnerRole = p.p1.socket.id===socket.id ? 'p2' : 'p1';
     const outro = p.p1.socket.id===socket.id ? p.p2.socket : p.p1.socket;
     outro.emit('oponente_desistiu');
-    await encerrarAirHockey(currentRoom, winnerRole, 'desistiu');
+    await encerrarAirHockey(roomId, winnerRole, 'desistiu');
   });
 
   socket.on('leave_queue', () => {
@@ -469,14 +481,18 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    if (currentValor && filas[currentValor])
-      filas[currentValor] = filas[currentValor].filter(p=>p.socket.id!==socket.id);
-    if (currentRoom && partidas[currentRoom]) {
-      const p = partidas[currentRoom];
+    // Remover das filas
+    Object.keys(filas).forEach(v => {
+      filas[v] = filas[v].filter(p=>p.socket.id!==socket.id);
+    });
+    // Se estava em partida, dar vitória ao outro automaticamente
+    const roomId = acharSalaAH();
+    if (roomId && partidas[roomId]) {
+      const p = partidas[roomId];
       const winnerRole = p.p1.socket.id===socket.id ? 'p2' : 'p1';
       const outro = p.p1.socket.id===socket.id ? p.p2.socket : p.p1.socket;
-      outro.emit('oponente_desistiu');
-      await encerrarAirHockey(currentRoom, winnerRole, 'desconectou');
+      try { outro.emit('oponente_desistiu'); } catch(e) {}
+      await encerrarAirHockey(roomId, winnerRole, 'desconectou');
     }
   });
 });
@@ -516,7 +532,7 @@ function tickAH(roomId) {
     else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); }
   }
 
-  // Enviar estado para os dois jogadores
+  // Emitir estado todo frame (60fps) — clientes interpolam
   io.to(roomId).emit('ah_state', {bx:S.bx,by:S.by,m1x:S.m1x,m1y:S.m1y,m2x:S.m2x,m2y:S.m2y});
 
   if (scorer) {
