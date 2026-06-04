@@ -95,19 +95,6 @@ function showScreen(id) {
   if (id === 'profile') carregarPerfil();
 }
 
-async function atualizarSaldoServidor() {
-  try {
-    const res = await fetch('/api/perfil', { headers: { 'Authorization': 'Bearer ' + token } });
-    const data = await res.json();
-    if (data.saldo !== undefined) {
-      usuario.saldo = data.saldo;
-      usuario.nome = data.nome;
-      localStorage.setItem('superduelo_user', JSON.stringify(usuario));
-      updateBalanceUI();
-    }
-  } catch {}
-}
-
 function showAuth(tab) {
   showScreen('auth');
   switchTab(tab);
@@ -217,7 +204,8 @@ async function atualizarSaldoServidor() {
     const res = await fetch('/api/perfil', { headers: { 'Authorization': 'Bearer ' + token } });
     const data = await res.json();
     if (data.saldo !== undefined) {
-      usuario.saldo = data.saldo;
+      usuario.saldo = parseFloat(data.saldo) || 0;
+      usuario.saldo_treino = parseFloat(data.saldo_treino) || 1000;
       usuario.nome = data.nome;
       localStorage.setItem('superduelo_user', JSON.stringify(usuario));
       updateBalanceUI();
@@ -233,13 +221,16 @@ function atualizarAvatar() {
 }
 
 function updateBalanceUI() {
-  const saldo = (usuario.saldo || 0).toFixed(2).replace('.', ',');
-  const treino = Math.floor(usuario.saldo_treino || 1000).toLocaleString('pt-BR');
-  document.getElementById('balanceTop').textContent = saldo;
-  document.getElementById('walletBal').textContent = saldo;
-  document.getElementById('saqSaldo').textContent = saldo;
-  document.getElementById('saldoTreino').textContent = treino;
-  document.getElementById('saldoTreinoTop').textContent = treino;
+  const saldoNum = parseFloat(usuario.saldo) || 0;
+  const treinoNum = parseFloat(usuario.saldo_treino) || 1000;
+  const saldo = saldoNum.toFixed(2).replace('.', ',');
+  const treino = Math.floor(treinoNum).toLocaleString('pt-BR');
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('balanceTop', saldo);
+  set('walletBal', saldo);
+  set('saqSaldo', saldo);
+  set('saldoTreino', treino);
+  set('saldoTreinoTop', treino);
 }
 
 function logout() {

@@ -114,7 +114,7 @@ app.post('/api/login', async (req, res) => {
   const ok = await bcrypt.compare(senha, user.senha);
   if (!ok) return res.status(400).json({ erro: 'Senha incorreta' });
   const token = jwt.sign({ id: user.id, email }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, nome: user.nome, email: user.email, saldo: user.saldo, saldo_treino: user.saldo_treino || 1000 });
+  res.json({ token, nome: user.nome, email: user.email, saldo: parseFloat(user.saldo) || 0, saldo_treino: parseFloat(user.saldo_treino) || 1000 });
 });
 
 
@@ -155,7 +155,12 @@ app.get('/api/historico', auth, async (req, res) => {
 
 app.get('/api/perfil', auth, async (req, res) => {
   const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino, nivel, vitorias_nivel, total_vitorias, total_derrotas FROM users WHERE id = $1', [req.user.id]);
-  res.json(rows[0]);
+  const u = rows[0];
+  if (u) {
+    u.saldo = parseFloat(u.saldo) || 0;
+    u.saldo_treino = parseFloat(u.saldo_treino) || 1000;
+  }
+  res.json(u);
 });
 
 app.post('/api/pix/depositar', auth, async (req, res) => {
