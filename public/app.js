@@ -90,6 +90,7 @@ function showScreen(id) {
   window.scrollTo(0, 0);
   if (id === 'wallet') { atualizarSaldoServidor(); loadTransacoes(); }
   if (id === 'stats') carregarHistorico();
+  if (id === 'torneios') carregarTorneios();
   if (id === 'admin') loadAdmin();
   if (id === 'profile') carregarPerfil();
 }
@@ -526,7 +527,8 @@ function adminTab(tab) {
     'saques': { div: 'tabSaques', btn: 'atSaques' },
     'usuarios': { div: 'tabUsers', btn: 'atUsers' },
     'jogos': { div: 'tabJogos', btn: 'atJogos' },
-    'stats': { div: 'tabStats', btn: 'atStats' }
+    'stats': { div: 'tabStats', btn: 'atStats' },
+    'torneios': { div: 'tabTorneios', btn: 'atTorneios' }
   };
   Object.entries(tabMap).forEach(([t, ids]) => {
     const divEl = document.getElementById(ids.div);
@@ -540,6 +542,7 @@ function adminTab(tab) {
   if (tab === 'usuarios') carregarUsuariosAdmin();
   if (tab === 'jogos') carregarJogosAdmin();
   if (tab === 'stats') carregarStatsAdmin();
+  if (tab === 'torneios') carregarTorneiosAdmin();
 }
 
 async function loadAdmin() {
@@ -873,6 +876,147 @@ function statsTab(tab) {
       `).join('')}
     `;
   }
+}
+
+
+// ===== TORNEIOS (USUÁRIO) =====
+async function carregarTorneios() {
+  try {
+    const res = await fetch('/api/torneios', { headers: { Authorization: 'Bearer ' + token } });
+    const torneios = await res.json();
+    const el = document.getElementById('listaTorneios');
+    if (!torneios.length) {
+      el.innerHTML = '<div class="empty">Nenhum torneio disponível no momento. Volte em breve! 🏆</div>';
+      return;
+    }
+    const jogoEmoji = {airhockey:'🏒',flappy:'🐦',xadrez:'♟️',sinuca:'🎱',domino:'🁣'};
+    const jogoNome = {airhockey:'Air Hockey',flappy:'Flappy Duelo',xadrez:'Xadrez',sinuca:'Sinuca',domino:'Dominó'};
+    el.innerHTML = torneios.map(t => {
+      const data = new Date(t.data_hora);
+      const lotado = t.inscritos >= t.max_participantes;
+      const dataStr = data.toLocaleDateString('pt-BR') + ' às ' + data.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      return `
+        <div style="background:linear-gradient(135deg,#1a1030,#2a1a4a);border:1px solid #4a3a6a;border-radius:14px;padding:16px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="font-size:28px;">${jogoEmoji[t.jogo]||'🎮'}</div>
+            <div style="flex:1;">
+              <div style="font-weight:800;font-size:16px;color:#fff;">${t.nome}</div>
+              <div style="font-size:12px;color:#b0a0d0;">${jogoNome[t.jogo]||t.jogo}</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+            <div style="background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;">
+              <div style="font-size:10px;color:#b0a0d0;">PRÊMIO</div>
+              <div style="font-size:16px;font-weight:700;color:var(--gold);">R$ ${t.premio.toFixed(2).replace('.',',')}</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;">
+              <div style="font-size:10px;color:#b0a0d0;">TAXA</div>
+              <div style="font-size:16px;font-weight:700;color:#fff;">R$ ${t.taxa_inscricao.toFixed(2).replace('.',',')}</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#b0a0d0;margin-bottom:12px;">
+            <span>📅 ${dataStr}</span>
+            <span>👥 ${t.inscritos}/${t.max_participantes}</span>
+          </div>
+          ${t.inscrito
+            ? '<div style="text-align:center;padding:11px;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.3);color:var(--green);border-radius:10px;font-weight:700;">✅ Você está inscrito!</div>'
+            : lotado
+              ? '<div style="text-align:center;padding:11px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:10px;font-weight:700;">Torneio lotado</div>'
+              : `<button onclick="inscreverTorneio(${t.id})" style="width:100%;padding:12px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;">INSCREVER-SE · R$ ${t.taxa_inscricao.toFixed(2).replace('.',',')}</button>`
+          }
+        </div>
+      `;
+    }).join('');
+  } catch(e) { console.log('Erro torneios:', e); }
+}
+
+async function inscreverTorneio(id) {
+  if (!confirm('Confirmar inscrição? A taxa será debitada do seu saldo.')) return;
+  try {
+    const res = await fetch('/api/torneios/' + id + '/inscrever', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.erro || 'Erro ao inscrever'); return; }
+    alert('✅ Inscrição confirmada! Boa sorte! 🏆');
+    await atualizarSaldoServidor();
+    carregarTorneios();
+  } catch(e) { alert('Erro de conexão'); }
+}
+
+// ===== TORNEIOS (ADMIN) =====
+function abrirCriarTorneio() {
+  document.getElementById('tNome').value = '';
+  document.getElementById('tPremio').value = '';
+  document.getElementById('tTaxa').value = '';
+  document.getElementById('tErro').textContent = '';
+  document.getElementById('modalCriarTorneio').style.display = 'flex';
+}
+function fecharCriarTorneio() {
+  document.getElementById('modalCriarTorneio').style.display = 'none';
+}
+
+async function criarTorneio() {
+  const nome = document.getElementById('tNome').value.trim();
+  const jogo = document.getElementById('tJogo').value;
+  const premio = parseFloat(document.getElementById('tPremio').value) || 0;
+  const taxa = parseFloat(document.getElementById('tTaxa').value) || 0;
+  const max = parseInt(document.getElementById('tMax').value);
+  const data = document.getElementById('tData').value;
+  const hora = document.getElementById('tHora').value;
+
+  if (!nome) { document.getElementById('tErro').textContent = 'Informe o nome!'; return; }
+  if (!data || !hora) { document.getElementById('tErro').textContent = 'Informe data e horário!'; return; }
+
+  const data_hora = data + 'T' + hora + ':00';
+  try {
+    const res = await fetch('/api/admin/torneios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ nome, jogo, premio, taxa_inscricao: taxa, max_participantes: max, data_hora })
+    });
+    const d = await res.json();
+    if (!res.ok) { document.getElementById('tErro').textContent = d.erro; return; }
+    alert('✅ Torneio criado!');
+    fecharCriarTorneio();
+    carregarTorneiosAdmin();
+  } catch(e) { document.getElementById('tErro').textContent = 'Erro de conexão'; }
+}
+
+async function carregarTorneiosAdmin() {
+  try {
+    const res = await fetch('/api/admin/torneios', { headers: { Authorization: 'Bearer ' + token } });
+    const torneios = await res.json();
+    const el = document.getElementById('adminTorneios');
+    if (!torneios.length) { el.innerHTML = '<div class="empty">Nenhum torneio criado.</div>'; return; }
+    const jogoEmoji = {airhockey:'🏒',flappy:'🐦',xadrez:'♟️',sinuca:'🎱',domino:'🁣'};
+    el.innerHTML = torneios.map(t => {
+      const data = new Date(t.data_hora);
+      const dataStr = data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      return `
+        <div class="trans-item" style="flex-wrap:wrap;gap:6px;">
+          <div class="trans-icon dep">${jogoEmoji[t.jogo]||'🎮'}</div>
+          <div class="trans-desc">
+            <div class="trans-name">${t.nome} ${t.status==='finalizado'?'<span style="color:#ef4444;font-size:11px;">(cancelado)</span>':''}</div>
+            <div class="trans-date">${dataStr} · 👥 ${t.inscritos}/${t.max_participantes} · 🏆 R$${t.premio.toFixed(0)}</div>
+          </div>
+          ${t.status!=='finalizado' ? `<button onclick="cancelarTorneio(${t.id})" style="padding:5px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">Cancelar</button>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch(e) {}
+}
+
+async function cancelarTorneio(id) {
+  if (!confirm('Cancelar torneio? Todos os inscritos serão reembolsados.')) return;
+  try {
+    const res = await fetch('/api/admin/torneios/' + id + '/cancelar', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await res.json();
+    alert(`Torneio cancelado. ${d.reembolsados||0} jogadores reembolsados.`);
+    carregarTorneiosAdmin();
+  } catch(e) {}
 }
 
 function openGame(game) {

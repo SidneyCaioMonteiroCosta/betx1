@@ -83,6 +83,15 @@
         50%{opacity:.5;transform:scale(1.3);}
       }
     </style>
+    <!-- Torneios Banner -->
+    <div onclick="showScreen('torneios')" style="margin:12px 16px;background:linear-gradient(135deg,#2a1a4a,#4a2a6a);border:1px solid #6a4a9a;border-radius:14px;padding:16px;cursor:pointer;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:32px;">🏆</div>
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:16px;color:#fff;">Torneios</div>
+        <div style="font-size:12px;color:#c0a0e0;">Compita por grandes prêmios!</div>
+      </div>
+      <div style="color:#c0a0e0;font-size:20px;">›</div>
+    </div>
     <div class="hero" style="background:linear-gradient(135deg,#0d2a0d,#1a4a1a);">
       <div class="hero-title">🤖 MODO TREINO</div>
       <div class="hero-sub">Jogue contra bots com fichas virtuais — sem dinheiro real!</div>
@@ -312,6 +321,7 @@
     <div onclick="adminTab('usuarios')" id="atUsers" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">👥 Usuários</div>
     <div onclick="adminTab('jogos')" id="atJogos" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🎮 Jogos</div>
     <div onclick="adminTab('stats')" id="atStats" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">📊 Stats</div>
+    <div onclick="adminTab('torneios')" id="atTorneios" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🏆 Torneios</div>
   </div>
   <div class="scrollable">
     <div style="padding:16px;">
@@ -334,6 +344,13 @@
       <div id="tabJogos" style="display:none;">
         <div class="section-label">Controle de Jogos</div>
         <div id="adminJogos"><div class="empty">Carregando...</div></div>
+      </div>
+
+      <!-- TORNEIOS ADMIN -->
+      <div id="tabTorneios" style="display:none;">
+        <button onclick="abrirCriarTorneio()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:16px;">➕ CRIAR TORNEIO</button>
+        <div class="section-label">Torneios criados</div>
+        <div id="adminTorneios"><div class="empty">Carregando...</div></div>
       </div>
 
       <!-- STATS -->
@@ -478,6 +495,81 @@
     <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
     <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
     <div class="navitem active" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
+  </div>
+</div>
+
+<!-- TORNEIOS SCREEN -->
+<div id="torneios" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('lobby')">←</button>
+    <div class="topbar-title">🏆 TORNEIOS</div>
+  </div>
+  <div class="scrollable">
+    <div style="padding:16px;">
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px;">
+        Inscreva-se e compita por prêmios! A taxa de inscrição forma o prêmio.
+      </div>
+      <div id="listaTorneios"><div class="empty">Carregando torneios...</div></div>
+    </div>
+  </div>
+  <div class="bottomnav">
+    <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
+    <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
+    <div class="navitem" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
+  </div>
+</div>
+
+<!-- MODAL CRIAR TORNEIO (ADMIN) -->
+<div id="modalCriarTorneio" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)fecharCriarTorneio()">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;max-height:90vh;overflow-y:auto;">
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--gold);">🏆 Criar Torneio</div>
+
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nome do torneio</label>
+    <input id="tNome" type="text" placeholder="Ex: Copa Air Hockey" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:12px;">
+
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Jogo</label>
+    <select id="tJogo" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:12px;">
+      <option value="airhockey">🏒 Air Hockey</option>
+      <option value="flappy">🐦 Flappy Duelo</option>
+      <option value="xadrez">♟️ Xadrez</option>
+      <option value="sinuca">🎱 Sinuca</option>
+      <option value="domino">🁣 Dominó</option>
+    </select>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Prêmio (R$)</label>
+        <input id="tPremio" type="number" placeholder="500" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Taxa inscrição (R$)</label>
+        <input id="tTaxa" type="number" placeholder="25" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+      </div>
+    </div>
+
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Número de participantes</label>
+    <select id="tMax" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:12px;">
+      <option value="4">4 jogadores</option>
+      <option value="8" selected>8 jogadores</option>
+      <option value="16">16 jogadores</option>
+      <option value="32">32 jogadores</option>
+    </select>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Data</label>
+        <input id="tData" type="date" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Horário</label>
+        <input id="tHora" type="time" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+      </div>
+    </div>
+
+    <div id="tErro" style="color:#ef4444;font-size:13px;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="criarTorneio()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;">CRIAR TORNEIO</button>
+    <button onclick="fecharCriarTorneio()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;font-size:14px;cursor:pointer;margin-top:8px;">Cancelar</button>
   </div>
 </div>
 <script src="app.js"></script>

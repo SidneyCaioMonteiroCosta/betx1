@@ -504,21 +504,24 @@ function tickAH(roomId) {
   if (!partida || partida._encerrado) return;
   const S = partida.state;
 
+  // Guardar posição anterior para colisão contínua
+  const oldX = S.bx, oldY = S.by;
+
   S.bx += S.bvx; S.by += S.bvy;
 
   // Fricção
-  S.bvx *= 0.988; S.bvy *= 0.988;
+  S.bvx *= 0.992; S.bvy *= 0.992;
   const sp = Math.sqrt(S.bvx**2+S.bvy**2);
-  if (sp < .004) { S.bvx = S.bvx/sp*.005; S.bvy = S.bvy/sp*.005; }
-  if (sp > .022) { S.bvx = S.bvx/sp*.022; S.bvy = S.bvy/sp*.022; }
+  if (sp < .005) { const f=.006/sp; S.bvx*=f; S.bvy*=f; }
+  if (sp > .024) { const f=.024/sp; S.bvx*=f; S.bvy*=f; }
 
   // Paredes
   if (S.bx-S.br<0) { S.bx=S.br; S.bvx=Math.abs(S.bvx); }
   if (S.bx+S.br>1) { S.bx=1-S.br; S.bvx=-Math.abs(S.bvx); }
 
-  // Colisão mallets
-  colideAH(S, S.m1x, S.m1y);
-  colideAH(S, S.m2x, S.m2y);
+  // Colisão contínua com mallets (evita atravessar)
+  colideContinuo(S, S.m1x, S.m1y, oldX, oldY);
+  colideContinuo(S, S.m2x, S.m2y, oldX, oldY);
 
   // Gols
   const gw=.36, gx=(1-gw)/2;
@@ -546,12 +549,42 @@ function tickAH(roomId) {
 
 function colideAH(S, mx, my) {
   const dx=S.bx-mx, dy=S.by-my, d=Math.sqrt(dx*dx+dy*dy);
-  if (d<S.br+MR && d>0) {
+  const minDist = S.br + MR;
+  if (d < minDist && d > 0) {
     const nx=dx/d, ny=dy/d;
     const spd=Math.sqrt(S.bvx**2+S.bvy**2);
-    S.bvx=nx*(spd+.004); S.bvy=ny*(spd+.004);
-    S.bx=mx+nx*(S.br+MR+.002); S.by=my+ny*(S.br+MR+.002);
+    // Empurra a bola para fora do mallet
+    S.bx = mx + nx*(minDist+0.003);
+    S.by = my + ny*(minDist+0.003);
+    // Nova velocidade na direção da normal, com boost
+    const newSpd = Math.max(spd + 0.005, 0.011);
+    S.bvx = nx*newSpd;
+    S.bvy = ny*newSpd;
   }
+}
+
+// Detecta colisão ao longo do movimento (evita atravessar em alta velocidade)
+function colideContinuo(S, mx, my, oldX, oldY) {
+  const minDist = S.br + MR;
+  // Verifica vários pontos ao longo da trajetória da bola
+  const steps = 4;
+  for (let i=1; i<=steps; i++) {
+    const t = i/steps;
+    const cx = oldX + (S.bx-oldX)*t;
+    const cy = oldY + (S.by-oldY)*t;
+    const dx = cx-mx, dy = cy-my, d = Math.sqrt(dx*dx+dy*dy);
+    if (d < minDist && d > 0) {
+      const nx=dx/d, ny=dy/d;
+      const spd=Math.sqrt(S.bvx**2+S.bvy**2);
+      S.bx = mx + nx*(minDist+0.003);
+      S.by = my + ny*(minDist+0.003);
+      const newSpd = Math.max(spd + 0.005, 0.011);
+      S.bvx = nx*newSpd;
+      S.bvy = ny*newSpd;
+      return true;
+    }
+  }
+  return false;
 }
 
 function resetAHBall(S, dir) {
@@ -948,29 +981,19 @@ io.on('connection', (socketP) => {
 
       if (jogo === 'airhockey') {
         const state = {
-          ball: { x:0.5,y:0.5,vx:0.003,vy:0.005,r:0.03 },
-          m1:{x:0.5,y:0.75}, m2:{x:0.5,y:0.25},
-          mallet_r:0.075, score1:0, score2:0, valor:sala.valor
+          bx:.5, by:.5, bvx:.006, bvy:.008, br:.03,
+          m1x:.5, m1y:.82, m2x:.5, m2y:.18,
+          s1:0, s2:0, valor:sala.valor
         };
-        partidas[roomId] = { p1:{socket:sala.socket,userId:sala.userId,nome:sala.nome}, p2:{socket:socketP,userId,nome:user.nome}, state, interval:null };
+        partidas[roomId] = {
+          p1:{socket:sala.socket,userId:sala.userId,nome:sala.nome},
+          p2:{socket:socketP,userId,nome:user.nome},
+          state, interval:null, valor:sala.valor, score1:0, score2:0
+        };
         sala.socket.emit('game_start',{role:'p1',p1name:sala.nome,p2name:user.nome,valor:sala.valor});
         socketP.emit('game_start',{role:'p2',p1name:sala.nome,p2name:user.nome,valor:sala.valor});
-        partidas[roomId].interval = setInterval(async () => {
-          const partida = partidas[roomId];
-          if(!partida) return;
-          simularFisica(partida.state);
-          io.to(roomId).emit('game_update',partida.state);
-          if(partida.state.score1>=7||partida.state.score2>=7){
-            clearInterval(partida.interval);
-            const winner=partida.state.score1>=7?'p1':'p2';
-            const winnerId=winner==='p1'?partida.p1.userId:partida.p2.userId;
-            const prize=parseFloat((sala.valor*1.75).toFixed(2));
-            await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
-            await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',[winnerId,'ganho',prize,`Vitória Air Hockey Sala R$${sala.valor}`,'concluido']);
-            io.to(roomId).emit('game_end',{winner,prize,valor:sala.valor});
-            delete partidas[roomId];
-          }
-        },1000/20);
+        // Usa o mesmo motor de física da fila normal (tickAH)
+        partidas[roomId].interval = setInterval(() => tickAH(roomId), 1000/60);
       } else if (jogo === 'xadrez') {
         const cores = Math.random()>0.5?['white','black']:['black','white'];
         sala.socket.emit('chess_start',{color:cores[0],oppName:user.nome,valor:sala.valor});
@@ -1150,6 +1173,119 @@ io.on('connection', (socketD) => {
       dominoFilas[v] = dominoFilas[v].filter(j=>j.socket.id!==socketD.id);
     });
   });
+});
+
+
+// ===== SISTEMA DE TORNEIOS =====
+pool.query(`CREATE TABLE IF NOT EXISTS torneios (
+  id SERIAL PRIMARY KEY,
+  nome TEXT NOT NULL,
+  jogo TEXT NOT NULL,
+  premio REAL NOT NULL,
+  taxa_inscricao REAL NOT NULL,
+  max_participantes INTEGER NOT NULL,
+  data_hora TIMESTAMP NOT NULL,
+  status TEXT DEFAULT 'aberto',
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`).catch(e=>console.error('Erro criar tabela torneios:', e.message));
+
+pool.query(`CREATE TABLE IF NOT EXISTS torneio_inscricoes (
+  id SERIAL PRIMARY KEY,
+  torneio_id INTEGER REFERENCES torneios(id),
+  user_id INTEGER REFERENCES users(id),
+  nome TEXT,
+  inscrito_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(torneio_id, user_id)
+)`).catch(e=>console.error('Erro criar tabela inscricoes:', e.message));
+
+// Listar torneios (público)
+app.get('/api/torneios', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT t.*,
+        (SELECT COUNT(*) FROM torneio_inscricoes WHERE torneio_id = t.id) as inscritos,
+        EXISTS(SELECT 1 FROM torneio_inscricoes WHERE torneio_id = t.id AND user_id = $1) as inscrito
+      FROM torneios t
+      WHERE t.status != 'finalizado'
+      ORDER BY t.data_hora ASC
+    `, [req.user.id]);
+    res.json(rows);
+  } catch(e) { res.status(500).json({ erro: 'Erro ao listar torneios' }); }
+});
+
+// Inscrever-se em torneio
+app.post('/api/torneios/:id/inscrever', auth, async (req, res) => {
+  try {
+    const { rows: tRows } = await pool.query('SELECT * FROM torneios WHERE id = $1', [req.params.id]);
+    const torneio = tRows[0];
+    if (!torneio) return res.status(404).json({ erro: 'Torneio não encontrado' });
+    if (torneio.status !== 'aberto') return res.status(400).json({ erro: 'Inscrições encerradas' });
+
+    const { rows: countRows } = await pool.query('SELECT COUNT(*) FROM torneio_inscricoes WHERE torneio_id = $1', [req.params.id]);
+    if (parseInt(countRows[0].count) >= torneio.max_participantes) return res.status(400).json({ erro: 'Torneio lotado' });
+
+    const { rows: uRows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = uRows[0];
+    if (user.saldo < torneio.taxa_inscricao) return res.status(400).json({ erro: 'Saldo insuficiente para a taxa' });
+
+    // Verificar se já inscrito
+    const { rows: jaRows } = await pool.query('SELECT 1 FROM torneio_inscricoes WHERE torneio_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (jaRows.length) return res.status(400).json({ erro: 'Você já está inscrito' });
+
+    // Debitar taxa e inscrever
+    await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [torneio.taxa_inscricao, req.user.id]);
+    await pool.query('INSERT INTO torneio_inscricoes (torneio_id, user_id, nome) VALUES ($1, $2, $3)', [req.params.id, req.user.id, user.nome]);
+    await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, 'taxa', torneio.taxa_inscricao, `Inscrição: ${torneio.nome}`, 'concluido']);
+
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: 'Erro ao inscrever' }); }
+});
+
+// ADMIN: criar torneio
+app.post('/api/admin/torneios', adminAuth, async (req, res) => {
+  const { nome, jogo, premio, taxa_inscricao, max_participantes, data_hora } = req.body;
+  if (!nome || !jogo || !data_hora) return res.status(400).json({ erro: 'Campos obrigatórios faltando' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO torneios (nome, jogo, premio, taxa_inscricao, max_participantes, data_hora) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+      [nome, jogo, premio||0, taxa_inscricao||0, max_participantes||8, data_hora]
+    );
+    res.json({ sucesso: true, id: rows[0].id });
+  } catch(e) { res.status(500).json({ erro: 'Erro ao criar torneio' }); }
+});
+
+// ADMIN: listar todos torneios com inscritos
+app.get('/api/admin/torneios', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT t.*,
+        (SELECT COUNT(*) FROM torneio_inscricoes WHERE torneio_id = t.id) as inscritos
+      FROM torneios t ORDER BY t.data_hora DESC
+    `);
+    res.json(rows);
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+// ADMIN: deletar/cancelar torneio
+app.post('/api/admin/torneios/:id/cancelar', adminAuth, async (req, res) => {
+  try {
+    // Reembolsar inscritos
+    const { rows: insc } = await pool.query('SELECT ti.user_id, t.taxa_inscricao FROM torneio_inscricoes ti JOIN torneios t ON t.id=ti.torneio_id WHERE ti.torneio_id = $1', [req.params.id]);
+    for (const i of insc) {
+      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [i.taxa_inscricao, i.user_id]);
+    }
+    await pool.query("UPDATE torneios SET status = 'finalizado' WHERE id = $1", [req.params.id]);
+    res.json({ sucesso: true, reembolsados: insc.length });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+// ADMIN: ver inscritos de um torneio
+app.get('/api/admin/torneios/:id/inscritos', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT nome, inscrito_em FROM torneio_inscricoes WHERE torneio_id = $1 ORDER BY inscrito_em', [req.params.id]);
+    res.json(rows);
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
 });
 
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

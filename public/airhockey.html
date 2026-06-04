@@ -28,16 +28,17 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
 <body>
 <header>
   <button class="back-btn" onclick="window.location.href='/'">←</button>
-  <div class="logo">🏒 AIR HOCKEY</div>
+  <button onclick="abrirRegras()" style="background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.25);color:var(--gold);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:600;">❓ Como jogar</button>
+  <div class="logo" style="font-size:16px;">🏒 AIR HOCKEY</div>
   <div style="margin-left:auto;font-size:13px;color:var(--gold);">R$ <span id="saldoHdr">0,00</span></div>
 </header>
 
 <!-- LOBBY -->
 <div id="lobby">
   <div style="text-align:center;padding:8px 0 4px;">
-    <div style="font-size:13px;color:var(--muted);">1v1 · Primeiro a 7 gols · Vencedor leva 175%</div>
+    <div style="font-size:13px;color:var(--muted);">1v1 · Primeiro a 7 gols · Vencedor leva 175% da premiação</div>
   </div>
-  <button onclick="abrirRegras()" style="width:100%;padding:9px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.2);color:var(--gold);border-radius:8px;font-size:13px;cursor:pointer;margin:8px 0 12px;">❓ Como Funciona</button>
+
 
   <!-- BOT -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;">
@@ -155,7 +156,7 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
       <p><strong style="color:#f0c040;">🎯 Objetivo:</strong> Marque 7 gols antes do adversário!</p><br>
       <p><strong style="color:#f0c040;">🏒 Como jogar:</strong> Arraste o dedo para mover seu disco. Bata na bolinha para marcar gol. Você só pode mover na sua metade da mesa.</p><br>
       <p><strong style="color:#f0c040;">🏟️ Arenas:</strong> Iniciante (R$1-10) · Prata (R$15-30) · Ouro (R$50-100)</p><br>
-      <p><strong style="color:#f0c040;">💰 Prêmio:</strong> Vencedor leva 175% da aposta. Se desistir, adversário ganha automaticamente.</p>
+      <p><strong style="color:#f0c040;">💰 Prêmio:</strong> Vencedor leva 175% da premiação da aposta. Se desistir, adversário ganha automaticamente.</p>
     </div>
     <div style="padding:12px 16px;border-top:1px solid #1e2d50;">
       <button onclick="document.getElementById('modalRegras').style.display='none'" style="width:100%;padding:11px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Entendido! 🎮</button>
@@ -175,7 +176,7 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
     <!-- Criar -->
     <div id="abaCriar">
       <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Valor da aposta</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Taxa de participação</div>
         <div style="font-size:17px;font-weight:700;color:var(--gold);" id="salaValorTxt">R$ 0,00</div>
       </div>
       <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;">Senha (opcional)</label>
@@ -422,7 +423,7 @@ function renderFrame(){
   if(!ctx)return;
   const A=ARENAS[arenaId];
   // Interpolação suave: rs se aproxima de gs (online). No bot, gs já é o estado.
-  const k = botMode ? 1 : 0.35;
+  const k = botMode ? 1 : 0.5;
   rs.bx += (gs.bx-rs.bx)*k; rs.by += (gs.by-rs.by)*k;
   rs.m1x += (gs.m1x-rs.m1x)*k; rs.m1y += (gs.m1y-rs.m1y)*k;
   rs.m2x += (gs.m2x-rs.m2x)*k; rs.m2y += (gs.m2y-rs.m2y)*k;
