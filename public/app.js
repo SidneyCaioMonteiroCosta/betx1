@@ -625,7 +625,10 @@ function fecharEditUser() {
 
 async function adminAjustarSaldo(op) {
   const valor = parseFloat(document.getElementById('adminSaldoVal').value);
-  if (!valor || valor <= 0) { document.getElementById('adminEditMsg').textContent = 'Informe um valor válido!'; return; }
+  const msgEl = document.getElementById('adminEditMsg');
+  msgEl.style.color = '#ef4444';
+  if (!valor || valor <= 0) { msgEl.textContent = 'Informe um valor válido!'; return; }
+  if (!userEditandoId) { msgEl.textContent = 'Erro: usuário não selecionado!'; return; }
   try {
     const res = await fetch('/api/admin/usuario/' + userEditandoId + '/saldo', {
       method: 'POST',
@@ -633,14 +636,20 @@ async function adminAjustarSaldo(op) {
       body: JSON.stringify({ valor, operacao: op })
     });
     const data = await res.json();
-    if (!res.ok) { document.getElementById('adminEditMsg').textContent = data.erro; return; }
-    document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${data.saldo.toFixed(2)}`;
-    document.getElementById('adminEditMsg').style.color = 'var(--green)';
-    document.getElementById('adminEditMsg').textContent = op === 'add' ? `✅ R$ ${valor.toFixed(2)} adicionado!` : `✅ R$ ${valor.toFixed(2)} removido!`;
+    console.log('Admin ajustar saldo:', { res: res.status, data });
+    if (!res.ok) { msgEl.textContent = data.erro || 'Erro no servidor'; return; }
+    const novoSaldo = parseFloat(data.saldo) || 0;
+    document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${novoSaldo.toFixed(2)}`;
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = op === 'add' ? `✅ R$ ${valor.toFixed(2)} adicionado!` : `✅ R$ ${valor.toFixed(2)} removido!`;
+    document.getElementById('adminSaldoVal').value = '';
     const u = todosUsuarios.find(u => u.id === userEditandoId);
-    if (u) u.saldo = data.saldo;
+    if (u) u.saldo = novoSaldo;
     carregarUsuariosAdmin();
-  } catch(e) { document.getElementById('adminEditMsg').textContent = 'Erro de conexão'; }
+  } catch(e) {
+    console.error('Erro ajustar saldo:', e);
+    msgEl.textContent = 'Erro de conexão: ' + e.message;
+  }
 }
 
 async function adminBloquear() {

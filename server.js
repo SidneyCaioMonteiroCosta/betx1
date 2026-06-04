@@ -1026,19 +1026,29 @@ io.on('connection', (socketP) => {
 
 // ===== ADMIN - CONTROLE DE USUÁRIOS =====
 app.post('/api/admin/usuario/:id/saldo', adminAuth, async (req, res) => {
-  const { valor, operacao } = req.body; // operacao: 'add' ou 'remove'
-  if (!valor || valor <= 0) return res.status(400).json({ erro: 'Valor inválido' });
+  const valor = parseFloat(req.body.valor);
+  const operacao = req.body.operacao;
+  const userId = parseInt(req.params.id);
+  if (!valor || valor <= 0 || isNaN(valor)) return res.status(400).json({ erro: 'Valor inválido' });
+  if (!userId || isNaN(userId)) return res.status(400).json({ erro: 'ID inválido' });
   try {
+    // Verificar se usuário existe
+    const { rows: check } = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!check.length) return res.status(404).json({ erro: 'Usuário não encontrado' });
+
     if (operacao === 'add') {
-      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [valor, req.params.id]);
+      await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [valor, userId]);
       await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
-        [req.params.id, 'bonus', valor, 'Crédito manual pelo admin', 'concluido']);
+        [userId, 'bonus', valor, 'Crédito manual pelo admin', 'concluido']);
     } else {
-      await pool.query('UPDATE users SET saldo = GREATEST(0, saldo - $1) WHERE id = $2', [valor, req.params.id]);
+      await pool.query('UPDATE users SET saldo = GREATEST(0, saldo - $1) WHERE id = $2', [valor, userId]);
     }
-    const { rows } = await pool.query('SELECT saldo FROM users WHERE id = $1', [req.params.id]);
-    res.json({ sucesso: true, saldo: rows[0].saldo });
-  } catch(e) { res.status(500).json({ erro: 'Erro ao atualizar saldo' }); }
+    const { rows } = await pool.query('SELECT saldo FROM users WHERE id = $1', [userId]);
+    res.json({ sucesso: true, saldo: parseFloat(rows[0].saldo) });
+  } catch(e) {
+    console.error('Erro admin saldo:', e.message);
+    res.status(500).json({ erro: 'Erro ao atualizar saldo: ' + e.message });
+  }
 });
 
 app.post('/api/admin/usuario/:id/bloquear', adminAuth, async (req, res) => {
