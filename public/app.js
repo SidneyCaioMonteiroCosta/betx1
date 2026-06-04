@@ -577,16 +577,18 @@ async function carregarUsuariosAdmin() {
 }
 
 function renderUsuarios(users) {
-  document.getElementById('adminUsers').innerHTML = users.map(u => `
+  document.getElementById('adminUsers').innerHTML = users.map(u => {
+    const saldo = parseFloat(u.saldo) || 0;
+    return `
     <div class="trans-item" style="cursor:pointer;" onclick="abrirEditUser(${u.id})">
       <div class="trans-icon dep" style="background:${u.bloqueado?'rgba(239,68,68,.2)':'rgba(0,200,83,.1)'};">${u.bloqueado?'🔒':'👤'}</div>
       <div class="trans-desc">
         <div class="trans-name">${u.nome} ${u.bloqueado?'<span style="color:#ef4444;font-size:11px;">(bloqueado)</span>':''}</div>
         <div class="trans-date">${u.email}</div>
       </div>
-      <div class="trans-val pos">R$ ${(u.saldo||0).toFixed(2)}</div>
+      <div class="trans-val pos">R$ ${saldo.toFixed(2)}</div>
     </div>
-  `).join('');
+  `;}).join('');
 }
 
 function filtrarUsuarios() {
@@ -598,8 +600,9 @@ function abrirEditUser(id) {
   const u = todosUsuarios.find(u => u.id === id);
   if (!u) return;
   userEditandoId = id;
+  const saldo = parseFloat(u.saldo) || 0;
   document.getElementById('editUserInfo').textContent = `${u.nome} · ${u.email}`;
-  document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${(u.saldo||0).toFixed(2)}`;
+  document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${saldo.toFixed(2)}`;
   document.getElementById('adminSaldoVal').value = '';
   document.getElementById('adminNovaSenha').value = '';
   document.getElementById('adminEditMsg').textContent = '';
