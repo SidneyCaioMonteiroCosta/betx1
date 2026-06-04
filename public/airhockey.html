@@ -119,488 +119,393 @@ let animFrame = null;
 let canvas, ctx, W, H;
 let botMode = false;
 
-// Estado do jogo — física roda no CLIENTE
-let ball = {x:0.5,y:0.5,vx:0.004,vy:0.006,r:0.03};
-let myMallet = {x:0.5,y:0.75};
-let oppMallet = {x:0.5,y:0.25};
-let myScore = 0, oppScore = 0;
-let gameRunning = false;
+// =============================================
+// ARQUITETURA: P1 roda a física e envia estado
+// completo para P2. Servidor só faz relay.
+// =============================================
+
+let valorSel = 0;
+let myRole = null; // 'p1' ou 'p2'
+let botMode = false;
+let canvas, ctx, W, H;
+let animFrame = null;
 let lastSent = 0;
+let gameRunning = false;
 
-// Bot
-let botTarget = {x:0.5, y:0.25};
-
-// ===== ARENAS =====
-const ARENAS = {
-  1: {
-    name:'Arena Iniciante',
-    bg1:'#0a1628', bg2:'#070b14',
-    lineColor:'rgba(240,192,64,.3)',
-    goalColor:'rgba(0,200,83,.8)',
-    wallGlow:'rgba(240,192,64,.6)',
-    myMallet:'#1a8cff', myGlow:'#1a8cff',
-    oppMallet:'#ef4444', oppGlow:'#ef4444',
-    ballColor:'#ffffff', ballGlow:'rgba(255,255,255,.8)',
-    stars:false, neon:false
-  },
-  2: {
-    name:'Arena Prata',
-    bg1:'#0a0a2a', bg2:'#050510',
-    lineColor:'rgba(100,150,255,.4)',
-    goalColor:'rgba(100,150,255,.9)',
-    wallGlow:'rgba(100,150,255,.8)',
-    myMallet:'#00e5ff', myGlow:'#00e5ff',
-    oppMallet:'#ff4081', oppGlow:'#ff4081',
-    ballColor:'#e0e0ff', ballGlow:'rgba(150,150,255,.9)',
-    stars:true, neon:true
-  },
-  3: {
-    name:'Arena Ouro',
-    bg1:'#1a0a00', bg2:'#0d0500',
-    lineColor:'rgba(240,192,64,.5)',
-    goalColor:'rgba(255,200,0,.95)',
-    wallGlow:'rgba(255,160,0,.9)',
-    myMallet:'#f0c040', myGlow:'#ffaa00',
-    oppMallet:'#ff3300', oppGlow:'#ff5500',
-    ballColor:'#fff8e0', ballGlow:'rgba(255,200,0,1)',
-    stars:true, neon:true
-  }
+// Estado completo do jogo (P1 é dono)
+let state = {
+  bx:0.5, by:0.5, bvx:0.005, bvy:0.007, br:0.03,
+  p1x:0.5, p1y:0.8,  // mallet P1 (baixo)
+  p2x:0.5, p2y:0.2,  // mallet P2 (cima)
+  s1:0, s2:0
 };
 
+// Efeitos visuais
+let particles = [], screenFlash = 0, goalAnim = 0, goalFor = '';
 let arenaId = 1;
-let arena = ARENAS[1];
+const ARENAS = {
+  1:{bg1:'#0a1628',bg2:'#070b14',line:'rgba(240,192,64,.3)',goal:'rgba(0,200,83,.8)',wall:'rgba(240,192,64,.6)',c1:'#1a8cff',g1:'#1a8cff',c2:'#ef4444',g2:'#ef4444',ball:'#fff',bg:'rgba(255,255,255,.8)',stars:false,neon:false,name:'🥉 Arena Iniciante'},
+  2:{bg1:'#0a0a2a',bg2:'#050510',line:'rgba(100,150,255,.4)',goal:'rgba(100,150,255,.9)',wall:'rgba(100,150,255,.8)',c1:'#00e5ff',g1:'#00e5ff',c2:'#ff4081',g2:'#ff4081',ball:'#e0e0ff',bg:'rgba(150,150,255,.9)',stars:true,neon:true,name:'🥈 Arena Prata'},
+  3:{bg1:'#1a0a00',bg2:'#0d0500',line:'rgba(240,192,64,.5)',goal:'rgba(255,200,0,.95)',wall:'rgba(255,160,0,.9)',c1:'#f0c040',g1:'#ffaa00',c2:'#ff3300',g2:'#ff5500',ball:'#fff8e0',bg:'rgba(255,200,0,1)',stars:true,neon:true,name:'🥇 Arena Ouro'}
+};
+function getArena(v){return v>=50?3:v>=15?2:1;}
+function arena(){return ARENAS[arenaId];}
 
-// ===== PARTÍCULAS =====
-let particles = [];
-let screenFlash = 0;
-let goalAnim = 0;
-let goalWho = '';
-
-function getArena(valor) {
-  if (valor >= 50) return 3;
-  if (valor >= 15) return 2;
-  return 1;
-}
-
-function spawnParticles(x, y, color, count=12) {
-  for (let i=0;i<count;i++) {
-    const angle = Math.random()*Math.PI*2;
-    const spd = 0.004 + Math.random()*0.012;
-    particles.push({
-      x, y,
-      vx: Math.cos(angle)*spd,
-      vy: Math.sin(angle)*spd,
-      life: 1, decay: 0.025+Math.random()*0.02,
-      r: 0.006+Math.random()*0.01,
-      color
-    });
-  }
-}
-
-function spawnWallHit(x, y) {
-  spawnParticles(x, y, arena.wallGlow, 6);
-}
-
-function spawnGoal(who) {
-  goalAnim = 1;
-  goalWho = who;
-  screenFlash = 0.7;
-  spawnParticles(ball.x, ball.y, who==='me'?arena.myGlow:arena.oppGlow, 25);
-}
-
-function updateParticles() {
-  particles = particles.filter(p => p.life > 0);
-  for (const p of particles) {
-    p.x += p.vx; p.y += p.vy;
-    p.vy += 0.0002; // gravidade leve
-    p.life -= p.decay;
-  }
-  if (screenFlash > 0) screenFlash -= 0.04;
-  if (goalAnim > 0) goalAnim -= 0.02;
-}
-
-function selecionarValor(v, el) {
-  valorSel = v;
-  arenaId = getArena(v);
-  arena = ARENAS[arenaId];
-  document.querySelectorAll('.valor-btn').forEach(b=>b.classList.remove('sel'));
-  el.classList.add('sel');
-  const p = (v*1.75).toFixed(2).replace('.',',');
-  const arenaNames = {1:'🥉 Arena Iniciante (R$1-10)',2:'🥈 Arena Prata (R$15-30)',3:'🥇 Arena Ouro (R$50-100)'};
-  document.getElementById('premioInfo').style.display='block';
-  document.getElementById('premioInfo').innerHTML=`
-    💰 Aposta: <strong>R$ ${v.toFixed(2).replace('.',',')}</strong><br>
-    🏆 Prêmio: <strong style="color:var(--gold);">R$ ${p}</strong><br>
-    🏟️ ${arenaNames[arenaId]}`;
-  document.getElementById('playBtn').style.display='block';
-  document.getElementById('botBtn').style.display='block';
-  document.getElementById('salaBtn').style.display='block';
-}
-
+// ===== CONTROLES =====
 function initCanvas() {
   canvas = document.getElementById('canvas');
   ctx = canvas.getContext('2d');
   W = Math.min(window.innerWidth, 480);
-  H = Math.round(W * 1.5);
-  canvas.width = W;
-  canvas.height = H;
+  H = Math.round(W * 1.55);
+  canvas.width = W; canvas.height = H;
   particles = [];
-  canvas.addEventListener('touchmove', e=>{e.preventDefault();handleMove(e.touches[0]);},{passive:false});
-  canvas.addEventListener('mousemove', e=>handleMove(e));
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
+  canvas.addEventListener('mousemove',e=>onMove(e));
   requestAnimationFrame(loop);
 }
 
-function handleMove(e) {
+function onMove(e) {
   if (!gameRunning) return;
   const rect = canvas.getBoundingClientRect();
-  const cx = ((e.clientX||e.pageX)-rect.left)/W;
-  const cy = ((e.clientY||e.pageY)-rect.top)/H;
+  let cx = ((e.clientX||e.pageX)-rect.left)/W;
+  let cy = ((e.clientY||e.pageY)-rect.top)/H;
 
-  // Canvas de P2 é rotacionado 180°, então os controles já chegam espelhados
-  // Ambos sempre jogam na metade de baixo do SEU canvas (y > 0.5)
-  myMallet.x = Math.max(0.06, Math.min(0.94, cx));
-  myMallet.y = Math.max(0.52, Math.min(0.96, cy)); // restrito à metade de baixo
+  // P1: metade de baixo (y > 0.5)
+  // P2: canvas rotacionado 180°, toque mapeado para metade de baixo do canvas visual
+  //     mas no estado global P2 fica em y < 0.5
+  if (myRole === 'p1') {
+    state.p1x = Math.max(0.06, Math.min(0.94, cx));
+    state.p1y = Math.max(0.53, Math.min(0.96, cy));
+  } else {
+    // P2 vê canvas rotacionado: cx e cy já estão no ref do canvas rotacionado
+    // Converter: no estado global P2 fica em metade de cima (y < 0.47)
+    state.p2x = Math.max(0.06, Math.min(0.94, 1-cx));
+    state.p2y = Math.max(0.04, Math.min(0.47, 1-cy));
+  }
 
-  const now = Date.now();
-  if (now - lastSent > 33 && socket && !botMode) {
-    // Enviar posição no referencial do jogador (y > 0.5 = metade de baixo)
-    socket.emit('mallet_move', {x:myMallet.x, y:myMallet.y});
-    lastSent = now;
+  // Enviar posição do mallet para o servidor
+  if (!botMode && socket) {
+    const now = Date.now();
+    if (now - lastSent > 33) {
+      lastSent = now;
+      if (myRole==='p1') socket.emit('mallet_move',{role:'p1',x:state.p1x,y:state.p1y});
+      else socket.emit('mallet_move',{role:'p2',x:state.p2x,y:state.p2y});
+    }
   }
 }
 
+// ===== FÍSICA (só roda em P1 e bot) =====
+const MR = 0.072;
 function stepPhysics() {
   if (!gameRunning) return;
+  if (myRole==='p2' && !botMode) return; // P2 não roda física
 
-  // Mover bola
-  ball.x += ball.vx;
-  ball.y += ball.vy;
+  const S = state;
+  S.bx += S.bvx; S.by += S.bvy;
 
   // Paredes laterais
-  if (ball.x-ball.r < 0) {ball.x=ball.r; ball.vx=Math.abs(ball.vx); spawnWallHit(ball.r, ball.y);}
-  if (ball.x+ball.r > 1) {ball.x=1-ball.r; ball.vx=-Math.abs(ball.vx); spawnWallHit(1-ball.r, ball.y);}
+  if (S.bx-S.br<0){S.bx=S.br;S.bvx=Math.abs(S.bvx);spawnHit(S.bx,S.by);}
+  if (S.bx+S.br>1){S.bx=1-S.br;S.bvx=-Math.abs(S.bvx);spawnHit(S.bx,S.by);}
 
-  const gw=0.35, gx=(1-0.35)/2;
+  const gw=0.36, gx=(1-gw)/2;
 
-  // Gol de cima — P1 marcou (gol adversário de P1)
-  if (ball.y-ball.r < 0) {
-    if (ball.x>gx && ball.x<gx+gw) {
-      // P1 marcou = gol no campo de cima
-      const euMarquei = myRole==='p1';
-      if (euMarquei) { myScore++; spawnGoal('me'); } else { oppScore++; spawnGoal('opp'); }
+  // Gol cima (P1 marcou)
+  if (S.by-S.br<0) {
+    if (S.bx>gx && S.bx<gx+gw) {
+      S.s1++; goalFor='p1'; spawnGoalFx(S.bx,S.by,true);
       updateScore();
-      // Só P1 reporta gols (evita duplicação)
-      if (!botMode && socket && myRole==='p1') {
-        socket.emit('ah_gol',{scorerRole:'p1'});
-      }
-      if (myScore>=7||oppScore>=7) { endGame(); return; }
-      resetBall('p1');
-    } else { ball.y=ball.r; ball.vy=Math.abs(ball.vy); }
+      if (!botMode && socket) socket.emit('ah_gol',{s1:S.s1,s2:S.s2});
+      if (S.s1>=7) { endGame(true); return; }
+      resetBall('up');
+    } else { S.by=S.br; S.bvy=Math.abs(S.bvy); }
   }
 
-  // Gol de baixo — P2 marcou
-  if (ball.y+ball.r > 1) {
-    if (ball.x>gx && ball.x<gx+gw) {
-      const euMarquei = myRole==='p2';
-      if (euMarquei) { myScore++; spawnGoal('me'); } else { oppScore++; spawnGoal('opp'); }
+  // Gol baixo (P2 marcou)
+  if (S.by+S.br>1) {
+    if (S.bx>gx && S.bx<gx+gw) {
+      S.s2++; goalFor='p2'; spawnGoalFx(S.bx,S.by,false);
       updateScore();
-      // Só P1 reporta gols (evita duplicação)
-      if (!botMode && socket && myRole==='p1') {
-        socket.emit('ah_gol',{scorerRole:'p2'});
-      }
-      if (myScore>=7||oppScore>=7) { endGame(); return; }
-      resetBall('p2');
-    } else { ball.y=1-ball.r; ball.vy=-Math.abs(ball.vy); }
+      if (!botMode && socket) socket.emit('ah_gol',{s1:S.s1,s2:S.s2});
+      if (S.s2>=7) { endGame(false); return; }
+      resetBall('down');
+    } else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); }
   }
 
-  // Colisão com meus mallet
-  collideMallet(ball, myRole==='p1'?myMallet:oppMallet);
-  collideMallet(ball, myRole==='p1'?oppMallet:myMallet);
+  // Colisão com mallets
+  colide(S, S.p1x, S.p1y);
+  colide(S, S.p2x, S.p2y);
 
-  // Limitar velocidade
-  const spd=Math.sqrt(ball.vx**2+ball.vy**2);
-  const max=0.018;
-  if(spd>max){ball.vx=ball.vx/spd*max;ball.vy=ball.vy/spd*max;}
-  if(spd<0.003){ball.vx*=1.1;ball.vy*=1.1;}
+  // Velocidade
+  const spd=Math.sqrt(S.bvx**2+S.bvy**2);
+  const maxSpd=0.020;
+  if(spd>maxSpd){S.bvx=S.bvx/spd*maxSpd;S.bvy=S.bvy/spd*maxSpd;}
+  if(spd<0.004&&gameRunning){S.bvx*=1.05;S.bvy*=1.05;}
 
   // Bot IA
-  if (botMode) updateBot();
-}
+  if (botMode) {
+    const t=Math.abs((0.2-S.by)/(S.bvy||0.001));
+    const px=Math.max(0.1,Math.min(0.9,S.bx+S.bvx*t));
+    const tx=S.bvy<0?px+(Math.random()-.5)*.06:0.5;
+    const ty=S.bvy<0?Math.max(0.08,Math.min(0.44,S.by-.06)):0.2;
+    const dd=Math.sqrt((tx-S.p2x)**2+(ty-S.p2y)**2);
+    if(dd>0.01){S.p2x+=((tx-S.p2x)/dd)*0.020;S.p2y+=((ty-S.p2y)/dd)*0.020;}
+    S.p2x=Math.max(0.06,Math.min(0.94,S.p2x));
+    S.p2y=Math.max(0.04,Math.min(0.46,S.p2y));
+  }
 
-function collideMallet(b, m) {
-  const mr = 0.075;
-  const dx=b.x-m.x, dy=b.y-m.y;
-  const dist=Math.sqrt(dx**2+dy**2);
-  if(dist<b.r+mr&&dist>0){
-    const nx=dx/dist, ny=dy/dist;
-    const spd=Math.sqrt(b.vx**2+b.vy**2);
-    b.vx=nx*(spd+0.003);
-    b.vy=ny*(spd+0.003);
-    b.x=m.x+nx*(b.r+mr+0.001);
-    b.y=m.y+ny*(b.r+mr+0.001);
+  // Enviar estado completo para P2
+  if (!botMode && socket && myRole==='p1') {
+    const now=Date.now();
+    if(now-lastSent>33){
+      lastSent=now;
+      socket.emit('state_update',{bx:S.bx,by:S.by,bvx:S.bvx,bvy:S.bvy,p1x:S.p1x,p1y:S.p1y,p2x:S.p2x,p2y:S.p2y,s1:S.s1,s2:S.s2});
+    }
   }
 }
 
-function resetBall(scorer) {
-  ball.x=0.5; ball.y=0.5;
-  ball.vx=(Math.random()-0.5)*0.008;
-  ball.vy=scorer==='p1'?0.006:-0.006;
-}
-
-function updateBot() {
-  // Bot inteligente: prevê onde a bola vai
-  const bx=ball.x, by=ball.y;
-  const t=Math.abs((0.2-by)/(ball.vy||0.001));
-  const predX=Math.max(0.1,Math.min(0.9,bx+ball.vx*t));
-
-  if(ball.vy<0) { // bola vindo para o bot
-    botTarget.x=predX+(Math.random()-0.5)*0.05;
-    botTarget.y=Math.max(0.08,Math.min(0.44,by-0.05));
-  } else { // bola indo para o jogador
-    botTarget.x=0.5+(ball.x-0.5)*0.2;
-    botTarget.y=0.2;
-  }
-  if(ball.y>0.4){botTarget.y=0.15;}
-
-  const spd=0.022;
-  const dx=botTarget.x-oppMallet.x, dy=botTarget.y-oppMallet.y;
+function colide(S,mx,my){
+  const dx=S.bx-mx, dy=S.by-my;
   const d=Math.sqrt(dx**2+dy**2);
-  if(d>0.01){
-    oppMallet.x+=dx/d*Math.min(spd,d);
-    oppMallet.y+=dy/d*Math.min(spd,d);
+  if(d<S.br+MR&&d>0){
+    const nx=dx/d, ny=dy/d;
+    const spd=Math.sqrt(S.bvx**2+S.bvy**2);
+    S.bvx=nx*(spd+0.004); S.bvy=ny*(spd+0.004);
+    S.bx=mx+nx*(S.br+MR+0.002); S.by=my+ny*(S.br+MR+0.002);
   }
-  oppMallet.x=Math.max(0.06,Math.min(0.94,oppMallet.x));
-  oppMallet.y=Math.max(0.06,Math.min(0.44,oppMallet.y));
 }
 
-function loop() {
+function resetBall(dir){
+  state.bx=0.5; state.by=0.5;
+  state.bvx=(Math.random()-.5)*.008;
+  state.bvy=dir==='up'?0.007:-0.007;
+  screenFlash=0.6;
+}
+
+// ===== PARTÍCULAS =====
+function spawnHit(x,y){
+  for(let i=0;i<6;i++){
+    const a=Math.random()*Math.PI*2;
+    particles.push({x,y,vx:Math.cos(a)*.006,vy:Math.sin(a)*.006,life:1,decay:.04,r:.005,col:arena().wall});
+  }
+}
+function spawnGoalFx(x,y,isP1){
+  screenFlash=0.8; goalAnim=1; goalFor=isP1?'p1':'p2';
+  const col=isP1?arena().g1:arena().g2;
+  for(let i=0;i<30;i++){
+    const a=Math.random()*Math.PI*2, s=.005+Math.random()*.015;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:.018+Math.random()*.015,r:.007+Math.random()*.012,col});
+  }
+}
+function tickParticles(){
+  particles=particles.filter(p=>p.life>0);
+  for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.0002;p.life-=p.decay;}
+  if(screenFlash>0)screenFlash-=.04;
+  if(goalAnim>0)goalAnim-=.018;
+}
+
+// ===== RENDER =====
+function loop(){
   animFrame=requestAnimationFrame(loop);
   stepPhysics();
-  updateParticles();
+  tickParticles();
   render();
 }
 
-function render() {
+function render(){
   ctx.clearRect(0,0,W,H);
+  const A=arena();
   ctx.save();
+
+  // P2 vê o canvas rotacionado 180°
   if(myRole==='p2'){ctx.translate(W,H);ctx.rotate(Math.PI);}
 
-  // Fundo arena
-  const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,arena.bg1);grad.addColorStop(1,arena.bg2);
-  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  // Fundo
+  const gr=ctx.createLinearGradient(0,0,0,H);
+  gr.addColorStop(0,A.bg1);gr.addColorStop(1,A.bg2);
+  ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
 
-  // Estrelas (arenas 2 e 3)
-  if(arena.stars){
-    ctx.fillStyle='rgba(255,255,255,0.6)';
-    for(let i=0;i<40;i++){
-      const sx=(Math.sin(i*137.5)*0.5+0.5)*W;
-      const sy=(Math.cos(i*97.3)*0.5+0.5)*H;
-      const sr=0.5+Math.sin(Date.now()*0.002+i)*0.5;
+  // Estrelas
+  if(A.stars){
+    ctx.fillStyle='rgba(255,255,255,.5)';
+    for(let i=0;i<35;i++){
+      const sx=(Math.sin(i*137.5)*.5+.5)*W, sy=(Math.cos(i*97.3)*.5+.5)*H;
+      const sr=.5+Math.sin(Date.now()*.002+i)*.5;
       ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.fill();
     }
   }
 
-  // Bordas neon (arenas 2 e 3)
-  if(arena.neon){
-    ctx.shadowColor=arena.wallGlow;ctx.shadowBlur=18;
-    ctx.strokeStyle=arena.wallGlow;ctx.lineWidth=3;
+  // Borda neon
+  if(A.neon){
+    ctx.shadowColor=A.wall;ctx.shadowBlur=16;
+    ctx.strokeStyle=A.wall;ctx.lineWidth=3;
     ctx.strokeRect(2,2,W-4,H-4);
     ctx.shadowBlur=0;
   }
 
   // Linha central
-  ctx.strokeStyle=arena.lineColor;ctx.lineWidth=2;ctx.setLineDash([8,6]);
+  ctx.strokeStyle=A.line;ctx.lineWidth=2;ctx.setLineDash([8,5]);
   ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
   ctx.setLineDash([]);
-  ctx.beginPath();ctx.arc(W/2,H/2,W*0.15,0,Math.PI*2);
-  ctx.strokeStyle=arena.lineColor;ctx.stroke();
+  ctx.beginPath();ctx.arc(W/2,H/2,W*.14,0,Math.PI*2);ctx.stroke();
 
-  // Gols com neon
-  const gw=W*0.35,gx=(W-gw)/2;
-  ctx.shadowColor=arena.goalColor;ctx.shadowBlur=arenaId>1?20:8;
-  ctx.fillStyle=arena.goalColor.replace(')',',0.15)').replace('rgba','rgba');
+  // Gols
+  const gw=W*.36, gx=(W-gw)/2;
+  ctx.shadowColor=A.goal;ctx.shadowBlur=arenaId>1?18:6;
+  ctx.fillStyle=A.goal.replace(')',',0.15)').replace('rgba','rgba')||'rgba(0,200,83,.15)';
   ctx.fillRect(gx,0,gw,10);ctx.fillRect(gx,H-10,gw,10);
-  ctx.strokeStyle=arena.goalColor;ctx.lineWidth=3;
+  ctx.strokeStyle=A.goal;ctx.lineWidth=3;
   ctx.strokeRect(gx,0,gw,10);ctx.strokeRect(gx,H-10,gw,10);
   ctx.shadowBlur=0;
 
   // Partículas
+  ctx.save();
   for(const p of particles){
-    const bx=myRole==='p2'?1-p.x:p.x;
-    const by=myRole==='p2'?1-p.y:p.y;
-    ctx.beginPath();ctx.arc(bx*W,by*H,p.r*W,0,Math.PI*2);
-    ctx.fillStyle=p.color.includes('rgba')?p.color:`${p.color}${Math.round(p.life*255).toString(16).padStart(2,'0')}`;
-    ctx.globalAlpha=p.life;ctx.fill();ctx.globalAlpha=1;
+    // Converter coordenadas de partículas para o referencial visual
+    const px=myRole==='p2'?(1-p.x)*W:p.x*W;
+    const py=myRole==='p2'?(1-p.y)*H:p.y*H;
+    ctx.beginPath();ctx.arc(px,py,p.r*W,0,Math.PI*2);
+    ctx.globalAlpha=p.life;ctx.fillStyle=p.col;ctx.fill();
   }
+  ctx.globalAlpha=1;ctx.restore();
 
-  // Meu mallet
-  const myDraw=myRole==='p1'?myMallet:{x:1-myMallet.x,y:1-myMallet.y};
-  const mr=0.075*W;
-  ctx.shadowColor=arena.myGlow;ctx.shadowBlur=25;
-  const mg=ctx.createRadialGradient(myDraw.x*W-mr*0.3,myDraw.y*H-mr*0.3,mr*0.1,myDraw.x*W,myDraw.y*H,mr);
-  mg.addColorStop(0,'#ffffff');mg.addColorStop(0.3,arena.myMallet);mg.addColorStop(1,arena.myGlow);
-  ctx.beginPath();ctx.arc(myDraw.x*W,myDraw.y*H,mr,0,Math.PI*2);ctx.fillStyle=mg;ctx.fill();
-  // Anel externo
-  ctx.strokeStyle=arena.myMallet;ctx.lineWidth=2;ctx.stroke();
+  const mr=MR*W;
+
+  // Desenhar mallet P1 (sempre na parte de baixo no referencial global)
+  // No canvas: P1 vê P1 embaixo, P2 vê P1 embaixo também (canvas rotacionado)
+  const p1drawX = myRole==='p2'?(1-state.p1x)*W:state.p1x*W;
+  const p1drawY = myRole==='p2'?(1-state.p1y)*H:state.p1y*H;
+  const p2drawX = myRole==='p2'?(1-state.p2x)*W:state.p2x*W;
+  const p2drawY = myRole==='p2'?(1-state.p2y)*H:state.p2y*H;
+
+  // Mallet local (do jogador atual) = sempre azul
+  const myX = myRole==='p2'?p2drawX:p1drawX;
+  const myY = myRole==='p2'?p2drawY:p1drawY;
+  const opX = myRole==='p2'?p1drawX:p2drawX;
+  const opY = myRole==='p2'?p1drawY:p2drawY;
+
+  // Meu mallet (azul/cor p1)
+  ctx.shadowColor=A.c1;ctx.shadowBlur=22;
+  const mg=ctx.createRadialGradient(myX-mr*.3,myY-mr*.3,mr*.1,myX,myY,mr);
+  mg.addColorStop(0,'#fff');mg.addColorStop(.4,A.c1);mg.addColorStop(1,A.g1);
+  ctx.beginPath();ctx.arc(myX,myY,mr,0,Math.PI*2);ctx.fillStyle=mg;ctx.fill();
+  ctx.strokeStyle=A.c1;ctx.lineWidth=2;ctx.stroke();
   ctx.shadowBlur=0;
 
-  // Oponente mallet
-  const oppDraw=myRole==='p1'?oppMallet:{x:1-oppMallet.x,y:1-oppMallet.y};
-  ctx.shadowColor=arena.oppGlow;ctx.shadowBlur=25;
-  const og=ctx.createRadialGradient(oppDraw.x*W-mr*0.3,oppDraw.y*H-mr*0.3,mr*0.1,oppDraw.x*W,oppDraw.y*H,mr);
-  og.addColorStop(0,'#ffffff');og.addColorStop(0.3,arena.oppMallet);og.addColorStop(1,arena.oppGlow);
-  ctx.beginPath();ctx.arc(oppDraw.x*W,oppDraw.y*H,mr,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
-  ctx.strokeStyle=arena.oppMallet;ctx.lineWidth=2;ctx.stroke();
+  // Oponente (vermelho/cor p2)
+  ctx.shadowColor=A.c2;ctx.shadowBlur=22;
+  const og=ctx.createRadialGradient(opX-mr*.3,opY-mr*.3,mr*.1,opX,opY,mr);
+  og.addColorStop(0,'#fff');og.addColorStop(.4,A.c2);og.addColorStop(1,A.g2);
+  ctx.beginPath();ctx.arc(opX,opY,mr,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
+  ctx.strokeStyle=A.c2;ctx.lineWidth=2;ctx.stroke();
   ctx.shadowBlur=0;
 
-  // Bola com rastro e brilho
-  const bDraw=myRole==='p2'?{x:1-ball.x,y:1-ball.y}:ball;
-  const spd=Math.sqrt(ball.vx**2+ball.vy**2);
-  ctx.shadowColor=arena.ballGlow;ctx.shadowBlur=20+spd*500;
-  const bg=ctx.createRadialGradient(bDraw.x*W-ball.r*W*0.3,bDraw.y*H-ball.r*H*0.3,ball.r*W*0.05,bDraw.x*W,bDraw.y*H,ball.r*W);
-  bg.addColorStop(0,'#ffffff');bg.addColorStop(0.6,arena.ballColor);bg.addColorStop(1,'rgba(200,200,255,0.5)');
-  ctx.beginPath();ctx.arc(bDraw.x*W,bDraw.y*H,ball.r*W,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();
+  // Bola
+  const ballDrawX = myRole==='p2'?(1-state.bx)*W:state.bx*W;
+  const ballDrawY = myRole==='p2'?(1-state.by)*H:state.by*H;
+  const spd=Math.sqrt(state.bvx**2+state.bvy**2);
+  ctx.shadowColor=A.bg;ctx.shadowBlur=18+spd*400;
+  const bg2=ctx.createRadialGradient(ballDrawX-state.br*W*.3,ballDrawY-state.br*H*.3,state.br*W*.05,ballDrawX,ballDrawY,state.br*W);
+  bg2.addColorStop(0,'#fff');bg2.addColorStop(.6,A.ball);bg2.addColorStop(1,'rgba(200,200,255,.4)');
+  ctx.beginPath();ctx.arc(ballDrawX,ballDrawY,state.br*W,0,Math.PI*2);ctx.fillStyle=bg2;ctx.fill();
   ctx.shadowBlur=0;
 
   // Flash de gol
-  if(screenFlash>0){
-    ctx.fillStyle=`rgba(255,255,255,${screenFlash*0.25})`;
-    ctx.fillRect(0,0,W,H);
-  }
+  if(screenFlash>0){ctx.fillStyle=`rgba(255,255,255,${screenFlash*.2})`;ctx.fillRect(0,0,W,H);}
 
-  // Texto de gol animado
+  // Texto GOL
   if(goalAnim>0){
-    ctx.save();
-    ctx.translate(W/2,H/2);
-    ctx.scale(1+(1-goalAnim)*0.5,1+(1-goalAnim)*0.5);
-    ctx.globalAlpha=goalAnim;
-    ctx.fillStyle=goalWho==='me'?arena.myMallet:arena.oppMallet;
-    ctx.shadowColor=goalWho==='me'?arena.myGlow:arena.oppGlow;
-    ctx.shadowBlur=30;
-    ctx.font=`bold ${W*0.12}px sans-serif`;
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(goalWho==='me'?'GOL! 🎉':'GOL!',0,0);
-    ctx.restore();
-    ctx.globalAlpha=1;
+    ctx.save();ctx.translate(W/2,H/2);ctx.scale(1+(1-goalAnim)*.4,1+(1-goalAnim)*.4);
+    ctx.globalAlpha=Math.min(1,goalAnim*2);
+    const isMyGoal=(myRole==='p1'&&goalFor==='p1')||(myRole==='p2'&&goalFor==='p2');
+    ctx.fillStyle=isMyGoal?A.c1:A.c2;ctx.shadowColor=isMyGoal?A.g1:A.g2;ctx.shadowBlur=30;
+    ctx.font=`bold ${W*.11}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(isMyGoal?'GOL! 🎉':'GOL!',0,0);
+    ctx.restore();ctx.globalAlpha=1;
   }
 
   ctx.restore();
 }
 
-function updateScore() {
-  document.getElementById('p1score').textContent=myScore;
-  document.getElementById('p2score').textContent=oppScore;
+function updateScore(){
+  document.getElementById('p1score').textContent=myRole==='p1'?state.s1:state.s2;
+  document.getElementById('p2score').textContent=myRole==='p1'?state.s2:state.s1;
 }
 
-function endGame() {
+function endGame(p1won){
   gameRunning=false;
-  const ganhou=myScore>=7;
+  const ganhou=(myRole==='p1'&&p1won)||(myRole==='p2'&&!p1won);
   mostrar('result');
   document.getElementById('resultEmoji').textContent=ganhou?'🏆':'😢';
   document.getElementById('resultTitle').textContent=ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
   document.getElementById('resultTitle').style.color=ganhou?'var(--gold)':'#ef4444';
   if(botMode){
-    document.getElementById('resultPrize').textContent=ganhou?'Modo treino 🎮':'Modo treino 😅';
+    document.getElementById('resultPrize').textContent='Modo treino 🎮';
   } else {
     const p=(valorSel*1.75).toFixed(2).replace('.',',');
     document.getElementById('resultPrize').textContent=ganhou?`+R$ ${p}`:`-R$ ${valorSel.toFixed(2).replace('.',',')}`;
     document.getElementById('resultPrize').style.color=ganhou?'var(--green)':'#ef4444';
-    if(socket) socket.emit('ah_end', {winner: ganhou ? myRole : (myRole==='p1'?'p2':'p1')});
   }
 }
 
-function confirmarDesistir() {
-  if(confirm('Deseja desistir? O adversário vencerá.')){
-    gameRunning=false;
-    if(socket && !botMode){
-      socket.emit('ah_desistir');
-    }
-    mostrar('result');
-    document.getElementById('resultEmoji').textContent='🏳️';
-    document.getElementById('resultTitle').textContent='VOCÊ DESISTIU';
-    document.getElementById('resultTitle').style.color='#ef4444';
-    document.getElementById('resultPrize').textContent=`-R$ ${valorSel.toFixed(2).replace('.',',')}`;
-    document.getElementById('resultPrize').style.color='#ef4444';
-  }
-}
-
-// BOT
-function jogarContraBot() {
-  botMode=true; myRole='p1';
-  arenaId=getArena(valorSel||1); arena=ARENAS[arenaId];
-  myScore=0; oppScore=0;
-  ball={x:0.5,y:0.5,vx:0.004,vy:0.006,r:0.03};
-  myMallet={x:0.5,y:0.75}; oppMallet={x:0.5,y:0.25};
-  gameRunning=true;
+// ===== BOT =====
+function jogarContraBot(){
+  botMode=true;myRole='p1';
+  arenaId=getArena(valorSel||1);
+  state={bx:.5,by:.5,bvx:.005,bvy:.007,br:.03,p1x:.5,p1y:.8,p2x:.5,p2y:.2,s1:0,s2:0};
   document.getElementById('p1name').textContent=usuario.nome||'Você';
   document.getElementById('p2name').textContent='🤖 Bot';
-  document.getElementById('arenaBadge').textContent=arena.name+' — TREINO';
+  document.getElementById('arenaBadge').textContent=arena().name+' · TREINO';
   mostrar('game');
   initCanvas();
+  gameRunning=true;
 }
 
-// ONLINE
-function conectar() {
+// ===== ONLINE =====
+let socket=null;
+function conectar(){
   socket=io();
-  socket.on('game_start', data=>{
+
+  socket.on('game_start',data=>{
     myRole=data.role; botMode=false;
-    arenaId=getArena(data.valor||valorSel||1); arena=ARENAS[arenaId];
-    myScore=0; oppScore=0;
-    ball={x:0.5,y:0.5,vx:0.004,vy:0.006,r:0.03};
-    myMallet={x:0.5,y:myRole==='p1'?0.75:0.25};
-    oppMallet={x:0.5,y:myRole==='p1'?0.25:0.75};
+    arenaId=getArena(data.valor||valorSel||1);
+    state={bx:.5,by:.5,bvx:.005,bvy:.007,br:.03,p1x:.5,p1y:.8,p2x:.5,p2y:.2,s1:0,s2:0};
     document.getElementById('p1name').textContent=usuario.nome||'Você';
-    document.getElementById('p2name').textContent=data.p1name===usuario.nome?data.p2name:data.p1name;
-    document.getElementById('arenaBadge').textContent=arena.name+' · R$'+data.valor.toFixed(2).replace('.',',');
+    document.getElementById('p2name').textContent=myRole==='p1'?data.p2name:data.p1name;
+    document.getElementById('arenaBadge').textContent=arena().name+' · R$'+data.valor.toFixed(2).replace('.',',');
     mostrar('game');
     initCanvas();
     gameRunning=true;
   });
 
-  socket.on('mallet_update', data=>{
-    // Adversário envia no SEU referencial (y > 0.5 = metade dele)
-    // No nosso referencial, ele está na metade de CIMA (y < 0.5)
-    // Então: x espelhado, y espelhado (1 - y que era > 0.5 = fica < 0.5)
-    oppMallet.x = 1 - data.x;
-    oppMallet.y = 1 - data.y; // fica entre 0.04 e 0.48
+  // P2 recebe estado completo de P1
+  socket.on('state_update',data=>{
+    if(myRole!=='p2') return;
+    state.bx=data.bx; state.by=data.by;
+    state.bvx=data.bvx; state.bvy=data.bvy;
+    state.p1x=data.p1x; state.p1y=data.p1y;
+    state.p2x=data.p2x; state.p2y=data.p2y;
+    // Não sobrescrever placar — placar vem via ah_gol_sync
   });
 
-  socket.on('ah_gol_sync', data=>{
-    // Servidor informa placar atualizado
-    // data: { p1score, p2score, winner }
-    if (myRole==='p1') {
-      myScore = data.p1score;
-      oppScore = data.p2score;
-    } else {
-      myScore = data.p2score;
-      oppScore = data.p1score;
+  // P1 recebe posição do mallet de P2
+  socket.on('mallet_update',data=>{
+    if(myRole!=='p1') return;
+    state.p2x=data.x; state.p2y=data.y;
+  });
+
+  socket.on('ah_gol_sync',data=>{
+    state.s1=data.s1; state.s2=data.s2;
+    const p1won=data.s1>=7;
+    const p2won=data.s2>=7;
+    // Animar gol no P2
+    if(myRole==='p2'){
+      spawnGoalFx(state.bx,state.by,data.scorerIsP1);
     }
-    spawnGoal(data.scorerRole===myRole?'me':'opp');
     updateScore();
-    if (data.winner) {
-      // Servidor decidiu o vencedor
-      gameRunning = false;
-    }
+    if(p1won||p2won) endGame(p1won);
   });
 
-  socket.on('game_end', data=>{
-    gameRunning=false;
-    const ganhou=(data.winner===myRole);
-    mostrar('result');
-    document.getElementById('resultEmoji').textContent=ganhou?'🏆':'😢';
-    document.getElementById('resultTitle').textContent=ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
-    document.getElementById('resultTitle').style.color=ganhou?'var(--gold)':'#ef4444';
-    const p=(data.prize||0).toFixed(2).replace('.',',');
-    document.getElementById('resultPrize').textContent=ganhou?`+R$ ${p}`:`-R$ ${valorSel.toFixed(2).replace('.',',')}`;
-    document.getElementById('resultPrize').style.color=ganhou?'var(--green)':'#ef4444';
-    const s=usuario.saldo||0;
-    usuario.saldo=ganhou?s+(data.prize||0)-valorSel:Math.max(0,s-valorSel);
-    localStorage.setItem('superduelo_user',JSON.stringify(usuario));
-    document.getElementById('saldoHeader').textContent=usuario.saldo.toFixed(2).replace('.',',');
-  });
-
-  socket.on('oponente_desistiu', ()=>{
+  socket.on('oponente_desistiu',()=>{
     gameRunning=false;
     const prize=(valorSel*1.75).toFixed(2).replace('.',',');
     mostrar('result');
@@ -610,9 +515,34 @@ function conectar() {
     document.getElementById('resultPrize').textContent=`+R$ ${prize} (adversário desistiu)`;
     document.getElementById('resultPrize').style.color='var(--green)';
   });
+
+  socket.on('game_end',data=>{
+    if(!gameRunning) return; // já encerrado localmente
+    gameRunning=false;
+    const ganhou=data.winner===myRole;
+    mostrar('result');
+    document.getElementById('resultEmoji').textContent=ganhou?'🏆':'😢';
+    document.getElementById('resultTitle').textContent=ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
+    document.getElementById('resultTitle').style.color=ganhou?'var(--gold)':'#ef4444';
+    const p=(data.prize||0).toFixed(2).replace('.',',');
+    document.getElementById('resultPrize').textContent=ganhou?`+R$ ${p}`:`-R$ ${valorSel.toFixed(2).replace('.',',')}`;
+    document.getElementById('resultPrize').style.color=ganhou?'var(--green)':'#ef4444';
+  });
+
+  socket.on('sala_criada',({codigo})=>{
+    salaCodAtual=codigo;
+    document.getElementById('codigoGerado').textContent=codigo;
+    document.getElementById('salaCodigoCriado').style.display='block';
+    document.getElementById('salaAguardando').style.display='block';
+    document.getElementById('btnCriarSala').style.display='none';
+  });
+  socket.on('sala_erro',({msg})=>{
+    document.getElementById('salaErro').textContent=msg;
+    alert(msg);
+  });
 }
 
-function entrarFila() {
+function entrarFila(){
   if(!token){alert('Faça login!');return;}
   if((usuario.saldo||0)<valorSel){alert('Saldo insuficiente!');return;}
   if(!socket) conectar();
@@ -621,16 +551,45 @@ function entrarFila() {
   socket.emit('join_queue',{valor:valorSel,token});
 }
 
+function confirmarDesistir(){
+  if(confirm('Deseja desistir? O adversário vencerá.')){
+    gameRunning=false;
+    if(socket&&!botMode) socket.emit('ah_desistir');
+    mostrar('result');
+    document.getElementById('resultEmoji').textContent='🏳️';
+    document.getElementById('resultTitle').textContent='VOCÊ DESISTIU';
+    document.getElementById('resultTitle').style.color='#ef4444';
+    document.getElementById('resultPrize').textContent=`-R$ ${valorSel.toFixed(2).replace('.',',')}`;
+    document.getElementById('resultPrize').style.color='#ef4444';
+  }
+}
+
+function selecionarValor(v,el){
+  valorSel=v; arenaId=getArena(v);
+  document.querySelectorAll('.valor-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  const p=(v*1.75).toFixed(2).replace('.',',');
+  const nomes={1:'🥉 Arena Iniciante (R$1-10)',2:'🥈 Arena Prata (R$15-30)',3:'🥇 Arena Ouro (R$50-100)'};
+  document.getElementById('premioInfo').style.display='block';
+  document.getElementById('premioInfo').innerHTML=`💰 Aposta: <strong>R$ ${v.toFixed(2).replace('.',',')}</strong><br>🏆 Prêmio: <strong style="color:var(--gold)">R$ ${p}</strong><br>🏟️ ${nomes[arenaId]}`;
+  document.getElementById('playBtn').style.display='block';
+  document.getElementById('botBtn').style.display='block';
+  document.getElementById('salaBtn').style.display='block';
+}
+
 function cancelarFila(){socket?.emit('leave_queue');mostrar('lobby');}
 function voltarLobbyPrincipal(){socket?.disconnect();window.location.href='/';}
 function voltarLobby(){cancelAnimationFrame(animFrame);botMode=false;gameRunning=false;mostrar('lobby');}
-function abrirRegras(){document.getElementById('modalRegras')?.style&&(document.getElementById('modalRegras').style.display='flex');}
-
+function abrirRegras(){document.getElementById('modalRegras').style.display='flex';}
 function mostrar(id){
   ['lobby','waiting','game','result'].forEach(x=>{
     document.getElementById(x).style.display=x===id?(x==='lobby'?'block':'flex'):'none';
   });
 }
+
+// Sala vars
+let salaCodAtual='';
+function abrirModalSala(j,v){document.getElementById('modalSala').style.display='flex';}
 
 window.addEventListener('beforeunload',e=>{
   if(document.getElementById('game').style.display!=='none'){e.preventDefault();e.returnValue='';}

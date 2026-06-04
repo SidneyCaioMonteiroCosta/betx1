@@ -442,35 +442,36 @@ io.on('connection', (socket) => {
   });
 
   // Relay: repassa posição do mallet para o outro jogador
-  socket.on('mallet_move', ({x,y}) => {
+  // P2 envia posição do mallet → P1 recebe
+  socket.on('mallet_move', ({role,x,y}) => {
     if (!currentRoom || !partidas[currentRoom]) return;
     const partida = partidas[currentRoom];
-    const outro = partida.p1.socket.id===socket.id ? partida.p2.socket : partida.p1.socket;
-    outro.emit('mallet_update', {x,y});
+    // Só P2 envia mallet para P1
+    if (partida.p2.socket.id===socket.id) {
+      partida.p1.socket.emit('mallet_update', {x,y});
+    }
   });
 
-  // Só P1 envia gols — servidor é autoridade do placar
-  socket.on('ah_gol', async ({scorerRole}) => {
+  // P1 envia estado completo → relay para P2
+  socket.on('state_update', (data) => {
     if (!currentRoom || !partidas[currentRoom]) return;
     const partida = partidas[currentRoom];
-    // Só aceita gols de P1 (evita duplicação)
-    if (partida.p1.socket.id !== socket.id) return;
+    if (partida.p1.socket.id===socket.id) {
+      partida.p2.socket.emit('state_update', data);
+    }
+  });
 
-    if (scorerRole==='p1') partida.score1 = (partida.score1||0) + 1;
-    else partida.score2 = (partida.score2||0) + 1;
-
-    const s1 = partida.score1||0;
-    const s2 = partida.score2||0;
-    const won = s1>=7 || s2>=7;
-
-    // Notificar ambos do placar atualizado
-    io.to(currentRoom).emit('ah_gol_sync', {
-      p1score: s1, p2score: s2,
-      scorerRole, winner: won
-    });
-
-    if (won) {
-      const winnerRole = s1>=7 ? 'p1' : 'p2';
+  // Gol — só P1 envia, servidor confirma placar e encerra se necessário
+  socket.on('ah_gol', async ({s1,s2}) => {
+    if (!currentRoom || !partidas[currentRoom]) return;
+    const partida = partidas[currentRoom];
+    if (partida.p1.socket.id !== socket.id) return; // só P1
+    const scorerIsP1 = s1 > (partida.prevS1||0);
+    partida.score1=s1; partida.score2=s2; partida.prevS1=s1;
+    // Enviar placar para P2
+    partida.p2.socket.emit('ah_gol_sync', {s1,s2,scorerIsP1});
+    if (s1>=7||s2>=7) {
+      const winnerRole=s1>=7?'p1':'p2';
       await encerrarAirHockey(currentRoom, winnerRole, 'normal');
     }
   });
