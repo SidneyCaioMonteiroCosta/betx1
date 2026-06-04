@@ -7,109 +7,105 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#070b14;--surface:#0d1425;--gold:#f0c040;--text:#e8eaf6;--muted:#6b7db3;--border:#1e2d50;--green:#00c853;}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
-header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
-.logo{font-size:20px;font-weight:900;color:var(--gold);}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden;}
+header{width:100%;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.logo{font-size:18px;font-weight:900;color:var(--gold);}
 .back-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
-#lobby{width:100%;max-width:480px;padding:16px;display:block;overflow-y:auto;}
-.valor-btn{padding:12px 6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
-.valor-btn.sel,.valor-btn:hover{background:rgba(240,192,64,.15);border-color:var(--gold);color:var(--gold);}
+#lobby{width:100%;max-width:480px;padding:16px;overflow-y:auto;flex:1;}
+.vbtn{padding:12px 4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;}
+.vbtn.sel,.vbtn:hover{background:rgba(240,192,64,.15);border-color:var(--gold);color:var(--gold);}
 #waiting{display:none;flex-direction:column;align-items:center;padding:40px 20px;text-align:center;}
-.spinner{width:60px;height:60px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-#game{display:none;flex-direction:column;align-items:center;width:100%;}
-.score-bar{width:100%;max-width:480px;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
-canvas{display:block;touch-action:none;cursor:none;}
-.action-bar{width:100%;max-width:480px;padding:6px 16px;background:var(--surface);display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);}
+.spin{width:50px;height:50px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 16px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+#game{display:none;flex-direction:column;align-items:center;width:100%;height:100vh;position:relative;}
+.scorebar{width:100%;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+/* Desistir fica no topo - fix #6 */
+.topbar-game{width:100%;display:flex;justify-content:space-between;align-items:center;padding:4px 12px;background:rgba(0,0,0,.4);flex-shrink:0;}
+canvas{display:block;touch-action:none;flex-shrink:0;}
 #result{display:none;flex-direction:column;align-items:center;padding:40px 20px;text-align:center;}
-.res-emoji{font-size:72px;margin-bottom:16px;}
-.res-title{font-size:36px;font-weight:900;margin-bottom:8px;}
-.res-prize{font-size:18px;color:var(--gold);margin-bottom:24px;}
-.res-btn{padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;}
 </style>
 </head>
 <body>
 <header>
   <button class="back-btn" onclick="window.location.href='/'">←</button>
   <div class="logo">🏒 AIR HOCKEY</div>
-  <div style="margin-left:auto;font-size:13px;color:var(--gold);">💰 R$ <span id="saldoHdr">0,00</span></div>
+  <div style="margin-left:auto;font-size:13px;color:var(--gold);">R$ <span id="saldoHdr">0,00</span></div>
 </header>
 
 <!-- LOBBY -->
 <div id="lobby">
-  <div style="text-align:center;padding:12px 0 4px;">
-    <div style="font-size:20px;font-weight:700;color:var(--gold);">🏒 Air Hockey</div>
-    <div style="font-size:13px;color:var(--muted);margin-top:4px;">1v1 · Primeiro a 7 gols · Vencedor leva 175%</div>
+  <div style="text-align:center;padding:8px 0 4px;">
+    <div style="font-size:13px;color:var(--muted);">1v1 · Primeiro a 7 gols · Vencedor leva 175%</div>
   </div>
-  <button onclick="abrirRegras()" style="width:100%;padding:10px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.2);color:var(--gold);border-radius:10px;font-size:13px;cursor:pointer;margin:10px 0;">❓ Como Funciona</button>
+  <button onclick="abrirRegras()" style="width:100%;padding:9px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.2);color:var(--gold);border-radius:8px;font-size:13px;cursor:pointer;margin:8px 0 12px;">❓ Como Funciona</button>
 
   <!-- BOT -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:20px;">🥉</span>
+      <span style="font-size:18px;">🥉</span>
       <div><div style="font-weight:700;font-size:14px;">Arena Iniciante</div><div style="font-size:11px;color:var(--muted);">Modo Treino · Gratuito</div></div>
-      <span style="margin-left:auto;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.3);color:var(--green);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">GRÁTIS</span>
+      <span style="margin-left:auto;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.3);color:var(--green);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">GRÁTIS</span>
     </div>
-    <button onclick="iniciarBot()" style="width:100%;padding:13px;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.4);color:var(--green);border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">🤖 JOGAR CONTRA BOT</button>
+    <button onclick="iniciarBot()" style="width:100%;padding:12px;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.4);color:var(--green);border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">🤖 JOGAR CONTRA BOT</button>
   </div>
 
   <!-- ARENA 1 -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:20px;">🥉</span>
-      <div><div style="font-weight:700;font-size:14px;">Arena Iniciante</div><div style="font-size:11px;color:var(--muted);">R$ 1 a R$ 10 por partida</div></div>
+      <span style="font-size:18px;">🥉</span>
+      <div><div style="font-weight:700;font-size:14px;">Arena Iniciante · Online</div><div style="font-size:11px;color:var(--muted);">R$ 1 a R$ 10</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
-      <div class="valor-btn" onclick="selVal(1,this,1)">R$1</div>
-      <div class="valor-btn" onclick="selVal(2,this,1)">R$2</div>
-      <div class="valor-btn" onclick="selVal(5,this,1)">R$5</div>
-      <div class="valor-btn" onclick="selVal(10,this,1)">R$10</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
+      <div class="vbtn" onclick="selVal(1,this,1)">R$1</div>
+      <div class="vbtn" onclick="selVal(2,this,1)">R$2</div>
+      <div class="vbtn" onclick="selVal(5,this,1)">R$5</div>
+      <div class="vbtn" onclick="selVal(10,this,1)">R$10</div>
     </div>
-    <div id="info1" style="display:none;font-size:12px;color:#A5D6A7;background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.15);border-radius:8px;padding:8px 12px;margin-bottom:8px;"></div>
-    <button id="btn1" onclick="entrarFila()" style="display:none;width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:8px;">⚡ JOGAR ONLINE</button>
-    <button id="sala1" onclick="abrirSala()" style="display:none;width:100%;padding:11px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🏠 CRIAR / ENTRAR EM SALA</button>
+    <div id="inf1" style="display:none;font-size:12px;color:#A5D6A7;background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.15);border-radius:8px;padding:7px 12px;margin-bottom:7px;"></div>
+    <button id="pb1" onclick="entrarFila()" style="display:none;width:100%;padding:12px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:6px;">⚡ JOGAR ONLINE</button>
+    <button id="sb1" onclick="abrirSala()" style="display:none;width:100%;padding:10px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">🏠 CRIAR / ENTRAR EM SALA</button>
   </div>
 
   <!-- ARENA 2 -->
   <div style="background:linear-gradient(135deg,#0a0a2a,#0d0d3c);border:1px solid #2a2a60;border-radius:14px;padding:14px;margin-bottom:10px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:20px;">🥈</span>
-      <div><div style="font-weight:700;font-size:14px;color:#00e5ff;">Arena Prata</div><div style="font-size:11px;color:var(--muted);">R$ 15 a R$ 30 por partida</div></div>
-      <span style="margin-left:auto;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#00e5ff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">NEON</span>
+      <span style="font-size:18px;">🥈</span>
+      <div><div style="font-weight:700;font-size:14px;color:#00e5ff;">Arena Prata · Online</div><div style="font-size:11px;color:var(--muted);">R$ 15 a R$ 30</div></div>
+      <span style="margin-left:auto;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#00e5ff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">NEON</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
-      <div class="valor-btn" onclick="selVal(15,this,2)" style="border-color:#2a2a60;">R$15</div>
-      <div class="valor-btn" onclick="selVal(20,this,2)" style="border-color:#2a2a60;">R$20</div>
-      <div class="valor-btn" onclick="selVal(25,this,2)" style="border-color:#2a2a60;">R$25</div>
-      <div class="valor-btn" onclick="selVal(30,this,2)" style="border-color:#2a2a60;">R$30</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
+      <div class="vbtn" onclick="selVal(15,this,2)" style="border-color:#2a2a60;">R$15</div>
+      <div class="vbtn" onclick="selVal(20,this,2)" style="border-color:#2a2a60;">R$20</div>
+      <div class="vbtn" onclick="selVal(25,this,2)" style="border-color:#2a2a60;">R$25</div>
+      <div class="vbtn" onclick="selVal(30,this,2)" style="border-color:#2a2a60;">R$30</div>
     </div>
-    <div id="info2" style="display:none;font-size:12px;color:#80d8ff;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);border-radius:8px;padding:8px 12px;margin-bottom:8px;"></div>
-    <button id="btn2" onclick="entrarFila()" style="display:none;width:100%;padding:13px;background:linear-gradient(135deg,#00e5ff,#0088cc);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:8px;">⚡ JOGAR ONLINE</button>
-    <button id="sala2" onclick="abrirSala()" style="display:none;width:100%;padding:11px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🏠 CRIAR / ENTRAR EM SALA</button>
+    <div id="inf2" style="display:none;font-size:12px;color:#80d8ff;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);border-radius:8px;padding:7px 12px;margin-bottom:7px;"></div>
+    <button id="pb2" onclick="entrarFila()" style="display:none;width:100%;padding:12px;background:linear-gradient(135deg,#00e5ff,#0088cc);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:6px;">⚡ JOGAR ONLINE</button>
+    <button id="sb2" onclick="abrirSala()" style="display:none;width:100%;padding:10px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">🏠 CRIAR / ENTRAR EM SALA</button>
   </div>
 
   <!-- ARENA 3 -->
   <div style="background:linear-gradient(135deg,#1a0a00,#2a1000);border:1px solid #4a2a00;border-radius:14px;padding:14px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <span style="font-size:20px;">🥇</span>
-      <div><div style="font-weight:700;font-size:14px;color:var(--gold);">Arena Ouro</div><div style="font-size:11px;color:var(--muted);">R$ 50 a R$ 100 por partida</div></div>
-      <span style="margin-left:auto;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:var(--gold);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">VIP</span>
+      <span style="font-size:18px;">🥇</span>
+      <div><div style="font-weight:700;font-size:14px;color:var(--gold);">Arena Ouro · Online</div><div style="font-size:11px;color:var(--muted);">R$ 50 a R$ 100</div></div>
+      <span style="margin-left:auto;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:var(--gold);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">VIP</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
-      <div class="valor-btn" onclick="selVal(50,this,3)" style="border-color:#4a2a00;">R$50</div>
-      <div class="valor-btn" onclick="selVal(60,this,3)" style="border-color:#4a2a00;">R$60</div>
-      <div class="valor-btn" onclick="selVal(80,this,3)" style="border-color:#4a2a00;">R$80</div>
-      <div class="valor-btn" onclick="selVal(100,this,3)" style="border-color:#4a2a00;">R$100</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;">
+      <div class="vbtn" onclick="selVal(50,this,3)" style="border-color:#4a2a00;">R$50</div>
+      <div class="vbtn" onclick="selVal(60,this,3)" style="border-color:#4a2a00;">R$60</div>
+      <div class="vbtn" onclick="selVal(80,this,3)" style="border-color:#4a2a00;">R$80</div>
+      <div class="vbtn" onclick="selVal(100,this,3)" style="border-color:#4a2a00;">R$100</div>
     </div>
-    <div id="info3" style="display:none;font-size:12px;color:#f0c040;background:rgba(240,192,64,.06);border:1px solid rgba(240,192,64,.15);border-radius:8px;padding:8px 12px;margin-bottom:8px;"></div>
-    <button id="btn3" onclick="entrarFila()" style="display:none;width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:8px;">⚡ JOGAR ONLINE</button>
-    <button id="sala3" onclick="abrirSala()" style="display:none;width:100%;padding:11px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🏠 CRIAR / ENTRAR EM SALA</button>
+    <div id="inf3" style="display:none;font-size:12px;color:#f0c040;background:rgba(240,192,64,.06);border:1px solid rgba(240,192,64,.15);border-radius:8px;padding:7px 12px;margin-bottom:7px;"></div>
+    <button id="pb3" onclick="entrarFila()" style="display:none;width:100%;padding:12px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:6px;">⚡ JOGAR ONLINE</button>
+    <button id="sb3" onclick="abrirSala()" style="display:none;width:100%;padding:10px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">🏠 CRIAR / ENTRAR EM SALA</button>
   </div>
 </div>
 
 <!-- WAITING -->
 <div id="waiting">
-  <div class="spinner"></div>
+  <div class="spin"></div>
   <div style="font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px;">Procurando adversário...</div>
   <div style="font-size:13px;color:var(--muted);">R$ <span id="waitVal">0</span></div>
   <button onclick="cancelar()" style="margin-top:20px;padding:10px 24px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:8px;cursor:pointer;">Cancelar</button>
@@ -117,50 +113,94 @@ canvas{display:block;touch-action:none;cursor:none;}
 
 <!-- GAME -->
 <div id="game">
-  <div class="score-bar">
-    <div style="text-align:center;">
+  <!-- Placar -->
+  <div class="scorebar">
+    <div style="text-align:center;min-width:80px;">
       <div style="font-size:11px;color:var(--muted);" id="p1name">Você</div>
-      <div style="font-size:32px;font-weight:900;color:var(--gold);" id="p1score">0</div>
+      <div style="font-size:30px;font-weight:900;color:var(--gold);" id="p1score">0</div>
     </div>
     <div style="text-align:center;">
-      <div style="font-size:11px;color:var(--muted);">PRIMEIRO A 7</div>
-      <div style="font-size:10px;color:var(--gold);" id="arenaName">Arena</div>
+      <div style="font-size:10px;color:var(--muted);">PRIMEIRO A 7</div>
+      <div style="font-size:10px;color:var(--gold);margin-top:2px;" id="arenaLabel">Arena</div>
     </div>
-    <div style="text-align:center;">
+    <div style="text-align:center;min-width:80px;">
       <div style="font-size:11px;color:var(--muted);" id="p2name">Adversário</div>
-      <div style="font-size:32px;font-weight:900;color:var(--gold);" id="p2score">0</div>
+      <div style="font-size:30px;font-weight:900;color:var(--gold);" id="p2score">0</div>
     </div>
+  </div>
+  <!-- Desistir no topo (fix #6) -->
+  <div class="topbar-game">
+    <div style="font-size:11px;color:var(--muted);" id="roleMsg"></div>
+    <button onclick="desistir()" style="padding:4px 12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">🏳️ Desistir</button>
   </div>
   <canvas id="canvas"></canvas>
-  <div class="action-bar">
-    <div style="font-size:12px;color:var(--muted);" id="statusMsg">Em jogo</div>
-    <button onclick="desistir()" style="padding:5px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">🏳️ Desistir</button>
-  </div>
 </div>
 
 <!-- RESULT -->
 <div id="result">
-  <div class="res-emoji" id="resEmoji">🏆</div>
-  <div class="res-title" id="resTitle">VOCÊ VENCEU!</div>
-  <div class="res-prize" id="resPrize"></div>
-  <button class="res-btn" onclick="voltarLobby()">JOGAR NOVAMENTE</button>
+  <div style="font-size:64px;margin-bottom:12px;" id="resEmoji">🏆</div>
+  <div style="font-size:32px;font-weight:900;margin-bottom:8px;" id="resTitle">VOCÊ VENCEU!</div>
+  <div style="font-size:18px;color:var(--gold);margin-bottom:24px;" id="resPrize"></div>
+  <button onclick="voltarLobby()" style="padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;">JOGAR NOVAMENTE</button>
 </div>
 
 <!-- MODAL REGRAS -->
 <div id="modalRegras" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:#0d1425;border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
-    <div style="padding:16px 20px;border-bottom:1px solid #1e2d50;display:flex;justify-content:space-between;">
-      <div style="font-size:16px;font-weight:700;color:#f0c040;">❓ Como Funciona — Air Hockey</div>
-      <button onclick="document.getElementById('modalRegras').style.display='none'" style="background:none;border:none;color:#6b7db3;font-size:22px;cursor:pointer;">✕</button>
+  <div style="background:#0d1425;border-radius:16px;width:100%;max-width:480px;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid #1e2d50;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:15px;font-weight:700;color:#f0c040;">❓ Como Funciona — Air Hockey</div>
+      <button onclick="document.getElementById('modalRegras').style.display='none'" style="background:none;border:none;color:#6b7db3;font-size:20px;cursor:pointer;">✕</button>
     </div>
-    <div style="overflow-y:auto;padding:20px;font-size:13px;color:#e8eaf6;line-height:1.8;">
+    <div style="padding:16px;font-size:13px;color:#e8eaf6;line-height:1.8;">
       <p><strong style="color:#f0c040;">🎯 Objetivo:</strong> Marque 7 gols antes do adversário!</p><br>
-      <p><strong style="color:#f0c040;">🏒 Como jogar:</strong> Arraste o dedo para mover seu disco. Bata na bolinha para marcar gol.</p><br>
-      <p><strong style="color:#f0c040;">⚠️ Regras:</strong> Você só pode mover na sua metade da mesa. Se desistir, o adversário ganha automaticamente.</p><br>
-      <p><strong style="color:#f0c040;">💰 Prêmio:</strong> Vencedor leva 175% da aposta.</p>
+      <p><strong style="color:#f0c040;">🏒 Como jogar:</strong> Arraste o dedo para mover seu disco. Bata na bolinha para marcar gol. Você só pode mover na sua metade da mesa.</p><br>
+      <p><strong style="color:#f0c040;">🏟️ Arenas:</strong> Iniciante (R$1-10) · Prata (R$15-30) · Ouro (R$50-100)</p><br>
+      <p><strong style="color:#f0c040;">💰 Prêmio:</strong> Vencedor leva 175% da aposta. Se desistir, adversário ganha automaticamente.</p>
     </div>
-    <div style="padding:16px;border-top:1px solid #1e2d50;">
-      <button onclick="document.getElementById('modalRegras').style.display='none'" style="width:100%;padding:12px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Entendido!</button>
+    <div style="padding:12px 16px;border-top:1px solid #1e2d50;">
+      <button onclick="document.getElementById('modalRegras').style.display='none'" style="width:100%;padding:11px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Entendido! 🎮</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SALAS -->
+<div id="modalSala" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)fecharSala()">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px;"></div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button onclick="salaTab('criar')" id="tabCriar" style="flex:1;padding:9px;border:2px solid var(--gold);background:rgba(240,192,64,.15);color:var(--gold);border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">🏠 Criar Sala</button>
+      <button onclick="salaTab('entrar')" id="tabEntrar" style="flex:1;padding:9px;border:2px solid var(--border);background:transparent;color:var(--muted);border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">🚪 Entrar</button>
+    </div>
+    <!-- Criar -->
+    <div id="abaCriar">
+      <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Valor da aposta</div>
+        <div style="font-size:17px;font-weight:700;color:var(--gold);" id="salaValorTxt">R$ 0,00</div>
+      </div>
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;">Senha (opcional)</label>
+      <input id="salaSenhaInput" type="text" maxlength="8" placeholder="Sem senha = sala aberta" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;margin-bottom:10px;">
+      <div id="codigoCriado" style="display:none;background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px;text-align:center;margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--muted);">Código da sala</div>
+        <div id="codigoTxt" style="font-size:38px;font-weight:900;color:var(--gold);letter-spacing:8px;"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Compartilhe com seu amigo!</div>
+        <button onclick="copiarCodigo()" style="margin-top:8px;padding:6px 16px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:6px;cursor:pointer;font-size:12px;">📋 Copiar</button>
+      </div>
+      <div id="aguardandoSala" style="display:none;text-align:center;padding:8px 0;font-size:13px;color:var(--muted);">
+        <div class="spin" style="width:24px;height:24px;border-width:3px;display:inline-block;margin-right:8px;vertical-align:middle;"></div>Aguardando adversário...
+      </div>
+      <button id="btnCriarSala" onclick="criarSala()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;">CRIAR SALA</button>
+      <button onclick="fecharSala()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;font-size:13px;cursor:pointer;margin-top:8px;">Cancelar</button>
+    </div>
+    <!-- Entrar -->
+    <div id="abaEntrar" style="display:none;">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;">Código da sala</label>
+      <input id="codigoInput" type="text" maxlength="4" placeholder="Ex: AB12" oninput="this.value=this.value.toUpperCase()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px;color:var(--gold);font-size:26px;font-weight:700;text-align:center;letter-spacing:8px;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:5px;">Senha (se necessário)</label>
+      <input id="senhaEntrarInput" type="text" maxlength="8" placeholder="Deixe vazio se não tiver" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;margin-bottom:10px;">
+      <div id="salaErrMsg" style="color:#ef4444;font-size:13px;min-height:16px;margin-bottom:8px;"></div>
+      <button onclick="entrarSala()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;">ENTRAR NA SALA</button>
+      <button onclick="fecharSala()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;font-size:13px;cursor:pointer;margin-top:8px;">Cancelar</button>
     </div>
   </div>
 </div>
@@ -172,417 +212,406 @@ const token = localStorage.getItem('superduelo_token');
 const usuario = JSON.parse(localStorage.getItem('superduelo_user') || '{}');
 document.getElementById('saldoHdr').textContent = (usuario.saldo||0).toFixed(2).replace('.',',');
 
-// ── Estado ──────────────────────────────────────────
 let socket = null;
 let valorSel = 0;
-let myRole = 'p1'; // 'p1' ou 'p2'
+let arenaId = 1;
+let myRole = 'p1';
 let botMode = false;
 let gameOver = false;
 let canvas, ctx, W, H;
 let animId = null;
-let lastMoveTime = 0;
+let lastMove = 0;
+let salaCod = '';
 
-// Estado visual recebido do servidor
-let gs = {
-  bx:.5, by:.5,
-  m1x:.5, m1y:.8,   // mallet P1
-  m2x:.5, m2y:.2,   // mallet P2
-  s1:0, s2:0
-};
-
-// Meu mallet local (atualizado pelo toque)
-let myMalletX = .5;
-let myMalletY = .8;
-
+// Estado recebido do servidor
+let gs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18, s1:0, s2:0 };
+// Meu mallet local
+let mx = .5, my = .82;
 // Efeitos
-let flash = 0;
-let goalTxt = '';
-let goalAlpha = 0;
-
-const ARENAS = {
-  1: {name:'🥉 Iniciante', bg1:'#0a1628', bg2:'#070b14', lc:'rgba(240,192,64,.3)', gc:'#00c853', c1:'#1a8cff', c2:'#ef4444'},
-  2: {name:'🥈 Prata',     bg1:'#0a0a2a', bg2:'#050510', lc:'rgba(100,200,255,.4)', gc:'#00e5ff', c1:'#00e5ff', c2:'#ff4081'},
-  3: {name:'🥇 Ouro',      bg1:'#1a0a00', bg2:'#0d0500', lc:'rgba(240,192,64,.5)', gc:'#f0c040', c1:'#f0c040', c2:'#ff3300'}
-};
-let arenaId = 1;
-
-// ── Lobby ────────────────────────────────────────────
-function selVal(v, el, arena) {
-  valorSel = v;
-  arenaId = arena;
-  document.querySelectorAll('.valor-btn').forEach(b => b.classList.remove('sel'));
-  el.classList.add('sel');
-  const p = (v * 1.75).toFixed(2).replace('.', ',');
-  // esconder todos
-  [1,2,3].forEach(i => {
-    document.getElementById('info'+i).style.display = 'none';
-    document.getElementById('btn'+i).style.display = 'none';
-    document.getElementById('sala'+i).style.display = 'none';
-  });
-  document.getElementById('info'+arena).innerHTML = `💰 R$ ${v.toFixed(2).replace('.',',')} &nbsp;→&nbsp; 🏆 R$ ${p}`;
-  document.getElementById('info'+arena).style.display = 'block';
-  document.getElementById('btn'+arena).style.display = 'block';
-  document.getElementById('sala'+arena).style.display = 'block';
-}
-
-function abrirRegras() { document.getElementById('modalRegras').style.display = 'flex'; }
-function abrirSala()   { alert('Salas em breve!'); }
-
-// ── Bot ──────────────────────────────────────────────
-let botState = null;
-let botAnim = null;
-
-function iniciarBot() {
-  botMode = true;
-  myRole = 'p1';
-  arenaId = 1;
-  botState = {
-    bx:.5, by:.5, bvx:.006, bvy:.008, br:.03,
-    m1x:.5, m1y:.82, m2x:.5, m2y:.18,
-    s1:0, s2:0
-  };
-  myMalletX=.5; myMalletY=.82;
-  gameOver = false;
-  document.getElementById('p1name').textContent = usuario.nome || 'Você';
-  document.getElementById('p2name').textContent = '🤖 Bot';
-  document.getElementById('arenaName').textContent = ARENAS[1].name;
-  mostrar('game');
-  iniciarCanvas();
-  botAnim = requestAnimationFrame(loopBot);
-}
+let flash = 0, goalAlpha = 0, goalTxt = '';
 
 const MR = 0.074;
-const FRIC = 0.988;
+const ARENAS = {
+  1:{name:'🥉 Iniciante',bg1:'#0a1628',bg2:'#070b14',lc:'rgba(240,192,64,.3)',gc:'#00c853',c1:'#1a8cff',c2:'#ef4444'},
+  2:{name:'🥈 Prata',    bg1:'#0a0a2a',bg2:'#050510',lc:'rgba(100,200,255,.4)',gc:'#00e5ff',c1:'#00e5ff',c2:'#ff4081'},
+  3:{name:'🥇 Ouro',     bg1:'#1a0a00',bg2:'#0d0500',lc:'rgba(240,192,64,.5)',gc:'#f0c040',c1:'#f0c040',c2:'#ff3300'}
+};
 
-function loopBot() {
-  if (gameOver) return;
-  botAnim = requestAnimationFrame(loopBot);
+// ── LOBBY ────────────────────────────────────────────
+function selVal(v, el, arena) {
+  valorSel = v; arenaId = arena;
+  document.querySelectorAll('.vbtn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  const p = (v*1.75).toFixed(2).replace('.',',');
+  [1,2,3].forEach(i=>{
+    document.getElementById('inf'+i).style.display='none';
+    document.getElementById('pb'+i).style.display='none';
+    document.getElementById('sb'+i).style.display='none';
+  });
+  document.getElementById('inf'+arena).innerHTML=`💰 R$ ${v.toFixed(2).replace('.',',')} &nbsp;→&nbsp; 🏆 R$ ${p}`;
+  document.getElementById('inf'+arena).style.display='block';
+  document.getElementById('pb'+arena).style.display='block';
+  document.getElementById('sb'+arena).style.display='block';
+}
 
-  const S = botState;
-  // Aplicar posição do meu mallet
-  S.m1x = myMalletX;
-  S.m1y = myMalletY;
+function abrirRegras(){document.getElementById('modalRegras').style.display='flex';}
 
+// ── SALAS ────────────────────────────────────────────
+function abrirSala(){
+  if(!valorSel){alert('Selecione um valor primeiro!');return;}
+  document.getElementById('salaValorTxt').textContent='R$ '+valorSel.toFixed(2).replace('.',',');
+  document.getElementById('codigoCriado').style.display='none';
+  document.getElementById('aguardandoSala').style.display='none';
+  document.getElementById('btnCriarSala').style.display='block';
+  document.getElementById('salaSenhaInput').value='';
+  document.getElementById('codigoInput').value='';
+  document.getElementById('senhaEntrarInput').value='';
+  document.getElementById('salaErrMsg').textContent='';
+  salaTab('criar');
+  document.getElementById('modalSala').style.display='flex';
+}
+function fecharSala(){
+  if(salaCod){socket?.emit('cancelar_sala',{codigo:salaCod});salaCod='';}
+  document.getElementById('modalSala').style.display='none';
+}
+function salaTab(tab){
+  document.getElementById('abaCriar').style.display=tab==='criar'?'block':'none';
+  document.getElementById('abaEntrar').style.display=tab==='entrar'?'block':'none';
+  document.getElementById('tabCriar').style.borderColor=tab==='criar'?'var(--gold)':'var(--border)';
+  document.getElementById('tabCriar').style.color=tab==='criar'?'var(--gold)':'var(--muted)';
+  document.getElementById('tabCriar').style.background=tab==='criar'?'rgba(240,192,64,.15)':'transparent';
+  document.getElementById('tabEntrar').style.borderColor=tab==='entrar'?'var(--gold)':'var(--border)';
+  document.getElementById('tabEntrar').style.color=tab==='entrar'?'var(--gold)':'var(--muted)';
+  document.getElementById('tabEntrar').style.background=tab==='entrar'?'rgba(240,192,64,.15)':'transparent';
+}
+function criarSala(){
+  if(!token){alert('Faça login!');return;}
+  conectarSocket();
+  const senha=document.getElementById('salaSenhaInput').value.trim();
+  socket.emit('criar_sala',{token,jogo:'airhockey',valor:valorSel,senha});
+}
+function entrarSala(){
+  const codigo=document.getElementById('codigoInput').value.trim().toUpperCase();
+  const senha=document.getElementById('senhaEntrarInput').value.trim();
+  if(codigo.length!==4){document.getElementById('salaErrMsg').textContent='Digite o código de 4 letras!';return;}
+  if(!token){alert('Faça login!');return;}
+  conectarSocket();
+  socket.emit('entrar_sala',{token,codigo,senha});
+}
+function copiarCodigo(){navigator.clipboard?.writeText(salaCod);alert('Código '+salaCod+' copiado!');}
+
+// ── BOT ──────────────────────────────────────────────
+let botState = null;
+function iniciarBot(){
+  botMode=true; myRole='p1'; arenaId=1; gameOver=false;
+  flash=0; goalAlpha=0;
+  botState={bx:.5,by:.5,bvx:.006,bvy:.008,br:.03,m1x:.5,m1y:.82,m2x:.5,m2y:.18,s1:0,s2:0};
+  mx=.5; my=.82;
+  document.getElementById('p1name').textContent=usuario.nome||'Você';
+  document.getElementById('p2name').textContent='🤖 Bot';
+  document.getElementById('p1score').textContent='0';
+  document.getElementById('p2score').textContent='0';
+  document.getElementById('arenaLabel').textContent=ARENAS[1].name+' · TREINO';
+  document.getElementById('roleMsg').textContent='🔵 Você está embaixo';
+  mostrar('game');
+  setupCanvas();
+  function loopBot(){
+    if(gameOver)return;
+    animId=requestAnimationFrame(loopBot);
+    tickBot();
+    renderFrame();
+  }
+  animId=requestAnimationFrame(loopBot);
+}
+
+function tickBot(){
+  const S=botState;
+  S.m1x=mx; S.m1y=my;
   // Bot IA
-  const tx = S.bvy < 0 ? S.bx + S.bvx * Math.abs((0.18 - S.by) / (S.bvy || .001)) : .5;
-  const clTx = Math.max(.1, Math.min(.9, tx + (Math.random()-.5)*.08));
-  const spd = .025;
-  const ddx = clTx - S.m2x, ddy = (.18) - S.m2y;
-  const dd = Math.sqrt(ddx*ddx+ddy*ddy);
-  if (dd > .01) { S.m2x += ddx/dd*Math.min(spd,dd); S.m2y += ddy/dd*Math.min(spd,dd); }
-  S.m2x = Math.max(.06, Math.min(.94, S.m2x));
-  S.m2y = Math.max(.04, Math.min(.46, S.m2y));
-
-  // Física bola
-  S.bx += S.bvx; S.by += S.bvy;
-  S.bvx *= FRIC; S.bvy *= FRIC;
-  const sp = Math.sqrt(S.bvx**2+S.bvy**2);
-  if (sp < .004) { S.bvx = S.bvx/sp*.005; S.bvy = S.bvy/sp*.005; }
-  if (sp > .022) { S.bvx = S.bvx/sp*.022; S.bvy = S.bvy/sp*.022; }
-
-  // Paredes
-  if (S.bx-S.br<0) { S.bx=S.br; S.bvx=Math.abs(S.bvx); flash=.5; }
-  if (S.bx+S.br>1) { S.bx=1-S.br; S.bvx=-Math.abs(S.bvx); flash=.5; }
-
-  // Gols
-  const gw=.36, gx=(1-gw)/2;
-  if (S.by-S.br<0) {
-    if (S.bx>gx && S.bx<gx+gw) {
-      S.s1++; flash=1; goalTxt='GOL! 🎉'; goalAlpha=1;
+  const t=Math.abs((.18-S.by)/(S.bvy||.001));
+  const px=Math.max(.1,Math.min(.9,S.bx+S.bvx*t+(Math.random()-.5)*.1));
+  const spd=.024;
+  const ddx=px-S.m2x, ddy=.18-S.m2y, dd=Math.sqrt(ddx*ddx+ddy*ddy);
+  if(dd>.01){S.m2x+=ddx/dd*Math.min(spd,dd);S.m2y+=ddy/dd*Math.min(spd,dd);}
+  S.m2x=Math.max(.06,Math.min(.94,S.m2x));
+  S.m2y=Math.max(.04,Math.min(.46,S.m2y));
+  // Física
+  S.bx+=S.bvx; S.by+=S.bvy;
+  S.bvx*=.988; S.bvy*=.988;
+  const sp=Math.sqrt(S.bvx**2+S.bvy**2);
+  if(sp<.004){S.bvx=S.bvx/sp*.005;S.bvy=S.bvy/sp*.005;}
+  if(sp>.022){S.bvx=S.bvx/sp*.022;S.bvy=S.bvy/sp*.022;}
+  if(S.bx-S.br<0){S.bx=S.br;S.bvx=Math.abs(S.bvx);flash=.4;}
+  if(S.bx+S.br>1){S.bx=1-S.br;S.bvx=-Math.abs(S.bvx);flash=.4;}
+  colide(S,S.m1x,S.m1y); colide(S,S.m2x,S.m2y);
+  const gw=.36,gx=(1-gw)/2;
+  if(S.by-S.br<0){
+    if(S.bx>gx&&S.bx<gx+gw){S.s1++;flash=1;goalTxt='GOL! 🎉';goalAlpha=1;
       document.getElementById('p1score').textContent=S.s1;
-      if (S.s1>=7) { encerrarBot(true); return; }
-      resetBotBall('up');
-    } else { S.by=S.br; S.bvy=Math.abs(S.bvy); flash=.4; }
+      if(S.s1>=7){encerrarBot(true);return;}resetBall(S,'up');}
+    else{S.by=S.br;S.bvy=Math.abs(S.bvy);}
   }
-  if (S.by+S.br>1) {
-    if (S.bx>gx && S.bx<gx+gw) {
-      S.s2++; flash=1; goalTxt='GOL!'; goalAlpha=1;
+  if(S.by+S.br>1){
+    if(S.bx>gx&&S.bx<gx+gw){S.s2++;flash=1;goalTxt='GOL!';goalAlpha=1;
       document.getElementById('p2score').textContent=S.s2;
-      if (S.s2>=7) { encerrarBot(false); return; }
-      resetBotBall('down');
-    } else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); flash=.4; }
+      if(S.s2>=7){encerrarBot(false);return;}resetBall(S,'down');}
+    else{S.by=1-S.br;S.bvy=-Math.abs(S.bvy);}
   }
-
-  // Colisão mallets
-  colideBola(S, S.m1x, S.m1y);
-  colideBola(S, S.m2x, S.m2y);
-
-  // Render
-  gs.bx=S.bx; gs.by=S.by;
-  gs.m1x=S.m1x; gs.m1y=S.m1y;
-  gs.m2x=S.m2x; gs.m2y=S.m2y;
-  gs.s1=S.s1; gs.s2=S.s2;
-  renderFrame();
+  gs.bx=S.bx;gs.by=S.by;gs.m1x=S.m1x;gs.m1y=S.m1y;gs.m2x=S.m2x;gs.m2y=S.m2y;
 }
 
-function resetBotBall(dir) {
-  botState.bx=.5; botState.by=.5;
-  botState.bvx=(Math.random()-.5)*.01;
-  botState.bvy = dir==='up' ? .008 : -.008;
-}
-
-function colideBola(S, mx, my) {
-  const dx=S.bx-mx, dy=S.by-my, d=Math.sqrt(dx*dx+dy*dy);
-  if (d < S.br+MR && d > 0) {
-    const nx=dx/d, ny=dy/d;
-    const spd=Math.sqrt(S.bvx**2+S.bvy**2);
-    S.bvx = nx*(spd+.004); S.bvy = ny*(spd+.004);
-    S.bx = mx+nx*(S.br+MR+.002); S.by = my+ny*(S.br+MR+.002);
+function colide(S,mx,my){
+  const dx=S.bx-mx,dy=S.by-my,d=Math.sqrt(dx*dx+dy*dy);
+  if(d<S.br+MR&&d>0){
+    const nx=dx/d,ny=dy/d,sp=Math.sqrt(S.bvx**2+S.bvy**2);
+    S.bvx=nx*(sp+.004);S.bvy=ny*(sp+.004);
+    S.bx=mx+nx*(S.br+MR+.002);S.by=my+ny*(S.br+MR+.002);
   }
 }
+function resetBall(S,dir){S.bx=.5;S.by=.5;S.bvx=(Math.random()-.5)*.01;S.bvy=dir==='up'?.008:-.008;}
+function encerrarBot(ganhou){gameOver=true;cancelAnimationFrame(animId);mostrarRes(ganhou,ganhou?'Você venceu!':'Bot venceu!',false);}
 
-function encerrarBot(ganhou) {
-  gameOver = true;
-  cancelAnimationFrame(botAnim);
-  mostrarResultado(ganhou, ganhou ? 'Você fechou o jogo!' : 'Bot venceu!', false);
-}
-
-// ── Canvas & Render ──────────────────────────────────
-function iniciarCanvas() {
-  canvas = document.getElementById('canvas');
-  ctx = canvas.getContext('2d');
+// ── CANVAS ───────────────────────────────────────────
+function setupCanvas(){
+  canvas=document.getElementById('canvas');
+  ctx=canvas.getContext('2d');
+  // Fix #7: tela adapta ao usuário - usa toda a altura disponível
+  const gameEl = document.getElementById('game');
+  const headerH = document.querySelector('header').offsetHeight;
+  const scorebarH = document.querySelector('.scorebar').offsetHeight;
+  const topbarH = document.querySelector('.topbar-game').offsetHeight;
+  const availH = window.innerHeight - headerH - scorebarH - topbarH;
   W = Math.min(window.innerWidth, 480);
-  H = Math.round(W * 1.55);
-  canvas.width = W; canvas.height = H;
-  canvas.addEventListener('touchmove', e=>{ e.preventDefault(); mover(e.touches[0]); }, {passive:false});
-  canvas.addEventListener('mousemove', e=>mover(e));
+  H = Math.min(availH, Math.round(W * 1.55));
+  // Ajusta W se H for o limitante
+  if (H < W * 1.2) W = Math.round(H / 1.55);
+  canvas.width=W; canvas.height=H;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
+  canvas.addEventListener('mousemove',e=>onMove(e));
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
+  canvas.addEventListener('mousedown',e=>onMove(e));
 }
 
-function mover(e) {
-  if (gameOver) return;
-  const rect = canvas.getBoundingClientRect();
-  const cx = ((e.clientX||e.pageX) - rect.left) / W;
-  const cy = ((e.clientY||e.pageY) - rect.top) / H;
-
-  if (myRole === 'p1') {
-    // P1 joga na metade de BAIXO (y > 0.5)
-    myMalletX = Math.max(.06, Math.min(.94, cx));
-    myMalletY = Math.max(.53, Math.min(.96, cy));
+function onMove(e){
+  if(gameOver)return;
+  const rect=canvas.getBoundingClientRect();
+  const cx=((e.clientX||e.pageX)-rect.left)/W;
+  const cy=((e.clientY||e.pageY)-rect.top)/H;
+  // Fix #3: P1 fica embaixo (y>0.5), P2 vê canvas rotacionado então também fica embaixo visualmente
+  // No estado global: P1=y>0.5, P2=y<0.5
+  if(myRole==='p1'){
+    mx=Math.max(.06,Math.min(.94,cx));
+    my=Math.max(.53,Math.min(.96,cy));
   } else {
-    // P2 vê o canvas ROTACIONADO 180° — o toque no fundo visual = cima do estado
-    // P2 está em y < 0.47 no estado global
-    myMalletX = Math.max(.06, Math.min(.94, 1 - cx));
-    myMalletY = Math.max(.04, Math.min(.47, 1 - cy));
+    // Canvas rotacionado: toque em baixo = y<0.5 no estado global
+    mx=Math.max(.06,Math.min(.94,1-cx));
+    my=Math.max(.04,Math.min(.47,1-cy));
   }
-
-  // Enviar para servidor (online)
-  if (!botMode && socket) {
-    const now = Date.now();
-    if (now - lastMoveTime > 33) {
-      lastMoveTime = now;
-      socket.emit('ah_mallet', { x: myMalletX, y: myMalletY });
-    }
+  if(!botMode&&socket){
+    const now=Date.now();
+    if(now-lastMove>16){lastMove=now;socket.emit('ah_mallet',{x:mx,y:my});} // ~60fps
   }
-
-  // Bot: atualizar direto
-  if (botMode && botState) {
-    botState.m1x = myMalletX;
-    botState.m1y = myMalletY;
-  }
+  if(botMode&&botState){botState.m1x=mx;botState.m1y=my;}
 }
 
-function renderFrame() {
-  if (!ctx) return;
-  const A = ARENAS[arenaId];
+// ── RENDER ───────────────────────────────────────────
+function renderFrame(){
+  if(!ctx)return;
+  const A=ARENAS[arenaId];
   ctx.clearRect(0,0,W,H);
   ctx.save();
-
-  // P2 vê canvas rotacionado
-  if (myRole === 'p2') { ctx.translate(W,H); ctx.rotate(Math.PI); }
+  // Fix #3: P2 vê canvas rotacionado 180°
+  if(myRole==='p2'){ctx.translate(W,H);ctx.rotate(Math.PI);}
 
   // Fundo
-  const gr = ctx.createLinearGradient(0,0,0,H);
-  gr.addColorStop(0, A.bg1); gr.addColorStop(1, A.bg2);
-  ctx.fillStyle = gr; ctx.fillRect(0,0,W,H);
+  const gr=ctx.createLinearGradient(0,0,0,H);
+  gr.addColorStop(0,A.bg1);gr.addColorStop(1,A.bg2);
+  ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
 
-  // Linha central
-  ctx.strokeStyle = A.lc; ctx.lineWidth = 2;
-  ctx.setLineDash([8,5]);
-  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  // Linha central e círculo
+  ctx.strokeStyle=A.lc;ctx.lineWidth=2;ctx.setLineDash([8,5]);
+  ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
   ctx.setLineDash([]);
-  ctx.beginPath(); ctx.arc(W/2,H/2,W*.14,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath();ctx.arc(W/2,H/2,W*.13,0,Math.PI*2);ctx.stroke();
 
   // Gols
-  const gw=W*.36, gx=(W-gw)/2;
-  ctx.shadowColor=A.gc; ctx.shadowBlur=10;
-  ctx.fillStyle='rgba(0,200,83,.12)';
-  ctx.fillRect(gx,0,gw,10); ctx.fillRect(gx,H-10,gw,10);
-  ctx.strokeStyle=A.gc; ctx.lineWidth=3;
-  ctx.strokeRect(gx,0,gw,10); ctx.strokeRect(gx,H-10,gw,10);
+  const gw=W*.36,gx=(W-gw)/2;
+  ctx.shadowColor=A.gc;ctx.shadowBlur=10;
+  ctx.fillStyle=A.gc+'22';
+  ctx.fillRect(gx,0,gw,10);ctx.fillRect(gx,H-10,gw,10);
+  ctx.strokeStyle=A.gc;ctx.lineWidth=3;
+  ctx.strokeRect(gx,0,gw,10);ctx.strokeRect(gx,H-10,gw,10);
   ctx.shadowBlur=0;
 
-  // Converter coordenadas para o canvas (P2 já está rotacionado via ctx.save)
-  // Para P1: coordenadas diretas
-  // Para P2: canvas rotacionado, então (x,y) -> ((1-x)*W, (1-y)*H) no estado global
-  // MAS como já aplicamos rotate(PI), podemos usar coordenadas diretas!
-  const toX = (nx) => nx * W;
-  const toY = (ny) => ny * H;
+  // Converter coordenadas: no estado global P1=embaixo, P2=cima
+  // No canvas de P1: direto. No canvas de P2: rotacionado, mas como ctx já está rotacionado,
+  // usamos (1-x, 1-y) para as coordenadas globais
+  function px(nx){return myRole==='p2'?(1-nx)*W:nx*W;}
+  function py(ny){return myRole==='p2'?(1-ny)*H:ny*H;}
 
-  // Meu mallet (sempre azul, na parte de baixo visualmente)
-  const myX = myRole==='p1' ? toX(gs.m1x) : toX(1-gs.m2x);
-  const myY = myRole==='p1' ? toY(gs.m1y) : toY(1-gs.m2y);
-  // Oponente (sempre vermelho, na parte de cima visualmente)
-  const opX = myRole==='p1' ? toX(gs.m2x) : toX(1-gs.m1x);
-  const opY = myRole==='p1' ? toY(gs.m2y) : toY(1-gs.m1y);
+  const mr=MR*W;
 
-  const mr = MR * W;
-
-  // Desenhar mallets
-  function drawMallet(x, y, color) {
-    ctx.shadowColor = color; ctx.shadowBlur = 22;
-    const g = ctx.createRadialGradient(x-mr*.3, y-mr*.3, mr*.05, x, y, mr);
-    g.addColorStop(0,'#fff'); g.addColorStop(.5,color); g.addColorStop(1,color+'88');
-    ctx.beginPath(); ctx.arc(x, y, mr, 0, Math.PI*2);
-    ctx.fillStyle = g; ctx.fill();
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
-    ctx.shadowBlur = 0;
+  // Função de desenhar mallet
+  function drawM(nx,ny,color){
+    const x=px(nx),y=py(ny);
+    ctx.shadowColor=color;ctx.shadowBlur=20;
+    const g=ctx.createRadialGradient(x-mr*.3,y-mr*.3,mr*.05,x,y,mr);
+    g.addColorStop(0,'#fff');g.addColorStop(.5,color);g.addColorStop(1,color+'88');
+    ctx.beginPath();ctx.arc(x,y,mr,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
+    ctx.shadowBlur=0;
   }
-  drawMallet(myX, myY, A.c1);
-  drawMallet(opX, opY, A.c2);
+
+  // Fix #3: Meu mallet sempre na cor C1, oponente C2
+  // P1: meu=m1(embaixo), opp=m2(cima)
+  // P2: meu=m2(cima no global, mas embaixo visualmente pois canvas rotacionado), opp=m1
+  if(myRole==='p1'){
+    drawM(gs.m1x,gs.m1y,A.c1); // eu
+    drawM(gs.m2x,gs.m2y,A.c2); // oponente
+  } else {
+    drawM(gs.m2x,gs.m2y,A.c1); // eu (aparece embaixo no canvas rotacionado)
+    drawM(gs.m1x,gs.m1y,A.c2); // oponente
+  }
 
   // Bola
-  const bx = myRole==='p2' ? toX(1-gs.bx) : toX(gs.bx);
-  const by = myRole==='p2' ? toY(1-gs.by) : toY(gs.by);
-  const br = .03 * W;
-  ctx.shadowColor='#fff'; ctx.shadowBlur=18;
-  const bg = ctx.createRadialGradient(bx-br*.3,by-br*.3,br*.05,bx,by,br);
-  bg.addColorStop(0,'#fff'); bg.addColorStop(1,'rgba(200,200,255,.5)');
-  ctx.beginPath(); ctx.arc(bx,by,br,0,Math.PI*2);
-  ctx.fillStyle=bg; ctx.fill();
+  const bx2=px(gs.bx),by2=py(gs.by),br=.03*W;
+  ctx.shadowColor='#fff';ctx.shadowBlur=16;
+  const bg=ctx.createRadialGradient(bx2-br*.3,by2-br*.3,br*.05,bx2,by2,br);
+  bg.addColorStop(0,'#fff');bg.addColorStop(1,'rgba(200,220,255,.5)');
+  ctx.beginPath();ctx.arc(bx2,by2,br,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();
   ctx.shadowBlur=0;
 
   // Flash
-  if (flash > 0) {
-    ctx.fillStyle = `rgba(255,255,255,${flash*.18})`;
-    ctx.fillRect(0,0,W,H);
-    flash -= .05;
-  }
+  if(flash>0){ctx.fillStyle=`rgba(255,255,255,${flash*.18})`;ctx.fillRect(0,0,W,H);flash-=.04;}
 
   // Texto gol
-  if (goalAlpha > 0) {
-    ctx.globalAlpha = Math.min(1, goalAlpha);
-    ctx.fillStyle = '#f0c040';
-    ctx.shadowColor='#f0c040'; ctx.shadowBlur=30;
-    ctx.font = `bold ${W*.1}px sans-serif`;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(goalTxt, W/2, H/2);
-    ctx.shadowBlur=0; ctx.globalAlpha=1;
-    goalAlpha -= .02;
+  if(goalAlpha>0){
+    ctx.globalAlpha=Math.min(1,goalAlpha);
+    ctx.fillStyle='#f0c040';ctx.shadowColor='#f0c040';ctx.shadowBlur=28;
+    ctx.font=`bold ${W*.1}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(goalTxt,W/2,H/2);
+    ctx.shadowBlur=0;ctx.globalAlpha=1;
+    goalAlpha-=.02;
   }
-
   ctx.restore();
 }
 
-// ── Online ───────────────────────────────────────────
-function conectarSocket() {
-  if (socket && socket.connected) return;
-  socket = io();
+// ── ONLINE ───────────────────────────────────────────
+function conectarSocket(){
+  if(socket&&socket.connected)return;
+  socket=io();
 
-  socket.on('game_start', data => {
-    myRole = data.role;
-    arenaId = arenaId || 1;
-    gameOver = false;
-    flash = 0; goalAlpha = 0;
-    gs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18, s1:0, s2:0 };
-    myMalletX = .5;
-    myMalletY = myRole==='p1' ? .82 : .18;
-    document.getElementById('p1name').textContent = myRole==='p1' ? (usuario.nome||'Você') : data.p1name;
-    document.getElementById('p2name').textContent = myRole==='p2' ? (usuario.nome||'Você') : data.p2name;
-    document.getElementById('arenaName').textContent = ARENAS[arenaId].name + ' · R$' + data.valor.toFixed(2).replace('.',',');
-    document.getElementById('p1score').textContent = '0';
-    document.getElementById('p2score').textContent = '0';
+  socket.on('game_start',data=>{
+    myRole=data.role; botMode=false; gameOver=false;
+    arenaId=arenaId||1;
+    flash=0;goalAlpha=0;
+    gs={bx:.5,by:.5,m1x:.5,m1y:.82,m2x:.5,m2y:.18,s1:0,s2:0};
+    mx=.5; my=myRole==='p1'?.82:.18;
+    document.getElementById('p1name').textContent=myRole==='p1'?(usuario.nome||'Você'):data.p1name;
+    document.getElementById('p2name').textContent=myRole==='p2'?(usuario.nome||'Você'):data.p2name;
+    document.getElementById('p1score').textContent='0';
+    document.getElementById('p2score').textContent='0';
+    document.getElementById('arenaLabel').textContent=ARENAS[arenaId].name+' · R$'+data.valor.toFixed(2).replace('.',',');
+    // Fix #3: mostrar papel do jogador
+    document.getElementById('roleMsg').textContent=myRole==='p1'?'🔵 Você está embaixo':'🔵 Você está embaixo';
+    document.getElementById('modalSala').style.display='none';
     mostrar('game');
-    iniciarCanvas();
-    // Loop de renderização online
-    if (animId) cancelAnimationFrame(animId);
-    function renderLoop() {
-      if (!gameOver) animId = requestAnimationFrame(renderLoop);
-      renderFrame();
-    }
-    animId = requestAnimationFrame(renderLoop);
-    document.getElementById('statusMsg').textContent = myRole==='p1' ? '⚡ Você é P1 (baixo)' : '⚡ Você é P2 (cima)';
+    setupCanvas();
+    if(animId)cancelAnimationFrame(animId);
+    function renderOnline(){if(!gameOver)animId=requestAnimationFrame(renderOnline);renderFrame();}
+    animId=requestAnimationFrame(renderOnline);
   });
 
-  // Recebe estado completo do servidor a cada tick
-  socket.on('ah_state', data => {
-    gs.bx  = data.bx;  gs.by  = data.by;
-    gs.m1x = data.m1x; gs.m1y = data.m1y;
-    gs.m2x = data.m2x; gs.m2y = data.m2y;
+  // Fix #5: recebe estado do servidor (60fps)
+  socket.on('ah_state',data=>{
+    gs.bx=data.bx;gs.by=data.by;
+    gs.m1x=data.m1x;gs.m1y=data.m1y;
+    gs.m2x=data.m2x;gs.m2y=data.m2y;
   });
 
-  // Gol marcado
-  socket.on('ah_gol', data => {
-    gs.s1 = data.s1; gs.s2 = data.s2;
-    document.getElementById('p1score').textContent = myRole==='p1' ? gs.s1 : gs.s2;
-    document.getElementById('p2score').textContent = myRole==='p1' ? gs.s2 : gs.s1;
-    flash = 1;
-    const euMarquei = (myRole==='p1' && data.scorer==='p1') || (myRole==='p2' && data.scorer==='p2');
-    goalTxt = euMarquei ? 'GOL! 🎉' : 'GOL!';
-    goalAlpha = 1;
+  socket.on('ah_gol',data=>{
+    gs.s1=data.s1;gs.s2=data.s2;
+    // Fix #3: placar correto por papel
+    document.getElementById('p1score').textContent=myRole==='p1'?gs.s1:gs.s2;
+    document.getElementById('p2score').textContent=myRole==='p1'?gs.s2:gs.s1;
+    flash=1;
+    const euMarquei=(myRole==='p1'&&data.scorer==='p1')||(myRole==='p2'&&data.scorer==='p2');
+    goalTxt=euMarquei?'GOL! 🎉':'GOL!'; goalAlpha=1;
   });
 
-  socket.on('oponente_desistiu', () => {
-    gameOver = true;
-    cancelAnimationFrame(animId);
-    const p = (valorSel*1.75).toFixed(2).replace('.',',');
-    mostrarResultado(true, `+R$ ${p} (adversário desistiu)`, true);
+  // Fix #1: desistir/desconectar
+  socket.on('oponente_desistiu',()=>{
+    gameOver=true;cancelAnimationFrame(animId);
+    const p=(valorSel*1.75).toFixed(2).replace('.',',');
+    mostrarRes(true,`+R$ ${p} (adversário desistiu)`,true);
   });
 
-  socket.on('game_end', data => {
-    if (gameOver) return;
-    gameOver = true;
-    cancelAnimationFrame(animId);
-    const ganhou = data.winner === myRole;
-    const p = (data.prize||0).toFixed(2).replace('.',',');
-    mostrarResultado(ganhou, ganhou ? `+R$ ${p}` : `-R$ ${valorSel.toFixed(2).replace('.',',')}`, true);
+  socket.on('game_end',data=>{
+    if(gameOver)return;
+    gameOver=true;cancelAnimationFrame(animId);
+    const ganhou=data.winner===myRole;
+    const p=(data.prize||0).toFixed(2).replace('.',',');
+    mostrarRes(ganhou,ganhou?`+R$ ${p}`:`-R$ ${valorSel.toFixed(2).replace('.',',')}`,true);
+  });
+
+  // Sala
+  socket.on('sala_criada',({codigo})=>{
+    salaCod=codigo;
+    document.getElementById('codigoTxt').textContent=codigo;
+    document.getElementById('codigoCriado').style.display='block';
+    document.getElementById('aguardandoSala').style.display='block';
+    document.getElementById('btnCriarSala').style.display='none';
+  });
+  socket.on('sala_erro',({msg})=>{
+    document.getElementById('salaErrMsg').textContent=msg;
+    alert(msg);
   });
 }
 
-function entrarFila() {
-  if (!token) { alert('Faça login primeiro!'); return; }
-  if ((usuario.saldo||0) < valorSel) { alert('Saldo insuficiente!'); return; }
+function entrarFila(){
+  if(!token){alert('Faça login primeiro!');return;}
+  if((usuario.saldo||0)<valorSel){alert('Saldo insuficiente!');return;}
   conectarSocket();
   mostrar('waiting');
-  document.getElementById('waitVal').textContent = valorSel.toFixed(2).replace('.',',');
-  socket.emit('join_queue', { valor: valorSel, token });
+  document.getElementById('waitVal').textContent=valorSel.toFixed(2).replace('.',',');
+  socket.emit('join_queue',{valor:valorSel,token});
 }
 
-function cancelar() { socket?.emit('leave_queue'); mostrar('lobby'); }
+function cancelar(){socket?.emit('leave_queue');mostrar('lobby');}
 
-function desistir() {
-  if (!confirm('Deseja desistir? O adversário vencerá.')) return;
-  gameOver = true;
+// Fix #1: desistir envia evento e mostra resultado imediato
+function desistir(){
+  if(!confirm('Deseja desistir? O adversário vencerá.'))return;
+  gameOver=true;
   cancelAnimationFrame(animId);
-  cancelAnimationFrame(botAnim);
-  if (!botMode && socket) socket.emit('ah_desistir');
-  mostrarResultado(false, botMode ? 'Você desistiu.' : `-R$ ${valorSel.toFixed(2).replace('.',',')}`, !botMode);
+  if(!botMode&&socket)socket.emit('ah_desistir');
+  mostrarRes(false,botMode?'Você desistiu.':`-R$ ${valorSel.toFixed(2).replace('.',',')}`,!botMode);
 }
 
-// ── UI ───────────────────────────────────────────────
-function mostrar(id) {
-  ['lobby','waiting','game','result'].forEach(x => {
-    document.getElementById(x).style.display = x===id ? (x==='lobby'?'block':'flex') : 'none';
+function mostrar(id){
+  ['lobby','waiting','game','result'].forEach(x=>{
+    document.getElementById(x).style.display=x===id?(x==='lobby'?'block':'flex'):'none';
   });
 }
 
-function mostrarResultado(ganhou, premio, online) {
+function mostrarRes(ganhou,premio,online){
   mostrar('result');
-  document.getElementById('resEmoji').textContent  = ganhou ? '🏆' : '😢';
-  document.getElementById('resTitle').textContent  = ganhou ? 'VOCÊ VENCEU!' : 'VOCÊ PERDEU!';
-  document.getElementById('resTitle').style.color  = ganhou ? 'var(--gold)' : '#ef4444';
-  document.getElementById('resPrize').textContent  = online ? premio : 'Modo treino 🎮';
-  document.getElementById('resPrize').style.color  = ganhou ? 'var(--green)' : '#ef4444';
+  document.getElementById('resEmoji').textContent=ganhou?'🏆':'😢';
+  document.getElementById('resTitle').textContent=ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
+  document.getElementById('resTitle').style.color=ganhou?'var(--gold)':'#ef4444';
+  document.getElementById('resPrize').textContent=online?premio:'Modo treino 🎮';
+  document.getElementById('resPrize').style.color=ganhou?'var(--green)':'#ef4444';
 }
 
-function voltarLobby() {
+function voltarLobby(){
   cancelAnimationFrame(animId);
-  cancelAnimationFrame(botAnim);
-  botMode = false; gameOver = false;
+  botMode=false;gameOver=false;
   mostrar('lobby');
 }
 
-window.addEventListener('beforeunload', e => {
-  if (document.getElementById('game').style.display !== 'none') { e.preventDefault(); e.returnValue=''; }
+window.addEventListener('beforeunload',e=>{
+  if(document.getElementById('game').style.display!=='none'){e.preventDefault();e.returnValue='';}
 });
 </script>
 </body>

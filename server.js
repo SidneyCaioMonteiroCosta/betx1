@@ -438,7 +438,7 @@ io.on('connection', (socket) => {
         oponente.socket.emit('game_start',{role:'p1',p1name:oponente.nome,p2name:userNome,valor});
         socket.emit('game_start',{role:'p2',p1name:oponente.nome,p2name:userNome,valor});
         // Loop de física no servidor 20fps
-        partidas[roomId].interval = setInterval(() => tickAH(roomId), 1000/20);
+        partidas[roomId].interval = setInterval(() => tickAH(roomId), 1000/60); // 60fps
       } else {
         filas[valor].push({ socket, userId, nome: userNome, currentRoom: null });
       }
@@ -546,20 +546,21 @@ function resetAHBall(S, dir) {
 
 async function encerrarAirHockey(roomId, winnerRole, motivo) {
   const partida = partidas[roomId];
-  if (!partida) return;
-  if (partida.interval) clearInterval(partida.interval);
-  partida._encerrado = true; // evita dupla chamada
+  if (!partida || partida._encerrado) return;
+  partida._encerrado = true;
+  clearInterval(partida.interval);
   const winnerId = winnerRole==='p1' ? partida.p1.userId : partida.p2.userId;
   const loserId  = winnerRole==='p1' ? partida.p2.userId : partida.p1.userId;
   const prize = parseFloat((partida.valor*1.75).toFixed(2));
-  await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
-  await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',
-    [winnerId,'ganho',prize,`Vitória Air Hockey R$${partida.valor} (${motivo})`,'concluido']);
-  await atualizarNivel(winnerId,'vitoria');
-  await atualizarNivel(loserId,'derrota');
-  // Enviar game_end com prize para ambos
+  try {
+    await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
+    await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',
+      [winnerId,'ganho',prize,`Vitória Air Hockey R$${partida.valor} (${motivo})`,'concluido']);
+    await atualizarNivel(winnerId,'vitoria');
+    await atualizarNivel(loserId,'derrota');
+  } catch(e) { console.error('Erro encerrar AH:', e.message); }
   io.to(roomId).emit('game_end',{winner:winnerRole,prize,valor:partida.valor});
-  console.log(`🏒 Partida ${roomId} encerrada: winner=${winnerRole}, motivo=${motivo}`);
+  console.log(`🏒 ${roomId} encerrada: winner=${winnerRole} motivo=${motivo}`);
   delete partidas[roomId];
 }
 
