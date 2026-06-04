@@ -293,8 +293,84 @@ app.post('/api/admin/saques/:id/pagar', adminAuth, async (req, res) => {
 });
 
 app.get('/api/admin/usuarios', adminAuth, async (req, res) => {
-  const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino, criado_em FROM users ORDER BY criado_em DESC');
-  res.json(rows);
+  try {
+    const { rows } = await pool.query('SELECT id, nome, email, saldo, saldo_treino, bloqueado, criado_em, telefone FROM users ORDER BY criado_em DESC');
+    // Garantir que saldo é número
+    const usuarios = rows.map(u => ({ ...u, saldo: parseFloat(u.saldo) || 0, saldo_treino: parseFloat(u.saldo_treino) || 0 }));
+    res.json(usuarios);
+  } catch(e) {
+    console.error('Erro admin usuarios:', e.message);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Histórico completo de um usuário (admin)
+app.get('/api/admin/usuario/:id/historico', adminAuth, async (req, res) => {
+  const userId = parseInt(req.params.id);
+  try {
+    const { rows: uRows } = await pool.query('SELECT id, nome, email, saldo, telefone, criado_em, nivel, total_vitorias, total_derrotas FROM users WHERE id = $1', [userId]);
+    if (!uRows.length) return res.status(404).json({ erro: 'Usuário não encontrado' });
+    const user = uRows[0];
+    user.saldo = parseFloat(user.saldo) || 0;
+
+    const { rows: trans } = await pool.query('SELECT * FROM transacoes WHERE user_id = $1 ORDER BY criado_em DESC LIMIT 100', [userId]);
+    const depositos = trans.filter(t => t.tipo === 'deposito');
+    const saques = trans.filter(t => t.tipo === 'saque');
+    const partidas = trans.filter(t => ['ganho','devolucao','bonus','taxa'].includes(t.tipo));
+
+    res.json({ user, depositos, saques, partidas, todas: trans });
+  } catch(e) {
+    console.error('Erro histórico admin:', e.message);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Enviar notificação (admin) - para todos ou um específico
+app.post('/api/admin/notificar', adminAuth, async (req, res) => {
+  const { userId, titulo, mensagem } = req.body;
+  if (!titulo || !mensagem) return res.status(400).json({ erro: 'Título e mensagem obrigatórios' });
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS notificacoes (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER,
+      titulo TEXT,
+      mensagem TEXT,
+      lida BOOLEAN DEFAULT false,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    if (userId) {
+      // Notificação para 1 usuário
+      await pool.query('INSERT INTO notificacoes (user_id, titulo, mensagem) VALUES ($1,$2,$3)', [parseInt(userId), titulo, mensagem]);
+    } else {
+      // Notificação para todos
+      const { rows } = await pool.query('SELECT id FROM users');
+      for (const u of rows) {
+        await pool.query('INSERT INTO notificacoes (user_id, titulo, mensagem) VALUES ($1,$2,$3)', [u.id, titulo, mensagem]);
+      }
+    }
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Buscar notificações do usuário
+app.get('/api/notificacoes', auth, async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS notificacoes (
+      id SERIAL PRIMARY KEY, user_id INTEGER, titulo TEXT, mensagem TEXT,
+      lida BOOLEAN DEFAULT false, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    const { rows } = await pool.query('SELECT * FROM notificacoes WHERE user_id = $1 ORDER BY criado_em DESC LIMIT 30', [req.user.id]);
+    res.json(rows);
+  } catch(e) { res.json([]); }
+});
+
+// Marcar notificação como lida
+app.post('/api/notificacoes/:id/lida', auth, async (req, res) => {
+  try {
+    await pool.query('UPDATE notificacoes SET lida = true WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: 'Erro' }); }
 });
 
 app.get('/api/admin/stats', adminAuth, async (req, res) => {

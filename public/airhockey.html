@@ -47,6 +47,20 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
       <div><div style="font-weight:700;font-size:14px;">Arena Iniciante</div><div style="font-size:11px;color:var(--muted);">Modo Treino · Gratuito</div></div>
       <span style="margin-left:auto;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.3);color:var(--green);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">GRÁTIS</span>
     </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Dificuldade do bot:</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:8px;">
+      <div class="botlvl" onclick="selBotLvl(1,this)" data-lvl="1" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">1</div>
+      <div class="botlvl" onclick="selBotLvl(2,this)" data-lvl="2" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">2</div>
+      <div class="botlvl" onclick="selBotLvl(3,this)" data-lvl="3" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">3</div>
+      <div class="botlvl" onclick="selBotLvl(4,this)" data-lvl="4" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">4</div>
+      <div class="botlvl" onclick="selBotLvl(5,this)" data-lvl="5" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">5</div>
+      <div class="botlvl" onclick="selBotLvl(6,this)" data-lvl="6" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">6</div>
+      <div class="botlvl" onclick="selBotLvl(7,this)" data-lvl="7" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">7</div>
+      <div class="botlvl" onclick="selBotLvl(8,this)" data-lvl="8" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">8</div>
+      <div class="botlvl" onclick="selBotLvl(9,this)" data-lvl="9" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">9</div>
+      <div class="botlvl" onclick="selBotLvl(10,this)" data-lvl="10" style="padding:8px 0;background:var(--bg);border:1px solid var(--border);border-radius:7px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;">10</div>
+    </div>
+    <div id="botLvlLabel" style="font-size:11px;color:var(--gold);text-align:center;margin-bottom:8px;">Nível 5 · Médio</div>
     <button onclick="iniciarBot()" style="width:100%;padding:12px;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.4);color:var(--green);border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">🤖 JOGAR CONTRA BOT</button>
   </div>
 
@@ -156,7 +170,7 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
       <p><strong style="color:#f0c040;">🎯 Objetivo:</strong> Marque 7 gols antes do adversário!</p><br>
       <p><strong style="color:#f0c040;">🏒 Como jogar:</strong> Arraste o dedo para mover seu disco. Bata na bolinha para marcar gol. Você só pode mover na sua metade da mesa.</p><br>
       <p><strong style="color:#f0c040;">🏟️ Arenas:</strong> Iniciante (R$1-10) · Prata (R$15-30) · Ouro (R$50-100)</p><br>
-      <p><strong style="color:#f0c040;">💰 Prêmio:</strong> Vencedor leva 175% da premiação da aposta. Se desistir, adversário ganha automaticamente.</p>
+      <p><strong style="color:#f0c040;">💰 Prêmio:</strong> Vencedor leva 175% da taxa de participação. Se desistir, adversário ganha automaticamente.</p>
     </div>
     <div style="padding:12px 16px;border-top:1px solid #1e2d50;">
       <button onclick="document.getElementById('modalRegras').style.display='none'" style="width:100%;padding:11px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Entendido! 🎮</button>
@@ -305,13 +319,28 @@ function copiarCodigo(){navigator.clipboard?.writeText(salaCod);alert('Código '
 
 // ── BOT ──────────────────────────────────────────────
 let botState = null;
+let botLevel = 5; // 1-10
+
+function selBotLvl(lvl, el) {
+  botLevel = lvl;
+  document.querySelectorAll('.botlvl').forEach(b => {
+    b.style.background = 'var(--bg)';
+    b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--text)';
+  });
+  el.style.background = 'rgba(0,200,83,.2)';
+  el.style.borderColor = 'var(--green)';
+  el.style.color = 'var(--green)';
+  const labels = {1:'Muito Fácil',2:'Fácil',3:'Fácil',4:'Médio',5:'Médio',6:'Médio',7:'Difícil',8:'Difícil',9:'Muito Difícil',10:'Impossível'};
+  document.getElementById('botLvlLabel').textContent = `Nível ${lvl} · ${labels[lvl]}`;
+}
 function iniciarBot(){
   botMode=true; myRole='p1'; arenaId=1; gameOver=false;
   flash=0; goalAlpha=0;
   botState={bx:.5,by:.5,bvx:.006,bvy:.008,br:.03,m1x:.5,m1y:.82,m2x:.5,m2y:.18,s1:0,s2:0};
   mx=.5; my=.82;
   document.getElementById('p1name').textContent=usuario.nome||'Você';
-  document.getElementById('p2name').textContent='🤖 Bot';
+  document.getElementById('p2name').textContent='🤖 Bot Nv'+botLevel;
   document.getElementById('p1score').textContent='0';
   document.getElementById('p2score').textContent='0';
   document.getElementById('arenaLabel').textContent=ARENAS[1].name+' · TREINO';
@@ -330,12 +359,25 @@ function iniciarBot(){
 function tickBot(){
   const S=botState;
   S.m1x=mx; S.m1y=my;
-  // Bot IA
+  // Bot IA - dificuldade escala com botLevel (1-10)
+  // Velocidade do bot: nível 1 = 0.010, nível 10 = 0.032
+  const botSpd = 0.008 + (botLevel/10)*0.026;
+  // Erro de mira: nível 1 = muito erro (0.25), nível 10 = quase perfeito (0.01)
+  const erro = 0.28 - (botLevel/10)*0.27;
+  // Quão à frente o bot prevê a bola: níveis altos preveem melhor
+  const previsao = 0.3 + (botLevel/10)*0.7;
+
   const t=Math.abs((.18-S.by)/(S.bvy||.001));
-  const px=Math.max(.1,Math.min(.9,S.bx+S.bvx*t+(Math.random()-.5)*.1));
-  const spd=.024;
-  const ddx=px-S.m2x, ddy=.18-S.m2y, dd=Math.sqrt(ddx*ddx+ddy*ddy);
-  if(dd>.01){S.m2x+=ddx/dd*Math.min(spd,dd);S.m2y+=ddy/dd*Math.min(spd,dd);}
+  let alvoX = S.bx + S.bvx*t*previsao + (Math.random()-.5)*erro;
+  alvoX = Math.max(.1, Math.min(.9, alvoX));
+  // Bot só persegue a bola ativamente se ela está vindo na direção dele (vy<0)
+  // Níveis baixos reagem tarde
+  let alvoY = .18;
+  if (S.bvy < 0 && S.by < (0.3 + botLevel*0.03)) {
+    alvoY = Math.max(.08, Math.min(.42, S.by - 0.05));
+  }
+  const ddx=alvoX-S.m2x, ddy=alvoY-S.m2y, dd=Math.sqrt(ddx*ddx+ddy*ddy);
+  if(dd>.01){S.m2x+=ddx/dd*Math.min(botSpd,dd);S.m2y+=ddy/dd*Math.min(botSpd,dd);}
   S.m2x=Math.max(.06,Math.min(.94,S.m2x));
   S.m2y=Math.max(.04,Math.min(.46,S.m2y));
   // Física

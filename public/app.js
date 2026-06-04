@@ -188,6 +188,7 @@ function enterApp() {
   setInterval(atualizarSaldoServidor, 30000);
   // Conectar socket para rastrear online
   iniciarSocketOnline();
+  setTimeout(carregarNotificacoes, 1500);
 }
 
 function iniciarSocketOnline() {
@@ -1029,6 +1030,163 @@ async function cancelarTorneio(id) {
     alert(`Torneio cancelado. ${d.reembolsados||0} jogadores reembolsados.`);
     carregarTorneiosAdmin();
   } catch(e) {}
+}
+
+
+// ===== ADMIN: HISTÓRICO DE USUÁRIO =====
+async function verHistoricoUsuario() {
+  if (!userEditandoId) return;
+  const el = document.getElementById('histUserContent');
+  el.innerHTML = '<div class="empty">Carregando...</div>';
+  document.getElementById('modalHistUser').style.display = 'flex';
+  try {
+    const res = await fetch('/api/admin/usuario/' + userEditandoId + '/historico', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await res.json();
+    if (!res.ok) { el.innerHTML = '<div class="empty">' + (d.erro||'Erro') + '</div>'; return; }
+    const u = d.user;
+    const criado = new Date(u.criado_em).toLocaleDateString('pt-BR') + ' ' + new Date(u.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const saldo = parseFloat(u.saldo)||0;
+    const totalDep = d.depositos.reduce((a,b)=>a+parseFloat(b.valor),0);
+    const totalSaq = d.saques.reduce((a,b)=>a+parseFloat(b.valor),0);
+
+    let html = `
+      <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-weight:700;font-size:16px;margin-bottom:8px;">${u.nome}</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8;">
+          📧 ${u.email}<br>
+          📱 ${u.telefone || 'Sem telefone'}<br>
+          📅 Conta criada: ${criado}<br>
+          💰 Saldo atual: <strong style="color:var(--gold);">R$ ${saldo.toFixed(2)}</strong><br>
+          🏅 Nível ${u.nivel||1} · 🏆 ${u.total_vitorias||0} vitórias · 😢 ${u.total_derrotas||0} derrotas
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.2);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--muted);">Total Depósitos</div>
+          <div style="font-size:16px;font-weight:700;color:#00c853;">R$ ${totalDep.toFixed(2)}</div>
+        </div>
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--muted);">Total Saques</div>
+          <div style="font-size:16px;font-weight:700;color:#ef4444;">R$ ${totalSaq.toFixed(2)}</div>
+        </div>
+      </div>
+    `;
+
+    // Depósitos
+    html += '<div style="font-size:13px;font-weight:700;color:var(--gold);margin:12px 0 8px;">💳 Depósitos</div>';
+    if (d.depositos.length) {
+      html += d.depositos.slice(0,10).map(t => `
+        <div class="trans-item">
+          <div class="trans-icon dep">💳</div>
+          <div class="trans-desc"><div class="trans-name">${t.descricao}</div><div class="trans-date">${new Date(t.criado_em).toLocaleString('pt-BR')}</div></div>
+          <div class="trans-val pos">+R$ ${parseFloat(t.valor).toFixed(2)}</div>
+        </div>`).join('');
+    } else { html += '<div style="font-size:12px;color:var(--muted);padding:8px;">Nenhum depósito</div>'; }
+
+    // Saques
+    html += '<div style="font-size:13px;font-weight:700;color:var(--gold);margin:12px 0 8px;">🏦 Saques</div>';
+    if (d.saques.length) {
+      html += d.saques.slice(0,10).map(t => `
+        <div class="trans-item">
+          <div class="trans-icon saq">🏦</div>
+          <div class="trans-desc"><div class="trans-name">${t.descricao} · ${t.status}</div><div class="trans-date">${new Date(t.criado_em).toLocaleString('pt-BR')}</div></div>
+          <div class="trans-val neg">-R$ ${parseFloat(t.valor).toFixed(2)}</div>
+        </div>`).join('');
+    } else { html += '<div style="font-size:12px;color:var(--muted);padding:8px;">Nenhum saque</div>'; }
+
+    // Partidas
+    html += '<div style="font-size:13px;font-weight:700;color:var(--gold);margin:12px 0 8px;">🎮 Últimas partidas e movimentações</div>';
+    if (d.partidas.length) {
+      html += d.partidas.slice(0,15).map(t => {
+        const icon = t.tipo==='ganho'?'🏆':t.tipo==='bonus'?'🎁':t.tipo==='taxa'?'🎫':'🔄';
+        return `
+        <div class="trans-item">
+          <div class="trans-icon dep">${icon}</div>
+          <div class="trans-desc"><div class="trans-name">${t.descricao}</div><div class="trans-date">${new Date(t.criado_em).toLocaleString('pt-BR')}</div></div>
+          <div class="trans-val ${t.tipo==='taxa'?'neg':'pos'}">${t.tipo==='taxa'?'-':'+'}R$ ${parseFloat(t.valor).toFixed(2)}</div>
+        </div>`;
+      }).join('');
+    } else { html += '<div style="font-size:12px;color:var(--muted);padding:8px;">Nenhuma partida</div>'; }
+
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">Erro: ' + e.message + '</div>'; }
+}
+
+// ===== ADMIN: NOTIFICAÇÕES =====
+let notifParaTodos = false;
+
+function abrirNotificarTodos() {
+  notifParaTodos = true;
+  document.getElementById('notifDestino').textContent = '📢 Esta notificação será enviada para TODOS os usuários';
+  document.getElementById('notifTitulo').value = '';
+  document.getElementById('notifMsg').value = '';
+  document.getElementById('notifErro').textContent = '';
+  document.getElementById('modalNotificar').style.display = 'flex';
+}
+
+function abrirNotificarUm() {
+  notifParaTodos = false;
+  const u = todosUsuarios.find(u => u.id === userEditandoId);
+  document.getElementById('notifDestino').textContent = '🔔 Para: ' + (u?.nome || 'usuário');
+  document.getElementById('notifTitulo').value = '';
+  document.getElementById('notifMsg').value = '';
+  document.getElementById('notifErro').textContent = '';
+  document.getElementById('modalNotificar').style.display = 'flex';
+}
+
+function fecharNotificar() {
+  document.getElementById('modalNotificar').style.display = 'none';
+}
+
+async function enviarNotificacao() {
+  const titulo = document.getElementById('notifTitulo').value.trim();
+  const mensagem = document.getElementById('notifMsg').value.trim();
+  if (!titulo || !mensagem) { document.getElementById('notifErro').textContent = 'Preencha título e mensagem!'; return; }
+  try {
+    const body = { titulo, mensagem };
+    if (!notifParaTodos) body.userId = userEditandoId;
+    const res = await fetch('/api/admin/notificar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (!res.ok) { document.getElementById('notifErro').textContent = d.erro; return; }
+    alert(notifParaTodos ? '✅ Notificação enviada para todos!' : '✅ Notificação enviada!');
+    fecharNotificar();
+  } catch(e) { document.getElementById('notifErro').textContent = 'Erro de conexão'; }
+}
+
+
+// ===== NOTIFICAÇÕES DO USUÁRIO =====
+async function carregarNotificacoes() {
+  try {
+    const res = await fetch('/api/notificacoes', { headers: { Authorization: 'Bearer ' + token } });
+    const notifs = await res.json();
+    const naoLidas = notifs.filter(n => !n.lida);
+    if (naoLidas.length > 0) {
+      // Mostrar a mais recente como toast
+      const n = naoLidas[0];
+      mostrarToastNotif(n.titulo, n.mensagem, n.id);
+    }
+  } catch(e) {}
+}
+
+function mostrarToastNotif(titulo, msg, id) {
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;padding:16px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5000;max-width:90%;width:360px;animation:slideDown .3s;';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:15px;margin-bottom:4px;">🔔 ${titulo}</div>
+        <div style="font-size:13px;opacity:.95;line-height:1.4;">${msg}</div>
+      </div>
+      <button onclick="this.closest('div').parentElement.remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>`;
+  document.body.appendChild(div);
+  // Marcar como lida
+  fetch('/api/notificacoes/' + id + '/lida', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(()=>{});
+  setTimeout(() => div.remove(), 8000);
 }
 
 function openGame(game) {
