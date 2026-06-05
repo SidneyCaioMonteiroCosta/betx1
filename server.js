@@ -1084,6 +1084,24 @@ async function atualizarNivel(userId, resultado, jogo) {
 }
 
 // ===== RANKING (semanal e mensal) =====
+// Helper: chaves de período consistentes
+// Semana: domingo a sábado. Chave = data do domingo (YYYY-MM-DD)
+// Mês: dia 1 ao último dia. Chave = YYYY-MM
+function chaveSemana(d = new Date()) {
+  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diaSemana = dt.getDay(); // 0=domingo
+  dt.setDate(dt.getDate() - diaSemana); // volta para o domingo
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const dia = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dia}`; // ex: 2026-06-07 (domingo)
+}
+function chaveMes(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`; // ex: 2026-06
+}
+
 async function atualizarRanking(userId, resultado, jogo) {
   if (!jogo) return;
   try {
@@ -1093,9 +1111,8 @@ async function atualizarRanking(userId, resultado, jogo) {
       UNIQUE(user_id, jogo, semana, mes)
     )`).catch(()=>{});
     const pts = resultado === 'vitoria' ? 2 : resultado === 'empate' ? 1 : -1;
-    const agora = new Date();
-    const semana = `${agora.getFullYear()}-W${Math.ceil((agora.getDate() + new Date(agora.getFullYear(),agora.getMonth(),1).getDay())/7)}-${agora.getMonth()}`;
-    const mes = `${agora.getFullYear()}-${agora.getMonth()}`;
+    const semana = chaveSemana();
+    const mes = chaveMes();
     await pool.query(`
       INSERT INTO ranking (user_id, jogo, pontos, semana, mes) VALUES ($1,$2,$3,$4,$5)
       ON CONFLICT (user_id, jogo, semana, mes) DO UPDATE SET pontos = ranking.pontos + $3, atualizado = CURRENT_TIMESTAMP
@@ -1138,11 +1155,15 @@ function gerarCodigo() {
 io.on('connection', (socketP) => {
   socketP.on('criar_sala', async ({ token: tkn, jogo, valor, senha }) => {
     try {
+      console.log('📥 criar_sala recebido:', { jogo, valor });
       const decoded = jwt.verify(tkn, JWT_SECRET);
       const userId = decoded.id;
       const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
       const user = rows[0];
-      if (!user || user.saldo < valor) { socketP.emit('sala_erro', { msg: 'Saldo insuficiente' }); return; }
+      if (!user) { socketP.emit('sala_erro', { msg: 'Usuário não encontrado' }); return; }
+      const saldoNum = parseFloat(user.saldo) || 0;
+      const valorNum = parseFloat(valor) || 0;
+      if (saldoNum < valorNum) { socketP.emit('sala_erro', { msg: 'Saldo insuficiente' }); return; }
 
       // Remover sala anterior do mesmo jogador
       Object.keys(salasPrivadas).forEach(k => {
@@ -1152,10 +1173,14 @@ io.on('connection', (socketP) => {
       let codigo;
       do { codigo = gerarCodigo(); } while (salasPrivadas[codigo]);
 
-      salasPrivadas[codigo] = { jogo, valor, senha: senha || '', userId, socket: socketP, nome: user.nome, aguardando: true };
+      salasPrivadas[codigo] = { jogo, valor: valorNum, senha: senha || '', userId, socket: socketP, nome: user.nome, aguardando: true };
       socketP.join('sala_' + codigo);
-      socketP.emit('sala_criada', { codigo, jogo, valor });
-    } catch(e) { socketP.emit('sala_erro', { msg: 'Erro ao criar sala' }); }
+      socketP.emit('sala_criada', { codigo, jogo, valor: valorNum });
+      console.log('✅ Sala criada:', codigo, 'jogo:', jogo);
+    } catch(e) {
+      console.error('❌ Erro criar_sala:', e.message);
+      socketP.emit('sala_erro', { msg: 'Erro ao criar sala: ' + e.message });
+    }
   });
 
   socketP.on('entrar_sala', async ({ token: tkn, codigo, senha }) => {
@@ -1170,7 +1195,7 @@ io.on('connection', (socketP) => {
       if (!sala.aguardando) { socketP.emit('sala_erro', { msg: 'Sala já está em jogo!' }); return; }
       if (sala.userId === userId) { socketP.emit('sala_erro', { msg: 'Você criou esta sala!' }); return; }
       if (sala.senha && sala.senha !== senha) { socketP.emit('sala_erro', { msg: 'Senha incorreta!' }); return; }
-      if (!user || user.saldo < sala.valor) { socketP.emit('sala_erro', { msg: 'Saldo insuficiente' }); return; }
+      if (!user || (parseFloat(user.saldo)||0) < (parseFloat(sala.valor)||0)) { socketP.emit('sala_erro', { msg: 'Saldo insuficiente' }); return; }
 
       sala.aguardando = false;
       socketP.join('sala_' + codigo);
@@ -1711,14 +1736,13 @@ app.get('/api/ranking/:jogo/:periodo', auth, async (req, res) => {
       semana TEXT, mes TEXT, atualizado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, jogo, semana, mes)
     )`).catch(()=>{});
-    const agora = new Date();
     let filtro, valor;
     if (periodo === 'semana') {
       filtro = 'semana';
-      valor = `${agora.getFullYear()}-W${Math.ceil((agora.getDate() + new Date(agora.getFullYear(),agora.getMonth(),1).getDay())/7)}-${agora.getMonth()}`;
+      valor = chaveSemana();
     } else {
       filtro = 'mes';
-      valor = `${agora.getFullYear()}-${agora.getMonth()}`;
+      valor = chaveMes();
     }
     const { rows } = await pool.query(`
       SELECT r.pontos, u.nome, u.nivel, r.user_id
@@ -1779,6 +1803,10 @@ app.get('/api/admin/indicacoes', adminAuth, async (req, res) => {
 app.get('/api/convite', auth, async (req, res) => {
   try {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS codigo_convite TEXT').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS convidado_por INTEGER').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_pago BOOLEAN DEFAULT false').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS partidas_online INTEGER DEFAULT 0').catch(()=>{});
+
     const { rows } = await pool.query('SELECT codigo_convite FROM users WHERE id = $1', [req.user.id]);
     let codigo = rows[0]?.codigo_convite;
     // Gerar se não tiver
@@ -1787,14 +1815,20 @@ app.get('/api/convite', auth, async (req, res) => {
       await pool.query('UPDATE users SET codigo_convite = $1 WHERE id = $2', [codigo, req.user.id]);
     }
     // Contar indicados e quantos completaram
-    const { rows: indicados } = await pool.query(
-      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE bonus_pago = true) as pagos, COALESCE(SUM(LEAST(partidas_online,50)),0) as progresso FROM users WHERE convidado_por = $1',
-      [req.user.id]
-    );
-    const totalIndicados = parseInt(indicados[0].total) || 0;
-    const pagos = parseInt(indicados[0].pagos) || 0;
+    let totalIndicados = 0, pagos = 0;
+    try {
+      const { rows: indicados } = await pool.query(
+        'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE bonus_pago = true) as pagos FROM users WHERE convidado_por = $1',
+        [req.user.id]
+      );
+      totalIndicados = parseInt(indicados[0].total) || 0;
+      pagos = parseInt(indicados[0].pagos) || 0;
+    } catch(e) {}
     res.json({ codigo, totalIndicados, bonusGanhos: pagos, ganhoTotal: pagos * 5 });
-  } catch(e) { res.status(500).json({ erro: e.message }); }
+  } catch(e) {
+    console.error('Erro /api/convite:', e.message);
+    res.status(500).json({ erro: e.message });
+  }
 });
 
 // Lista de indicados com progresso
@@ -1871,14 +1905,13 @@ app.post('/api/admin/ranking-premios/pagar', adminAuth1, async (req, res) => {
     if (!premios.length) return res.status(400).json({ erro: 'Nenhum prêmio configurado' });
 
     // Buscar ranking atual
-    const agora = new Date();
     let filtro, valor;
     if (periodo === 'semana') {
       filtro = 'semana';
-      valor = `${agora.getFullYear()}-W${Math.ceil((agora.getDate() + new Date(agora.getFullYear(),agora.getMonth(),1).getDay())/7)}-${agora.getMonth()}`;
+      valor = chaveSemana();
     } else {
       filtro = 'mes';
-      valor = `${agora.getFullYear()}-${agora.getMonth()}`;
+      valor = chaveMes();
     }
     const { rows: rank } = await pool.query(
       `SELECT user_id FROM ranking WHERE jogo=$1 AND ${filtro}=$2 ORDER BY pontos DESC LIMIT 50`,
