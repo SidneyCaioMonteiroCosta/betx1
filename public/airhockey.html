@@ -360,22 +360,33 @@ function tickBot(){
   const S=botState;
   S.m1x=mx; S.m1y=my;
   // Bot IA - dificuldade escala com botLevel (1-10)
-  // Velocidade do bot: nível 1 = 0.010, nível 10 = 0.032
   const botSpd = 0.008 + (botLevel/10)*0.026;
-  // Erro de mira: nível 1 = muito erro (0.25), nível 10 = quase perfeito (0.01)
   const erro = 0.28 - (botLevel/10)*0.27;
-  // Quão à frente o bot prevê a bola: níveis altos preveem melhor
   const previsao = 0.3 + (botLevel/10)*0.7;
 
   const t=Math.abs((.18-S.by)/(S.bvy||.001));
   let alvoX = S.bx + S.bvx*t*previsao + (Math.random()-.5)*erro;
-  alvoX = Math.max(.1, Math.min(.9, alvoX));
-  // Bot só persegue a bola ativamente se ela está vindo na direção dele (vy<0)
-  // Níveis baixos reagem tarde
+  // Bot pode alcançar os cantos (range ampliado para 0.06-0.94 como o mallet)
+  alvoX = Math.max(.06, Math.min(.94, alvoX));
+
+  // Bot persegue a bola ativamente quando ela está na metade dele OU vindo na direção dele
   let alvoY = .18;
-  if (S.bvy < 0 && S.by < (0.3 + botLevel*0.03)) {
-    alvoY = Math.max(.08, Math.min(.42, S.by - 0.05));
+  const bolaNoCampoBot = S.by < 0.5;
+  if (S.bvy < 0 && S.by < (0.32 + botLevel*0.03)) {
+    // Bola vindo: intercepta na posição prevista
+    alvoY = Math.max(.06, Math.min(.44, S.by - 0.04));
+  } else if (bolaNoCampoBot) {
+    // Bola parada/lenta no campo do bot: vai buscar diretamente (tira do canto!)
+    alvoX = S.bx;
+    alvoY = Math.max(.06, Math.min(.44, S.by - 0.02));
   }
+
+  // Se a bola está encostada na parede lateral (canto), o bot vai mais agressivo até ela
+  if (bolaNoCampoBot && (S.bx < 0.15 || S.bx > 0.85)) {
+    alvoX = S.bx; // alinha com a bola no canto
+    alvoY = Math.max(.06, Math.min(.46, S.by));
+  }
+
   const ddx=alvoX-S.m2x, ddy=alvoY-S.m2y, dd=Math.sqrt(ddx*ddx+ddy*ddy);
   if(dd>.01){S.m2x+=ddx/dd*Math.min(botSpd,dd);S.m2y+=ddy/dd*Math.min(botSpd,dd);}
   S.m2x=Math.max(.06,Math.min(.94,S.m2x));
@@ -388,6 +399,7 @@ function tickBot(){
   if(sp>.022){S.bvx=S.bvx/sp*.022;S.bvy=S.bvy/sp*.022;}
   if(S.bx-S.br<0){S.bx=S.br;S.bvx=Math.abs(S.bvx);flash=.4;}
   if(S.bx+S.br>1){S.bx=1-S.br;S.bvx=-Math.abs(S.bvx);flash=.4;}
+  cantosArredondados(S);
   colide(S,S.m1x,S.m1y); colide(S,S.m2x,S.m2y);
   const gw=.36,gx=(1-gw)/2;
   if(S.by-S.br<0){
@@ -415,6 +427,34 @@ function colide(S,mx,my){
 }
 function resetBall(S,dir){S.bx=.5;S.by=.5;S.bvx=(Math.random()-.5)*.01;S.bvy=dir==='up'?.008:-.008;}
 function encerrarBot(ganhou){gameOver=true;cancelAnimationFrame(animId);mostrarRes(ganhou,ganhou?'Você venceu!':'Bot venceu!',false);}
+
+// Cantos arredondados: chanfro nos 4 cantos para a bola não ficar presa
+const CR = 0.13;
+function cantosArredondados(S){
+  const cantos = [
+    {cx:CR, cy:CR}, {cx:1-CR, cy:CR},
+    {cx:CR, cy:1-CR}, {cx:1-CR, cy:1-CR}
+  ];
+  for(const c of cantos){
+    const inX = (c.cx<0.5) ? S.bx < CR : S.bx > 1-CR;
+    const inY = (c.cy<0.5) ? S.by < CR : S.by > 1-CR;
+    if(inX && inY){
+      const dx = S.bx - c.cx, dy = S.by - c.cy;
+      const d = Math.sqrt(dx*dx+dy*dy);
+      const raio = CR - S.br;
+      if(d > raio && d > 0){
+        const nx = dx/d, ny = dy/d;
+        S.bx = c.cx + nx*raio;
+        S.by = c.cy + ny*raio;
+        const dot = S.bvx*nx + S.bvy*ny;
+        S.bvx -= 2*dot*nx;
+        S.bvy -= 2*dot*ny;
+        flash = 0.4;
+      }
+    }
+  }
+}
+
 
 // ── CANVAS ───────────────────────────────────────────
 function setupCanvas(){
@@ -484,6 +524,14 @@ function renderFrame(){
   ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
   ctx.setLineDash([]);
   ctx.beginPath();ctx.arc(W/2,H/2,W*.13,0,Math.PI*2);ctx.stroke();
+
+  // Cantos arredondados (visual) - arcos nos 4 cantos
+  const cr = CR*W;
+  ctx.strokeStyle=A.lc;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.arc(cr,cr,cr,Math.PI,Math.PI*1.5);ctx.stroke(); // sup esq
+  ctx.beginPath();ctx.arc(W-cr,cr,cr,Math.PI*1.5,Math.PI*2);ctx.stroke(); // sup dir
+  ctx.beginPath();ctx.arc(cr,H-cr,cr,Math.PI*0.5,Math.PI);ctx.stroke(); // inf esq
+  ctx.beginPath();ctx.arc(W-cr,H-cr,cr,0,Math.PI*0.5);ctx.stroke(); // inf dir
 
   // Gols
   const gw=W*.36,gx=(W-gw)/2;

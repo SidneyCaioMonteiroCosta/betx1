@@ -21,6 +21,9 @@ const JWT_SECRET = 'betx1_secret_2026';
 const MP_TOKEN = 'APP_USR-3691621388347314-053106-82e243a23ed4fa091d30923ed61128b2-478925025';
 const ADMIN_EMAIL = 'tutoriacaio562@gmail.com';
 const ADMIN_SENHA = 'Scmc4815@';
+// Admin 2 — acesso reduzido (só suporte e visualização)
+const ADMIN2_EMAIL = 'suporte.superduelo@gmail.com';
+const ADMIN2_SENHA = 'Suporte2024@';
 
 const mp = new MercadoPagoConfig({ accessToken: MP_TOKEN });
 const payment = new Payment(mp);
@@ -103,9 +106,15 @@ app.post('/api/cadastro', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
+  // Admin principal (acesso total)
   if (email === ADMIN_EMAIL && senha === ADMIN_SENHA) {
-    const token = jwt.sign({ admin: true, email }, JWT_SECRET, { expiresIn: '1d' });
-    return res.json({ token, admin: true });
+    const token = jwt.sign({ admin: true, adminNivel: 1, email }, JWT_SECRET, { expiresIn: '1d' });
+    return res.json({ token, admin: true, adminNivel: 1 });
+  }
+  // Admin 2 (acesso reduzido: só suporte/visualização)
+  if (email === ADMIN2_EMAIL && senha === ADMIN2_SENHA) {
+    const token = jwt.sign({ admin: true, adminNivel: 2, email }, JWT_SECRET, { expiresIn: '1d' });
+    return res.json({ token, admin: true, adminNivel: 2 });
   }
   const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
   const user = rows[0];
@@ -292,7 +301,7 @@ app.get('/api/admin/saques', adminAuth, async (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/admin/saques/:id/pagar', adminAuth, async (req, res) => {
+app.post('/api/admin/saques/:id/pagar', adminAuth1, async (req, res) => {
   await pool.query("UPDATE transacoes SET status = 'pago' WHERE id = $1", [req.params.id]);
   res.json({ mensagem: 'Saque marcado como pago!' });
 });
@@ -599,6 +608,24 @@ function tickAH(roomId) {
   // Paredes
   if (S.bx-S.br<0) { S.bx=S.br; S.bvx=Math.abs(S.bvx); }
   if (S.bx+S.br>1) { S.bx=1-S.br; S.bvx=-Math.abs(S.bvx); }
+
+  // Cantos arredondados (mesma lógica do cliente)
+  const CR = 0.13;
+  const cantos = [{cx:CR,cy:CR},{cx:1-CR,cy:CR},{cx:CR,cy:1-CR},{cx:1-CR,cy:1-CR}];
+  for(const c of cantos){
+    const inX = (c.cx<0.5) ? S.bx < CR : S.bx > 1-CR;
+    const inY = (c.cy<0.5) ? S.by < CR : S.by > 1-CR;
+    if(inX && inY){
+      const dx=S.bx-c.cx, dy=S.by-c.cy, d=Math.sqrt(dx*dx+dy*dy);
+      const raio=CR-S.br;
+      if(d>raio && d>0){
+        const nx=dx/d, ny=dy/d;
+        S.bx=c.cx+nx*raio; S.by=c.cy+ny*raio;
+        const dot=S.bvx*nx+S.bvy*ny;
+        S.bvx-=2*dot*nx; S.bvy-=2*dot*ny;
+      }
+    }
+  }
 
   // Colisão contínua com mallets (evita atravessar)
   colideContinuo(S, S.m1x, S.m1y, oldX, oldY);
@@ -1106,7 +1133,7 @@ io.on('connection', (socketP) => {
 
 
 // ===== ADMIN - CONTROLE DE USUÁRIOS =====
-app.post('/api/admin/usuario/:id/saldo', adminAuth, async (req, res) => {
+app.post('/api/admin/usuario/:id/saldo', adminAuth1, async (req, res) => {
   const valor = parseFloat(req.body.valor);
   const operacao = req.body.operacao;
   const userId = parseInt(req.params.id);
@@ -1132,7 +1159,7 @@ app.post('/api/admin/usuario/:id/saldo', adminAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/usuario/:id/bloquear', adminAuth, async (req, res) => {
+app.post('/api/admin/usuario/:id/bloquear', adminAuth1, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT bloqueado FROM users WHERE id = $1', [req.params.id]);
     const novoStatus = !rows[0]?.bloqueado;
@@ -1334,7 +1361,7 @@ app.post('/api/torneios/:id/inscrever', auth, async (req, res) => {
 });
 
 // ADMIN: criar torneio
-app.post('/api/admin/torneios', adminAuth, async (req, res) => {
+app.post('/api/admin/torneios', adminAuth1, async (req, res) => {
   const { nome, jogo, premio, taxa_inscricao, max_participantes, data_hora } = req.body;
   if (!nome || !jogo || !data_hora) return res.status(400).json({ erro: 'Campos obrigatórios faltando' });
   try {
@@ -1359,7 +1386,7 @@ app.get('/api/admin/torneios', adminAuth, async (req, res) => {
 });
 
 // ADMIN: deletar/cancelar torneio
-app.post('/api/admin/torneios/:id/cancelar', adminAuth, async (req, res) => {
+app.post('/api/admin/torneios/:id/cancelar', adminAuth1, async (req, res) => {
   try {
     // Reembolsar inscritos
     const { rows: insc } = await pool.query('SELECT ti.user_id, t.taxa_inscricao FROM torneio_inscricoes ti JOIN torneios t ON t.id=ti.torneio_id WHERE ti.torneio_id = $1', [req.params.id]);
@@ -1377,6 +1404,129 @@ app.get('/api/admin/torneios/:id/inscritos', adminAuth, async (req, res) => {
     const { rows } = await pool.query('SELECT nome, inscrito_em FROM torneio_inscricoes WHERE torneio_id = $1 ORDER BY inscrito_em', [req.params.id]);
     res.json(rows);
   } catch(e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+
+// ===== MIDDLEWARE: só admin principal (nível 1) =====
+function adminAuth1(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ erro: 'Não autorizado' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (!decoded.admin || decoded.adminNivel !== 1) return res.status(403).json({ erro: 'Apenas o admin principal pode fazer isso' });
+    req.user = decoded;
+    next();
+  } catch { res.status(401).json({ erro: 'Token inválido' }); }
+}
+
+// ===== EXCLUIR CONTA (usuário exclui a própria) =====
+app.delete('/api/perfil/excluir', auth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    await pool.query('DELETE FROM transacoes WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM notificacoes WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM torneio_inscricoes WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM tickets WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ sucesso: true });
+  } catch(e) {
+    console.error('Erro excluir conta:', e.message);
+    res.status(500).json({ erro: 'Erro ao excluir conta' });
+  }
+});
+
+// ===== EXCLUIR CONTA (admin principal exclui qualquer um) =====
+app.delete('/api/admin/usuario/:id', adminAuth1, async (req, res) => {
+  const userId = parseInt(req.params.id);
+  try {
+    await pool.query('DELETE FROM transacoes WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM notificacoes WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM torneio_inscricoes WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM tickets WHERE user_id = $1', [userId]).catch(()=>{});
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ sucesso: true });
+  } catch(e) {
+    console.error('Erro admin excluir:', e.message);
+    res.status(500).json({ erro: 'Erro ao excluir usuário' });
+  }
+});
+
+// ===== TICKETS DE SUPORTE (Dúvidas e Reclamações) =====
+pool.query(`CREATE TABLE IF NOT EXISTS tickets (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER,
+  nome TEXT,
+  email TEXT,
+  assunto TEXT,
+  mensagem TEXT,
+  status TEXT DEFAULT 'aberto',
+  resposta TEXT,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`).catch(e=>console.error('Erro criar tabela tickets:', e.message));
+
+// Usuário envia ticket
+app.post('/api/tickets', auth, async (req, res) => {
+  const { assunto, mensagem } = req.body;
+  if (!assunto || !mensagem) return res.status(400).json({ erro: 'Preencha assunto e mensagem' });
+  try {
+    const { rows: uRows } = await pool.query('SELECT nome, email FROM users WHERE id = $1', [req.user.id]);
+    const u = uRows[0];
+    await pool.query('INSERT INTO tickets (user_id, nome, email, assunto, mensagem) VALUES ($1,$2,$3,$4,$5)',
+      [req.user.id, u.nome, u.email, assunto, mensagem]);
+    res.json({ sucesso: true });
+  } catch(e) {
+    console.error('Erro criar ticket:', e.message);
+    res.status(500).json({ erro: 'Erro ao enviar mensagem' });
+  }
+});
+
+// Usuário vê seus próprios tickets
+app.get('/api/tickets', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM tickets WHERE user_id = $1 ORDER BY criado_em DESC', [req.user.id]);
+    res.json(rows);
+  } catch(e) { res.json([]); }
+});
+
+// Admin (1 ou 2) vê todos os tickets
+app.get('/api/admin/tickets', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM tickets ORDER BY CASE WHEN status=\'aberto\' THEN 0 ELSE 1 END, criado_em DESC');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Admin responde/fecha ticket
+app.post('/api/admin/tickets/:id/responder', adminAuth, async (req, res) => {
+  const { resposta } = req.body;
+  const ticketId = parseInt(req.params.id);
+  try {
+    // Buscar o ticket para saber o user_id
+    const { rows: tRows } = await pool.query('SELECT user_id, assunto FROM tickets WHERE id = $1', [ticketId]);
+    if (!tRows.length) return res.status(404).json({ erro: 'Ticket não encontrado' });
+    await pool.query("UPDATE tickets SET status = 'respondido', resposta = $1 WHERE id = $2", [resposta, ticketId]);
+    // Notificar o usuário da resposta
+    if (resposta && tRows[0].user_id) {
+      await pool.query(`CREATE TABLE IF NOT EXISTS notificacoes (
+        id SERIAL PRIMARY KEY, user_id INTEGER, titulo TEXT, mensagem TEXT,
+        lida BOOLEAN DEFAULT false, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`).catch(()=>{});
+      await pool.query('INSERT INTO notificacoes (user_id, titulo, mensagem) VALUES ($1,$2,$3)',
+        [tRows[0].user_id, '💬 Resposta do suporte', `Sobre "${tRows[0].assunto}": ${resposta}`]);
+    }
+    res.json({ sucesso: true });
+  } catch(e) {
+    console.error('Erro responder ticket:', e.message);
+    res.status(500).json({ erro: 'Erro ao responder' });
+  }
+});
+
+// Contador de tickets abertos (para badge)
+app.get('/api/admin/tickets/count', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT COUNT(*) FROM tickets WHERE status = 'aberto'");
+    res.json({ abertos: parseInt(rows[0].count) });
+  } catch(e) { res.json({ abertos: 0 }); }
 });
 
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

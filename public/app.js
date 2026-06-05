@@ -123,7 +123,7 @@ async function doLogin() {
     token = data.token;
     localStorage.setItem('superduelo_token', token);
     if (data.admin) {
-      usuario = { admin: true, email };
+      usuario = { admin: true, adminNivel: data.adminNivel || 1, email };
       localStorage.setItem('superduelo_user', JSON.stringify(usuario));
       enterAdmin();
     } else { saveUser(data); enterApp(); }
@@ -520,7 +520,8 @@ function adminTab(tab) {
     'usuarios': { div: 'tabUsers', btn: 'atUsers' },
     'jogos': { div: 'tabJogos', btn: 'atJogos' },
     'stats': { div: 'tabStats', btn: 'atStats' },
-    'torneios': { div: 'tabTorneios', btn: 'atTorneios' }
+    'torneios': { div: 'tabTorneios', btn: 'atTorneios' },
+    'tickets': { div: 'tabTickets', btn: 'atTickets' }
   };
   Object.entries(tabMap).forEach(([t, ids]) => {
     const divEl = document.getElementById(ids.div);
@@ -535,9 +536,17 @@ function adminTab(tab) {
   if (tab === 'jogos') carregarJogosAdmin();
   if (tab === 'stats') carregarStatsAdmin();
   if (tab === 'torneios') carregarTorneiosAdmin();
+  if (tab === 'tickets') carregarTicketsAdmin();
 }
 
 async function loadAdmin() {
+  // Ajustar UI conforme nível do admin
+  aplicarNivelAdmin();
+  atualizarBadgeTickets();
+  // Atualizar badge a cada 20s
+  if (!window._ticketBadgeInterval) {
+    window._ticketBadgeInterval = setInterval(atualizarBadgeTickets, 20000);
+  }
   try {
     const headers = { 'Authorization': 'Bearer ' + token };
     const saques = await fetch('/api/admin/saques', { headers }).then(r => r.json());
@@ -549,7 +558,7 @@ async function loadAdmin() {
         <div class="trans-item" style="flex-wrap:wrap;gap:8px;">
           <div class="trans-icon saq">🏦</div>
           <div class="trans-desc">
-            <div class="trans-name">${s.nome} — R$ ${s.valor.toFixed(2)}</div>
+            <div class="trans-name">${s.nome} — R$ ${parseFloat(s.valor).toFixed(2)}</div>
             <div class="trans-date">Chave Pix: ${s.chave_pix || 'não informada'}</div>
             <div class="trans-date">${new Date(s.criado_em).toLocaleString('pt-BR')}</div>
           </div>
@@ -558,6 +567,24 @@ async function loadAdmin() {
       `).join('');
     }
   } catch(e) { console.log('Erro admin:', e); }
+}
+
+// Admin 2 (nível 2) tem acesso reduzido: só vê Suporte e Stats
+function aplicarNivelAdmin() {
+  const nivel = usuario?.adminNivel || 1;
+  if (nivel === 2) {
+    // Esconder abas e botões que Admin 2 não pode usar
+    const esconder = ['atSaques', 'atTorneios']; // saques e torneios só admin 1
+    esconder.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    // Mostrar aviso de conta limitada
+    const header = document.querySelector('#admin .topbar-title');
+    if (header && !header.dataset.lvl2) {
+      header.dataset.lvl2 = '1';
+      header.innerHTML += ' <span style="font-size:11px;color:#a855f7;">(Suporte)</span>';
+    }
+    // Ir direto para tickets
+    setTimeout(() => adminTab('tickets'), 100);
+  }
 }
 
 async function carregarUsuariosAdmin() {
@@ -611,6 +638,19 @@ function abrirEditUser(id) {
     btn.style.color = '#ef4444';
   }
   document.getElementById('modalEditUser').style.display = 'flex';
+
+  // Admin 2 não pode mexer em saldo, bloquear, resetar senha ou excluir
+  const nivel = usuario?.adminNivel || 1;
+  const soAdmin1 = ['btnBloquear', 'btnExcluirUser'];
+  soAdmin1.forEach(bid => { const el = document.getElementById(bid); if (el) el.style.display = nivel===2 ? 'none' : 'block'; });
+  // Esconder seções de saldo e senha para Admin 2
+  const secSaldo = document.getElementById('adminSaldoVal')?.closest('div');
+  if (nivel === 2) {
+    // Esconder os blocos de ajuste de saldo e senha
+    document.querySelectorAll('#modalEditUser [data-admin1]').forEach(el => el.style.display = 'none');
+  } else {
+    document.querySelectorAll('#modalEditUser [data-admin1]').forEach(el => el.style.display = '');
+  }
 }
 
 function fecharEditUser() {
@@ -1178,6 +1218,164 @@ function mostrarToastNotif(titulo, msg, id) {
   // Marcar como lida
   fetch('/api/notificacoes/' + id + '/lida', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(()=>{});
   setTimeout(() => div.remove(), 8000);
+}
+
+
+// ===== SUPORTE / TICKETS (USUÁRIO) =====
+function abrirSuporte() {
+  document.getElementById('supAssunto').value = '';
+  document.getElementById('supMsg').value = '';
+  document.getElementById('supErro').textContent = '';
+  document.getElementById('modalSuporte').style.display = 'flex';
+  carregarMeusTickets();
+}
+function fecharSuporte() { document.getElementById('modalSuporte').style.display = 'none'; }
+
+async function enviarTicket() {
+  const assunto = document.getElementById('supAssunto').value.trim();
+  const mensagem = document.getElementById('supMsg').value.trim();
+  const err = document.getElementById('supErro');
+  if (!assunto || !mensagem) { err.style.color='#ef4444'; err.textContent = 'Preencha assunto e mensagem!'; return; }
+  try {
+    const res = await fetch('/api/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ assunto, mensagem })
+    });
+    const d = await res.json();
+    if (!res.ok) { err.style.color='#ef4444'; err.textContent = d.erro; return; }
+    err.style.color = 'var(--green)';
+    err.textContent = '✅ Mensagem enviada! Responderemos em breve.';
+    document.getElementById('supAssunto').value = '';
+    document.getElementById('supMsg').value = '';
+    carregarMeusTickets();
+  } catch(e) { err.style.color='#ef4444'; err.textContent = 'Erro de conexão'; }
+}
+
+async function carregarMeusTickets() {
+  try {
+    const res = await fetch('/api/tickets', { headers: { Authorization: 'Bearer ' + token } });
+    const tickets = await res.json();
+    const el = document.getElementById('meusTickets');
+    if (!tickets.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px;">📜 Minhas mensagens</div>' +
+      tickets.map(t => `
+        <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-weight:700;font-size:13px;">${t.assunto}</span>
+            <span style="font-size:11px;color:${t.status==='respondido'?'var(--green)':'var(--muted)'};">${t.status==='respondido'?'✅ Respondido':'⏳ Aguardando'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${t.mensagem}</div>
+          ${t.resposta ? `<div style="font-size:12px;color:var(--gold);background:rgba(240,192,64,.08);border-radius:6px;padding:8px;">💬 ${t.resposta}</div>` : ''}
+        </div>
+      `).join('');
+  } catch(e) {}
+}
+
+// ===== EXCLUIR CONTA (USUÁRIO) =====
+function abrirExcluirConta() { document.getElementById('modalExcluir').style.display = 'flex'; }
+
+async function confirmarExcluirConta() {
+  try {
+    const res = await fetch('/api/perfil/excluir', {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.erro || 'Erro ao excluir'); return; }
+    alert('Sua conta foi excluída. Sentiremos sua falta! 👋');
+    localStorage.removeItem('superduelo_token');
+    localStorage.removeItem('superduelo_user');
+    window.location.reload();
+  } catch(e) { alert('Erro de conexão'); }
+}
+
+// ===== TICKETS ADMIN =====
+let ticketAtual = null;
+
+async function carregarTicketsAdmin() {
+  try {
+    const res = await fetch('/api/admin/tickets', { headers: { Authorization: 'Bearer ' + token } });
+    const tickets = await res.json();
+    const el = document.getElementById('adminTickets');
+    if (!tickets.length) { el.innerHTML = '<div class="empty">Nenhuma mensagem de suporte.</div>'; return; }
+    el.innerHTML = tickets.map(t => {
+      const data = new Date(t.criado_em).toLocaleString('pt-BR');
+      const cor = t.status === 'aberto' ? '#ef4444' : 'var(--green)';
+      const stLabel = t.status === 'aberto' ? '⏳ Aberto' : '✅ Respondido';
+      return `
+        <div onclick='abrirResponderTicket(${JSON.stringify(t).replace(/'/g,"&#39;")})' style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${cor};border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:700;font-size:14px;">${t.assunto}</span>
+            <span style="font-size:11px;color:${cor};">${stLabel}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">👤 ${t.nome} · ${t.email}</div>
+          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${t.mensagem.slice(0,100)}${t.mensagem.length>100?'...':''}</div>
+          <div style="font-size:11px;color:var(--muted);">${data}</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) { document.getElementById('adminTickets').innerHTML = '<div class="empty">Erro ao carregar</div>'; }
+}
+
+function abrirResponderTicket(t) {
+  ticketAtual = t;
+  const data = new Date(t.criado_em).toLocaleString('pt-BR');
+  document.getElementById('ticketDetalhe').innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px;">${t.assunto}</div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:8px;">👤 ${t.nome} · ${t.email}<br>📅 ${data}</div>
+    <div style="border-top:1px solid var(--border);padding-top:8px;">${t.mensagem}</div>
+    ${t.resposta ? `<div style="margin-top:8px;color:var(--gold);">💬 Resposta anterior: ${t.resposta}</div>` : ''}
+  `;
+  document.getElementById('ticketResposta').value = t.resposta || '';
+  document.getElementById('modalResponderTicket').style.display = 'flex';
+}
+
+async function responderTicket() {
+  if (!ticketAtual) return;
+  const resposta = document.getElementById('ticketResposta').value.trim();
+  if (!resposta) { alert('Digite uma resposta!'); return; }
+  try {
+    const res = await fetch('/api/admin/tickets/' + ticketAtual.id + '/responder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ resposta })
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.erro); return; }
+    alert('✅ Resposta enviada ao usuário!');
+    document.getElementById('modalResponderTicket').style.display = 'none';
+    carregarTicketsAdmin();
+    atualizarBadgeTickets();
+  } catch(e) { alert('Erro de conexão'); }
+}
+
+async function atualizarBadgeTickets() {
+  try {
+    const res = await fetch('/api/admin/tickets/count', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await res.json();
+    const badge = document.getElementById('ticketBadge');
+    if (badge) {
+      if (d.abertos > 0) { badge.style.display = 'inline'; badge.textContent = d.abertos; }
+      else badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// ===== EXCLUIR USUÁRIO (ADMIN) =====
+async function adminExcluirUsuario() {
+  if (!userEditandoId) return;
+  const u = todosUsuarios.find(u => u.id === userEditandoId);
+  if (!confirm(`Excluir permanentemente a conta de ${u?.nome}? Esta ação não pode ser desfeita.`)) return;
+  try {
+    const res = await fetch('/api/admin/usuario/' + userEditandoId, {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await res.json();
+    if (!res.ok) { alert(d.erro || 'Erro'); return; }
+    alert('✅ Conta excluída!');
+    fecharEditUser();
+    carregarUsuariosAdmin();
+  } catch(e) { alert('Erro de conexão'); }
 }
 
 function openGame(game) {
