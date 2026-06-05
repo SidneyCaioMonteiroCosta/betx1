@@ -92,14 +92,18 @@
       <!-- Banners carregados via JS -->
     </div>
 
-    <!-- TORNEIOS -->
-    <div onclick="showScreen('torneios')" style="margin:4px 16px 16px;background:linear-gradient(135deg,#2a1a4a,#4a2a6a);border:1px solid #6a4a9a;border-radius:14px;padding:16px;cursor:pointer;display:flex;align-items:center;gap:12px;">
-      <div style="font-size:32px;">🏆</div>
-      <div style="flex:1;">
-        <div style="font-weight:800;font-size:16px;color:#fff;">Torneios</div>
-        <div style="font-size:12px;color:#c0a0e0;">Compita por grandes prêmios!</div>
+    <!-- TORNEIOS + RANKING (lado a lado) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 16px 16px;">
+      <div onclick="showScreen('torneios')" style="background:linear-gradient(135deg,#2a1a4a,#4a2a6a);border:1px solid #6a4a9a;border-radius:14px;padding:16px;cursor:pointer;text-align:center;">
+        <div style="font-size:28px;">🏆</div>
+        <div style="font-weight:800;font-size:14px;color:#fff;margin-top:4px;">Torneios</div>
+        <div style="font-size:11px;color:#c0a0e0;">Grandes prêmios</div>
       </div>
-      <div style="color:#c0a0e0;font-size:20px;">›</div>
+      <div onclick="showScreen('ranking')" style="background:linear-gradient(135deg,#1a3a4a,#2a5a6a);border:1px solid #4a8a9a;border-radius:14px;padding:16px;cursor:pointer;text-align:center;">
+        <div style="font-size:28px;">📊</div>
+        <div style="font-weight:800;font-size:14px;color:#fff;margin-top:4px;">Ranking</div>
+        <div style="font-size:11px;color:#a0d0e0;">Semana e mês</div>
+      </div>
     </div>
 
     <!-- JOGOS EM DESTAQUE -->
@@ -333,6 +337,8 @@
     <div onclick="adminTab('torneios')" id="atTorneios" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🏆 Torneios</div>
     <div onclick="adminTab('tickets')" id="atTickets" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;position:relative;">💬 Suporte<span id="ticketBadge" style="display:none;position:absolute;top:4px;right:8px;background:#ef4444;color:#fff;font-size:10px;padding:1px 5px;border-radius:10px;">0</span></div>
     <div onclick="adminTab('banners')" id="atBanners" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🖼️ Novidades</div>
+    <div onclick="adminTab('indicacoes')" id="atIndicacoes" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🎁 Indicações</div>
+    <div onclick="adminTab('rankadmin')" id="atRankadmin" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">📊 Ranking</div>
   </div>
   <div class="scrollable">
     <div style="padding:16px;">
@@ -376,6 +382,37 @@
         <button onclick="abrirCriarBanner()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:16px;">➕ ADICIONAR NOVIDADE</button>
         <div class="section-label">Banners da tela inicial</div>
         <div id="adminBanners"><div class="empty">Carregando...</div></div>
+      </div>
+
+      <!-- INDICAÇÕES ADMIN -->
+      <div id="tabIndicacoes" style="display:none;">
+        <div class="section-label">Quem está indicando amigos</div>
+        <div id="adminIndicacoes"><div class="empty">Carregando...</div></div>
+      </div>
+
+      <!-- RANKING ADMIN -->
+      <div id="tabRankadmin" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button onclick="setAdminRankJogo('airhockey')" id="arjAir" style="flex:1;padding:9px;border:2px solid var(--gold);background:rgba(240,192,64,.15);color:var(--gold);border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">🏒 Air Hockey</button>
+          <button onclick="setAdminRankJogo('flappy')" id="arjFlap" style="flex:1;padding:9px;border:2px solid var(--border);background:transparent;color:var(--muted);border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">🐦 Flappy</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button onclick="setAdminRankPer('semana')" id="arpSem" style="flex:1;padding:8px;border:1px solid var(--gold);background:rgba(240,192,64,.1);color:var(--gold);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Semana</button>
+          <button onclick="setAdminRankPer('mes')" id="arpMes" style="flex:1;padding:8px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Mês</button>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px;">💰 Configurar prêmios</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Defina quanto cada posição recebe. Deixe 0 para não premiar.</div>
+          <div id="premiosConfig"></div>
+          <button onclick="adicionarPosicaoPremio()" style="width:100%;padding:8px;background:rgba(240,192,64,.1);border:1px dashed rgba(240,192,64,.3);color:var(--gold);border-radius:8px;font-size:13px;cursor:pointer;margin-top:8px;">+ Adicionar posição</button>
+          <button onclick="salvarPremiosRanking()" style="width:100%;padding:11px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-top:10px;">💾 Salvar prêmios</button>
+        </div>
+
+        <button onclick="pagarPremiosRanking()" style="width:100%;padding:12px;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.4);color:var(--green);border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:16px;">✅ Pagar prêmios aos ganhadores atuais</button>
+
+        <div class="section-label">Ranking atual</div>
+        <div id="adminRankLista"><div class="empty">Carregando...</div></div>
       </div>
 
       <!-- STATS -->
@@ -746,6 +783,17 @@
         <button onclick="compartilharConvite()" style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#25D366,#1da851);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📱 Compartilhar no WhatsApp</button>
       </div>
 
+      <!-- Inserir código de quem indicou -->
+      <div id="boxInserirCodigo" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">Alguém te indicou?</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Coloque o código de quem te convidou (só antes da 1ª partida)</div>
+        <div style="display:flex;gap:8px;">
+          <input id="inputCodigoIndicador" type="text" placeholder="Ex: SD12ABC" oninput="this.value=this.value.toUpperCase()" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;">
+          <button onclick="aplicarCodigoIndicacao()" style="padding:10px 18px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Usar</button>
+        </div>
+        <div id="msgIndicador" style="font-size:12px;margin-top:8px;min-height:16px;"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;">
           <div style="font-size:22px;font-weight:800;color:var(--gold);" id="totalIndicados">0</div>
@@ -757,14 +805,44 @@
         </div>
       </div>
 
-      <div class="section-label">Seus indicados</div>
-      <div id="listaIndicados"><div class="empty">Nenhum amigo indicado ainda.</div></div>
+      <div class="section-label">Quem usou seu código</div>
+      <div id="listaIndicados"><div class="empty">Ninguém usou seu código ainda.</div></div>
     </div>
   </div>
   <div class="bottomnav">
     <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
     <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
     <div class="navitem active" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
+  </div>
+</div>
+
+<!-- RANKING SCREEN (usuário) -->
+<div id="ranking" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('lobby')">←</button>
+    <div class="topbar-title">📊 RANKING</div>
+  </div>
+  <div class="scrollable">
+    <div style="padding:16px;">
+      <!-- Seletor de jogo -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button onclick="setRankJogo('airhockey')" id="rjAir" style="flex:1;padding:10px;border:2px solid var(--gold);background:rgba(240,192,64,.15);color:var(--gold);border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">🏒 Air Hockey</button>
+        <button onclick="setRankJogo('flappy')" id="rjFlap" style="flex:1;padding:10px;border:2px solid var(--border);background:transparent;color:var(--muted);border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">🐦 Flappy</button>
+      </div>
+      <!-- Seletor de período -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button onclick="setRankPer('semana')" id="rpSem" style="flex:1;padding:8px;border:1px solid var(--gold);background:rgba(240,192,64,.1);color:var(--gold);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Semana</button>
+        <button onclick="setRankPer('mes')" id="rpMes" style="flex:1;padding:8px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Mês</button>
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:12px;margin-bottom:12px;">Vitória +2 · Empate +1 · Derrota −1</div>
+      <div id="premiosInfo" style="margin-bottom:12px;"></div>
+      <div id="rankingGeralLista"><div class="empty">Carregando ranking...</div></div>
+    </div>
+  </div>
+  <div class="bottomnav">
+    <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
+    <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
+    <div class="navitem" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
   </div>
 </div>
 <script src="app.js"></script>

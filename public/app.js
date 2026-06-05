@@ -91,6 +91,7 @@ function showScreen(id) {
   if (id === 'wallet') { atualizarSaldoServidor(); loadTransacoes(); }
   if (id === 'stats') carregarHistorico();
   if (id === 'torneios') carregarTorneios();
+  if (id === 'ranking') carregarRankingGeral();
   if (id === 'admin') loadAdmin();
   if (id === 'profile') carregarPerfil();
 }
@@ -524,7 +525,9 @@ function adminTab(tab) {
     'stats': { div: 'tabStats', btn: 'atStats' },
     'torneios': { div: 'tabTorneios', btn: 'atTorneios' },
     'tickets': { div: 'tabTickets', btn: 'atTickets' },
-    'banners': { div: 'tabBanners', btn: 'atBanners' }
+    'banners': { div: 'tabBanners', btn: 'atBanners' },
+    'indicacoes': { div: 'tabIndicacoes', btn: 'atIndicacoes' },
+    'rankadmin': { div: 'tabRankadmin', btn: 'atRankadmin' }
   };
   Object.entries(tabMap).forEach(([t, ids]) => {
     const divEl = document.getElementById(ids.div);
@@ -541,6 +544,8 @@ function adminTab(tab) {
   if (tab === 'torneios') carregarTorneiosAdmin();
   if (tab === 'tickets') carregarTicketsAdmin();
   if (tab === 'banners') carregarBannersAdmin();
+  if (tab === 'indicacoes') carregarIndicacoesAdmin();
+  if (tab === 'rankadmin') carregarRankAdmin();
 }
 
 async function loadAdmin() {
@@ -1592,6 +1597,201 @@ function carregarImagemBanner(event) {
     document.getElementById('bannerPreview').style.backgroundPosition = 'center';
   };
   reader.readAsDataURL(file);
+}
+
+
+// ===== APLICAR CÓDIGO DE INDICAÇÃO =====
+async function aplicarCodigoIndicacao() {
+  const codigo = document.getElementById('inputCodigoIndicador').value.trim().toUpperCase();
+  const msg = document.getElementById('msgIndicador');
+  if (!codigo) { msg.style.color='#ef4444'; msg.textContent='Digite um código!'; return; }
+  try {
+    const res = await fetch('/api/convite/aplicar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ codigo })
+    });
+    const d = await res.json();
+    if (!res.ok) { msg.style.color='#ef4444'; msg.textContent = d.erro; return; }
+    msg.style.color='var(--green)'; msg.textContent='✅ Código aplicado! Quem te indicou ganhará R$5 quando você jogar 50 partidas.';
+    document.getElementById('inputCodigoIndicador').value='';
+    document.getElementById('boxInserirCodigo').style.display='none';
+  } catch(e) { msg.style.color='#ef4444'; msg.textContent='Erro de conexão'; }
+}
+
+// ===== RANKING GERAL (tela do usuário) =====
+let rankJogo = 'airhockey', rankPer = 'semana';
+function setRankJogo(j){
+  rankJogo = j;
+  document.getElementById('rjAir').style.borderColor = j==='airhockey'?'var(--gold)':'var(--border)';
+  document.getElementById('rjAir').style.color = j==='airhockey'?'var(--gold)':'var(--muted)';
+  document.getElementById('rjAir').style.background = j==='airhockey'?'rgba(240,192,64,.15)':'transparent';
+  document.getElementById('rjFlap').style.borderColor = j==='flappy'?'var(--gold)':'var(--border)';
+  document.getElementById('rjFlap').style.color = j==='flappy'?'var(--gold)':'var(--muted)';
+  document.getElementById('rjFlap').style.background = j==='flappy'?'rgba(240,192,64,.15)':'transparent';
+  carregarRankingGeral();
+}
+function setRankPer(p){
+  rankPer = p;
+  document.getElementById('rpSem').style.borderColor = p==='semana'?'var(--gold)':'var(--border)';
+  document.getElementById('rpSem').style.color = p==='semana'?'var(--gold)':'var(--muted)';
+  document.getElementById('rpSem').style.background = p==='semana'?'rgba(240,192,64,.1)':'transparent';
+  document.getElementById('rpMes').style.borderColor = p==='mes'?'var(--gold)':'var(--border)';
+  document.getElementById('rpMes').style.color = p==='mes'?'var(--gold)':'var(--muted)';
+  document.getElementById('rpMes').style.background = p==='mes'?'rgba(240,192,64,.1)':'transparent';
+  carregarRankingGeral();
+}
+async function carregarRankingGeral(){
+  const el = document.getElementById('rankingGeralLista');
+  el.innerHTML = '<div class="empty">Carregando...</div>';
+  try {
+    // Prêmios configurados
+    const resP = await fetch(`/api/ranking-premios/${rankJogo}/${rankPer}`, {headers:{Authorization:'Bearer '+token}});
+    const premios = await resP.json();
+    const pInfo = document.getElementById('premiosInfo');
+    if(premios.length){
+      pInfo.innerHTML = '<div style="background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.2);border-radius:10px;padding:12px;"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:6px;">🏆 Prêmios deste ranking</div>' +
+        premios.map(p=>`<span style="display:inline-block;font-size:12px;color:var(--text);margin-right:12px;">${p.posicao}º: <strong style="color:var(--gold)">R$${p.valor.toFixed(2)}</strong></span>`).join('') + '</div>';
+    } else { pInfo.innerHTML=''; }
+
+    const res = await fetch(`/api/ranking/${rankJogo}/${rankPer}`, {headers:{Authorization:'Bearer '+token}});
+    const d = await res.json();
+    if(!d.ranking || !d.ranking.length){ el.innerHTML='<div class="empty">Nenhum jogador no ranking ainda. Jogue para aparecer aqui! 🏆</div>'; return; }
+    const medalhas=['🥇','🥈','🥉'];
+    el.innerHTML = d.ranking.map((r,i)=>{
+      const premiado = premios.find(p=>p.posicao===i+1);
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.05);${r.user_id===d.meuId?'background:rgba(240,192,64,.06);border-radius:8px;':''}">
+        <div style="width:28px;text-align:center;font-size:${i<3?'18px':'14px'};font-weight:700;color:${i<3?'var(--gold)':'var(--muted)'};">${medalhas[i]||(i+1)}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;color:var(--text);">${r.nome}${r.user_id===d.meuId?' <span style="color:var(--gold);font-size:11px;">(você)</span>':''}</div>
+          ${premiado?`<div style="font-size:11px;color:var(--green);">🏆 Prêmio: R$${premiado.valor.toFixed(2)}</div>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);">Nv${r.nivel||1}</div>
+        <div style="font-size:15px;font-weight:700;color:${r.pontos>=0?'var(--green)':'#ef4444'};min-width:48px;text-align:right;">${r.pontos>0?'+':''}${r.pontos}</div>
+      </div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="empty">Erro ao carregar</div>'; }
+}
+
+// ===== ADMIN: INDICAÇÕES =====
+async function carregarIndicacoesAdmin(){
+  const el = document.getElementById('adminIndicacoes');
+  try {
+    const res = await fetch('/api/admin/indicacoes', {headers:{Authorization:'Bearer '+token}});
+    const grupos = await res.json();
+    if(!grupos.length){ el.innerHTML='<div class="empty">Nenhuma indicação ainda.</div>'; return; }
+    el.innerHTML = grupos.map(g=>`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div><div style="font-weight:700;font-size:14px;">${g.nome}</div><div style="font-size:11px;color:var(--muted);">Código: ${g.codigo}</div></div>
+          <div style="text-align:right;"><div style="font-size:16px;font-weight:700;color:var(--green);">R$${g.totalGanho.toFixed(2)}</div><div style="font-size:11px;color:var(--muted);">ganho</div></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:8px;">
+          ${g.indicados.map(i=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;">
+              <span>${i.completo?'✅':'⏳'} ${i.nome}</span>
+              <span style="color:${i.completo?'var(--green)':'var(--muted)'};">${i.completo?'R$5 pago':`${i.partidas}/50 partidas (faltam ${50-i.partidas})`}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  } catch(e){ el.innerHTML='<div class="empty">Erro ao carregar</div>'; }
+}
+
+// ===== ADMIN: RANKING + PRÊMIOS =====
+let admRankJogo = 'airhockey', admRankPer = 'semana';
+let premiosAtuais = [{posicao:1,valor:0}];
+
+function setAdminRankJogo(j){
+  admRankJogo = j;
+  document.getElementById('arjAir').style.borderColor = j==='airhockey'?'var(--gold)':'var(--border)';
+  document.getElementById('arjAir').style.color = j==='airhockey'?'var(--gold)':'var(--muted)';
+  document.getElementById('arjAir').style.background = j==='airhockey'?'rgba(240,192,64,.15)':'transparent';
+  document.getElementById('arjFlap').style.borderColor = j==='flappy'?'var(--gold)':'var(--border)';
+  document.getElementById('arjFlap').style.color = j==='flappy'?'var(--gold)':'var(--muted)';
+  document.getElementById('arjFlap').style.background = j==='flappy'?'rgba(240,192,64,.15)':'transparent';
+  carregarRankAdmin();
+}
+function setAdminRankPer(p){
+  admRankPer = p;
+  document.getElementById('arpSem').style.borderColor = p==='semana'?'var(--gold)':'var(--border)';
+  document.getElementById('arpSem').style.color = p==='semana'?'var(--gold)':'var(--muted)';
+  document.getElementById('arpSem').style.background = p==='semana'?'rgba(240,192,64,.1)':'transparent';
+  document.getElementById('arpMes').style.borderColor = p==='mes'?'var(--gold)':'var(--border)';
+  document.getElementById('arpMes').style.color = p==='mes'?'var(--gold)':'var(--muted)';
+  document.getElementById('arpMes').style.background = p==='mes'?'rgba(240,192,64,.1)':'transparent';
+  carregarRankAdmin();
+}
+function renderPremiosConfig(){
+  const el = document.getElementById('premiosConfig');
+  el.innerHTML = premiosAtuais.map((p,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <span style="font-size:13px;color:var(--muted);min-width:50px;">${p.posicao}º lugar</span>
+      <span style="font-size:13px;color:var(--muted);">R$</span>
+      <input type="number" value="${p.valor}" onchange="premiosAtuais[${i}].valor=parseFloat(this.value)||0" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:14px;">
+      <button onclick="removerPosicaoPremio(${i})" style="padding:6px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>
+    </div>
+  `).join('');
+}
+function adicionarPosicaoPremio(){
+  premiosAtuais.push({posicao: premiosAtuais.length+1, valor:0});
+  renderPremiosConfig();
+}
+function removerPosicaoPremio(i){
+  premiosAtuais.splice(i,1);
+  premiosAtuais.forEach((p,idx)=>p.posicao=idx+1);
+  renderPremiosConfig();
+}
+async function carregarRankAdmin(){
+  // Carregar prêmios configurados
+  try {
+    const resP = await fetch(`/api/admin/ranking-premios/${admRankJogo}/${admRankPer}`, {headers:{Authorization:'Bearer '+token}});
+    const premios = await resP.json();
+    premiosAtuais = premios.length ? premios.map(p=>({posicao:p.posicao,valor:p.valor})) : [{posicao:1,valor:0}];
+    renderPremiosConfig();
+  } catch(e){ premiosAtuais=[{posicao:1,valor:0}]; renderPremiosConfig(); }
+  // Carregar ranking atual
+  const el = document.getElementById('adminRankLista');
+  try {
+    const res = await fetch(`/api/ranking/${admRankJogo}/${admRankPer}`, {headers:{Authorization:'Bearer '+token}});
+    const d = await res.json();
+    if(!d.ranking || !d.ranking.length){ el.innerHTML='<div class="empty">Ninguém no ranking ainda.</div>'; return; }
+    const medalhas=['🥇','🥈','🥉'];
+    el.innerHTML = d.ranking.map((r,i)=>`
+      <div class="trans-item">
+        <div style="width:28px;text-align:center;font-weight:700;color:${i<3?'var(--gold)':'var(--muted)'};">${medalhas[i]||(i+1)}</div>
+        <div class="trans-desc"><div class="trans-name">${r.nome}</div><div class="trans-date">Nível ${r.nivel||1}</div></div>
+        <div class="trans-val ${r.pontos>=0?'pos':'neg'}">${r.pontos>0?'+':''}${r.pontos} pts</div>
+      </div>
+    `).join('');
+  } catch(e){ el.innerHTML='<div class="empty">Erro</div>'; }
+}
+async function salvarPremiosRanking(){
+  try {
+    const res = await fetch('/api/admin/ranking-premios', {
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+      body: JSON.stringify({ jogo: admRankJogo, periodo: admRankPer, premios: premiosAtuais })
+    });
+    const d = await res.json();
+    if(!res.ok){ alert(d.erro); return; }
+    alert('✅ Prêmios salvos!');
+  } catch(e){ alert('Erro de conexão'); }
+}
+async function pagarPremiosRanking(){
+  if(!confirm('Pagar os prêmios aos ganhadores atuais do ranking? Os valores serão creditados nas contas.')) return;
+  try {
+    const res = await fetch('/api/admin/ranking-premios/pagar', {
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+      body: JSON.stringify({ jogo: admRankJogo, periodo: admRankPer })
+    });
+    const d = await res.json();
+    if(!res.ok){ alert(d.erro); return; }
+    alert(`✅ ${d.pagos} jogador(es) premiado(s)!`);
+  } catch(e){ alert('Erro de conexão'); }
 }
 
 function openGame(game) {

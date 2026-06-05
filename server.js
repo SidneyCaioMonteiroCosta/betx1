@@ -1731,6 +1731,51 @@ app.get('/api/ranking/:jogo/:periodo', auth, async (req, res) => {
 });
 
 // ===== REFERRAL: meus dados de indicação =====
+// Aplicar código de convite (para quem não colocou no cadastro)
+app.post('/api/convite/aplicar', auth, async (req, res) => {
+  const { codigo } = req.body;
+  if (!codigo) return res.status(400).json({ erro: 'Informe o código' });
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS convidado_por INTEGER').catch(()=>{});
+    // Verificar se o usuário já foi convidado por alguém
+    const { rows: meu } = await pool.query('SELECT convidado_por, codigo_convite, partidas_online FROM users WHERE id = $1', [req.user.id]);
+    if (meu[0]?.convidado_por) return res.status(400).json({ erro: 'Você já usou um código de convite' });
+    if ((meu[0]?.partidas_online || 0) > 0) return res.status(400).json({ erro: 'Você só pode usar um código antes de jogar a primeira partida' });
+    // Achar o dono do código
+    const { rows: dono } = await pool.query('SELECT id FROM users WHERE codigo_convite = $1', [codigo.toUpperCase()]);
+    if (!dono.length) return res.status(404).json({ erro: 'Código inválido' });
+    if (dono[0].id === req.user.id) return res.status(400).json({ erro: 'Você não pode usar seu próprio código' });
+    // Aplicar
+    await pool.query('UPDATE users SET convidado_por = $1 WHERE id = $2', [dono[0].id, req.user.id]);
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ADMIN: ver todas as indicações
+app.get('/api/admin/indicacoes', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        c.id as convidador_id, c.nome as convidador_nome, c.codigo_convite,
+        a.nome as indicado_nome, a.partidas_online, a.bonus_pago
+      FROM users a
+      JOIN users c ON c.id = a.convidado_por
+      ORDER BY c.nome, a.partidas_online DESC
+    `);
+    // Agrupar por convidador
+    const grupos = {};
+    for (const r of rows) {
+      if (!grupos[r.convidador_id]) {
+        grupos[r.convidador_id] = { nome: r.convidador_nome, codigo: r.codigo_convite, indicados: [], totalGanho: 0 };
+      }
+      const partidas = Math.min(r.partidas_online || 0, 50);
+      grupos[r.convidador_id].indicados.push({ nome: r.indicado_nome, partidas, completo: r.bonus_pago });
+      if (r.bonus_pago) grupos[r.convidador_id].totalGanho += 5;
+    }
+    res.json(Object.values(grupos));
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
 app.get('/api/convite', auth, async (req, res) => {
   try {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS codigo_convite TEXT').catch(()=>{});
@@ -1761,6 +1806,101 @@ app.get('/api/convite/indicados', auth, async (req, res) => {
     );
     res.json(rows.map(r => ({ nome: r.nome, partidas: Math.min(r.partidas_online||0, 50), completo: r.bonus_pago })));
   } catch(e) { res.json([]); }
+});
+
+
+// ===== RECOMPENSAS DE RANKING (admin define) =====
+pool.query(`CREATE TABLE IF NOT EXISTS ranking_premios (
+  id SERIAL PRIMARY KEY,
+  jogo TEXT NOT NULL,
+  periodo TEXT NOT NULL,
+  posicao INTEGER NOT NULL,
+  valor REAL NOT NULL,
+  UNIQUE(jogo, periodo, posicao)
+)`).catch(e=>console.error('Erro tabela ranking_premios:', e.message));
+
+// Listar prêmios configurados (público - mostra no ranking)
+app.get('/api/ranking-premios/:jogo/:periodo', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT posicao, valor FROM ranking_premios WHERE jogo=$1 AND periodo=$2 ORDER BY posicao',
+      [req.params.jogo, req.params.periodo]
+    );
+    res.json(rows);
+  } catch(e) { res.json([]); }
+});
+
+// ADMIN: ver prêmios configurados
+app.get('/api/admin/ranking-premios/:jogo/:periodo', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT posicao, valor FROM ranking_premios WHERE jogo=$1 AND periodo=$2 ORDER BY posicao',
+      [req.params.jogo, req.params.periodo]
+    );
+    res.json(rows);
+  } catch(e) { res.json([]); }
+});
+
+// ADMIN: salvar prêmios (substitui todos do jogo/período)
+app.post('/api/admin/ranking-premios', adminAuth1, async (req, res) => {
+  const { jogo, periodo, premios } = req.body; // premios: [{posicao, valor}, ...]
+  if (!jogo || !periodo || !Array.isArray(premios)) return res.status(400).json({ erro: 'Dados inválidos' });
+  try {
+    await pool.query('DELETE FROM ranking_premios WHERE jogo=$1 AND periodo=$2', [jogo, periodo]);
+    for (const p of premios) {
+      if (p.valor > 0) {
+        await pool.query(
+          'INSERT INTO ranking_premios (jogo, periodo, posicao, valor) VALUES ($1,$2,$3,$4) ON CONFLICT (jogo,periodo,posicao) DO UPDATE SET valor=$4',
+          [jogo, periodo, p.posicao, p.valor]
+        );
+      }
+    }
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ADMIN: pagar prêmios do ranking atual (distribui aos top colocados)
+app.post('/api/admin/ranking-premios/pagar', adminAuth1, async (req, res) => {
+  const { jogo, periodo } = req.body;
+  try {
+    // Buscar prêmios configurados
+    const { rows: premios } = await pool.query(
+      'SELECT posicao, valor FROM ranking_premios WHERE jogo=$1 AND periodo=$2 ORDER BY posicao',
+      [jogo, periodo]
+    );
+    if (!premios.length) return res.status(400).json({ erro: 'Nenhum prêmio configurado' });
+
+    // Buscar ranking atual
+    const agora = new Date();
+    let filtro, valor;
+    if (periodo === 'semana') {
+      filtro = 'semana';
+      valor = `${agora.getFullYear()}-W${Math.ceil((agora.getDate() + new Date(agora.getFullYear(),agora.getMonth(),1).getDay())/7)}-${agora.getMonth()}`;
+    } else {
+      filtro = 'mes';
+      valor = `${agora.getFullYear()}-${agora.getMonth()}`;
+    }
+    const { rows: rank } = await pool.query(
+      `SELECT user_id FROM ranking WHERE jogo=$1 AND ${filtro}=$2 ORDER BY pontos DESC LIMIT 50`,
+      [jogo, valor]
+    );
+
+    let pagos = 0;
+    for (const premio of premios) {
+      const idx = premio.posicao - 1;
+      if (rank[idx]) {
+        const uid = rank[idx].user_id;
+        await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [premio.valor, uid]);
+        await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
+          [uid, 'bonus', premio.valor, `Prêmio ranking ${jogo} (${premio.posicao}º lugar)`, 'concluido']);
+        await pool.query(`CREATE TABLE IF NOT EXISTS notificacoes (id SERIAL PRIMARY KEY, user_id INTEGER, titulo TEXT, mensagem TEXT, lida BOOLEAN DEFAULT false, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(()=>{});
+        await pool.query('INSERT INTO notificacoes (user_id, titulo, mensagem) VALUES ($1,$2,$3)',
+          [uid, '🏆 Prêmio do Ranking!', `Você ficou em ${premio.posicao}º no ranking de ${jogo} e ganhou R$${premio.valor.toFixed(2)}!`]);
+        pagos++;
+      }
+    }
+    res.json({ sucesso: true, pagos });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

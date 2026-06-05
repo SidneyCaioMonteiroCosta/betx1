@@ -67,6 +67,11 @@
 <body>
 
 <div id="lobby">
+  <!-- Barra superior com voltar e como funciona -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <button onclick="window.location.href='/'" style="background:none;border:none;color:#6b7db3;font-size:22px;cursor:pointer;padding:4px 8px;">←</button>
+    <button onclick="abrirRegras()" style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600;">❓ Como funciona</button>
+  </div>
   <div class="logo">
     <h1>🐦 Flappy Duelo</h1>
     <p>Jogue e ganhe de verdade</p>
@@ -149,8 +154,7 @@
     </div>
     <input type="number" id="valor-aposta" min="1" step="1" value="5" style="display:none;">
   </div>
-  <button onclick="abrirRegras()" style="width:100%;padding:12px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);color:#a855f7;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px;">❓ Como Funciona</button>
-<button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
+  <button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
 <button id="salaBtn" style="width:100%;padding:14px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;" onclick="abrirModalSalaFlappy()">🏠 CRIAR / ENTRAR EM SALA</button>
   <div class="card" style="margin-top:10px;">
     <h3>Escolha seu pássaro</h3>
@@ -881,7 +885,8 @@ function copiarCodigo() {
 
 function conectarSocket() {
   if (!token) { alert('Faça login primeiro!'); return false; }
-  if (!socket || !socket.connected) conectar();
+  // socket já é criado no topo com io(); só garantir que está conectado
+  if (socket && !socket.connected) socket.connect();
   return true;
 }
 
