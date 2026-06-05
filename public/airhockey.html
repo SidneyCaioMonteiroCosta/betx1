@@ -39,6 +39,17 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
     <div style="font-size:13px;color:var(--muted);">1v1 · Primeiro a 7 gols · Vencedor leva 175% da premiação</div>
   </div>
 
+  <!-- RANKING -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin:8px 0 12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-weight:700;font-size:15px;color:var(--gold);">🏆 Ranking Air Hockey</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="setRankPeriodo('semana')" id="rkSemana" style="padding:5px 12px;background:rgba(240,192,64,.15);border:1px solid var(--gold);color:var(--gold);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Semana</button>
+        <button onclick="setRankPeriodo('mes')" id="rkMes" style="padding:5px 12px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Mês</button>
+      </div>
+    </div>
+    <div id="rankingLista"><div style="text-align:center;color:var(--muted);font-size:13px;padding:10px;">Carregando...</div></div>
+  </div>
 
   <!-- BOT -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;">
@@ -155,7 +166,8 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
 <div id="result">
   <div style="font-size:64px;margin-bottom:12px;" id="resEmoji">🏆</div>
   <div style="font-size:32px;font-weight:900;margin-bottom:8px;" id="resTitle">VOCÊ VENCEU!</div>
-  <div style="font-size:18px;color:var(--gold);margin-bottom:24px;" id="resPrize"></div>
+  <div style="font-size:18px;color:var(--gold);margin-bottom:8px;" id="resPrize"></div>
+  <div style="font-size:15px;margin-bottom:24px;display:none;" id="resNivel"></div>
   <button onclick="voltarLobby()" style="padding:14px 32px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer;">JOGAR NOVAMENTE</button>
 </div>
 
@@ -272,6 +284,39 @@ function selVal(v, el, arena) {
 }
 
 function abrirRegras(){document.getElementById('modalRegras').style.display='flex';}
+
+// ===== RANKING =====
+let rankPeriodo = 'semana';
+function setRankPeriodo(p){
+  rankPeriodo = p;
+  document.getElementById('rkSemana').style.background = p==='semana'?'rgba(240,192,64,.15)':'transparent';
+  document.getElementById('rkSemana').style.borderColor = p==='semana'?'var(--gold)':'var(--border)';
+  document.getElementById('rkSemana').style.color = p==='semana'?'var(--gold)':'var(--muted)';
+  document.getElementById('rkMes').style.background = p==='mes'?'rgba(240,192,64,.15)':'transparent';
+  document.getElementById('rkMes').style.borderColor = p==='mes'?'var(--gold)':'var(--border)';
+  document.getElementById('rkMes').style.color = p==='mes'?'var(--gold)':'var(--muted)';
+  carregarRanking();
+}
+async function carregarRanking(){
+  if(!token) { document.getElementById('rankingLista').innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:10px;">Faça login para ver o ranking</div>'; return; }
+  try{
+    const res = await fetch('/api/ranking/airhockey/'+rankPeriodo, {headers:{Authorization:'Bearer '+token}});
+    const d = await res.json();
+    const el = document.getElementById('rankingLista');
+    if(!d.ranking || !d.ranking.length){ el.innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:10px;">Nenhum jogador no ranking ainda. Seja o primeiro! 🏆</div>'; return; }
+    const medalhas=['🥇','🥈','🥉'];
+    el.innerHTML = d.ranking.map((r,i)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.05);${r.user_id===d.meuId?'background:rgba(240,192,64,.06);border-radius:8px;':''}">
+        <div style="width:24px;text-align:center;font-size:${i<3?'16px':'13px'};font-weight:700;color:${i<3?'var(--gold)':'var(--muted)'};">${medalhas[i]||(i+1)}</div>
+        <div style="flex:1;font-size:13px;color:var(--text);">${r.nome}${r.user_id===d.meuId?' <span style="color:var(--gold);font-size:11px;">(você)</span>':''}</div>
+        <div style="font-size:11px;color:var(--muted);">Nv${r.nivel||1}</div>
+        <div style="font-size:14px;font-weight:700;color:${r.pontos>=0?'var(--green)':'#ef4444'};min-width:42px;text-align:right;">${r.pontos>0?'+':''}${r.pontos} pts</div>
+      </div>
+    `).join('');
+  }catch(e){ document.getElementById('rankingLista').innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:10px;">Erro ao carregar</div>'; }
+}
+// Carregar ranking ao abrir
+setTimeout(carregarRanking, 600);
 
 // ── SALAS ────────────────────────────────────────────
 function abrirSala(){
@@ -501,33 +546,28 @@ function onMove(e){
 }
 
 // ── RENDER ───────────────────────────────────────────
-let lastStateTime = 0;
 function renderFrame(){
   if(!ctx)return;
   const A=ARENAS[arenaId];
 
   if(botMode){
-    // Bot: estado local é a verdade, copia direto
+    // Bot: estado local é a verdade
     rs.bx=gs.bx; rs.by=gs.by;
     rs.m1x=gs.m1x; rs.m1y=gs.m1y;
     rs.m2x=gs.m2x; rs.m2y=gs.m2y;
   } else {
-    // ONLINE: predição + correção (anti-lag)
-    // A bola CONTINUA se movendo pela velocidade entre updates (predição local)
-    // e corrige suavemente para a posição do servidor quando chega novo estado
-    rs.bx += gs.bvx; rs.by += gs.bvy;
-    // Correção suave em direção ao estado autoritativo do servidor
-    const corr = 0.18;
-    rs.bx += (gs.bx-rs.bx)*corr;
-    rs.by += (gs.by-rs.by)*corr;
-    // Mallet do oponente: interpolação rápida
-    const km = 0.45;
+    // ONLINE: interpolação suave em direção ao estado do servidor.
+    // Fator alto (0.55) = responsivo. A bola SEMPRE segue o servidor (sem predição).
+    const k = 0.55;
+    rs.bx += (gs.bx-rs.bx)*k;
+    rs.by += (gs.by-rs.by)*k;
+    // Mallet do oponente interpola; o meu é instantâneo (input local)
     if(myRole==='p1'){
-      rs.m2x += (gs.m2x-rs.m2x)*km; rs.m2y += (gs.m2y-rs.m2y)*km;
-      rs.m1x = mx; rs.m1y = my; // meu mallet = instantâneo
+      rs.m2x += (gs.m2x-rs.m2x)*k; rs.m2y += (gs.m2y-rs.m2y)*k;
+      rs.m1x = mx; rs.m1y = my;
     } else {
-      rs.m1x += (gs.m1x-rs.m1x)*km; rs.m1y += (gs.m1y-rs.m1y)*km;
-      rs.m2x = mx; rs.m2y = my; // meu mallet = instantâneo
+      rs.m1x += (gs.m1x-rs.m1x)*k; rs.m1y += (gs.m1y-rs.m1y)*k;
+      rs.m2x = mx; rs.m2y = my;
     }
   }
 
@@ -672,7 +712,7 @@ function conectarSocket(){
     gameOver=true;cancelAnimationFrame(animId);
     const ganhou=data.winner===myRole;
     const p=(data.prize||0).toFixed(2).replace('.',',');
-    mostrarRes(ganhou,ganhou?`+R$ ${p}`:`-R$ ${valorSel.toFixed(2).replace('.',',')}`,true);
+    mostrarRes(ganhou,ganhou?`+R$ ${p}`:`-R$ ${valorSel.toFixed(2).replace('.',',')}`,true,data.nivelMudou,data.nivel);
   });
 
   // Sala
@@ -700,7 +740,6 @@ function entrarFila(){
 
 function cancelar(){socket?.emit('leave_queue');mostrar('lobby');}
 
-// Fix #1: desistir envia evento e mostra resultado imediato
 function desistir(){
   if(!confirm('Deseja desistir? O adversário vencerá.'))return;
   gameOver=true;
@@ -715,13 +754,26 @@ function mostrar(id){
   });
 }
 
-function mostrarRes(ganhou,premio,online){
+function mostrarRes(ganhou,premio,online,nivelMudou,nivelAtual){
   mostrar('result');
   document.getElementById('resEmoji').textContent=ganhou?'🏆':'😢';
   document.getElementById('resTitle').textContent=ganhou?'VOCÊ VENCEU!':'VOCÊ PERDEU!';
   document.getElementById('resTitle').style.color=ganhou?'var(--gold)':'#ef4444';
   document.getElementById('resPrize').textContent=online?premio:'Modo treino 🎮';
   document.getElementById('resPrize').style.color=ganhou?'var(--green)':'#ef4444';
+  // Mostrar mudança de nível (#5)
+  const nivelEl = document.getElementById('resNivel');
+  if(nivelEl){
+    if(online && nivelMudou && nivelMudou > 0){
+      nivelEl.innerHTML = `⬆️ <strong style="color:var(--green)">Subiu para o nível ${nivelAtual}!</strong>`;
+      nivelEl.style.display='block';
+    } else if(online && nivelMudou && nivelMudou < 0){
+      nivelEl.innerHTML = `⬇️ <strong style="color:#ef4444">Caiu para o nível ${nivelAtual}</strong>`;
+      nivelEl.style.display='block';
+    } else {
+      nivelEl.style.display='none';
+    }
+  }
 }
 
 function voltarLobby(){

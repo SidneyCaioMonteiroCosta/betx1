@@ -96,16 +96,34 @@ function adminAuth(req, res, next) {
 }
 
 app.post('/api/cadastro', async (req, res) => {
-  const { nome, email, senha, cpf } = req.body;
+  const { nome, email, senha, cpf, codigoConvite } = req.body;
   if (!nome || !email || !senha) return res.status(400).json({ erro: 'Preencha todos os campos' });
   if (senha.length < 6) return res.status(400).json({ erro: 'Senha muito curta' });
   try {
+    // Garantir colunas de referral
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS codigo_convite TEXT').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS convidado_por INTEGER').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_pago BOOLEAN DEFAULT false').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS partidas_online INTEGER DEFAULT 0').catch(()=>{});
+
+    // Descobrir quem convidou (se houver código)
+    let convidadoPor = null;
+    if (codigoConvite) {
+      const { rows: conv } = await pool.query('SELECT id FROM users WHERE codigo_convite = $1', [codigoConvite.toUpperCase()]);
+      if (conv.length) convidadoPor = conv[0].id;
+    }
+
     const hash = await bcrypt.hash(senha, 10);
     const result = await pool.query(
-      'INSERT INTO users (nome, email, senha, saldo, saldo_treino, cpf, telefone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [nome, email, hash, 0, 1000, cpf || '', req.body.telefone || '']
+      'INSERT INTO users (nome, email, senha, saldo, saldo_treino, cpf, telefone, convidado_por) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+      [nome, email, hash, 0, 1000, cpf || '', req.body.telefone || '', convidadoPor]
     );
-    const token = jwt.sign({ id: result.rows[0].id, email }, JWT_SECRET, { expiresIn: '7d' });
+    const novoId = result.rows[0].id;
+    // Gerar código de convite único para o novo usuário
+    const meuCodigo = 'SD' + novoId + Math.random().toString(36).substring(2,5).toUpperCase();
+    await pool.query('UPDATE users SET codigo_convite = $1 WHERE id = $2', [meuCodigo, novoId]);
+
+    const token = jwt.sign({ id: novoId, email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, nome, email, saldo: 0, saldo_treino: 1000 });
   } catch { res.status(400).json({ erro: 'Email já cadastrado' }); }
 });
@@ -721,15 +739,24 @@ async function encerrarAirHockey(roomId, winnerRole, motivo) {
   clearInterval(partida.interval);
   const winnerId = winnerRole==='p1' ? partida.p1.userId : partida.p2.userId;
   const loserId  = winnerRole==='p1' ? partida.p2.userId : partida.p1.userId;
+  const winnerSocket = winnerRole==='p1' ? partida.p1.socket : partida.p2.socket;
+  const loserSocket  = winnerRole==='p1' ? partida.p2.socket : partida.p1.socket;
   const prize = parseFloat((partida.valor*1.75).toFixed(2));
+  let nivelWin = {mudou:0}, nivelLose = {mudou:0};
   try {
     await pool.query('UPDATE users SET saldo=saldo+$1 WHERE id=$2',[prize,winnerId]);
     await pool.query('INSERT INTO transacoes(user_id,tipo,valor,descricao,status) VALUES($1,$2,$3,$4,$5)',
       [winnerId,'ganho',prize,`Vitória Air Hockey R$${partida.valor} (${motivo})`,'concluido']);
-    await atualizarNivel(winnerId,'vitoria');
-    await atualizarNivel(loserId,'derrota');
+    nivelWin = await atualizarNivel(winnerId,'vitoria','airhockey');
+    nivelLose = await atualizarNivel(loserId,'derrota','airhockey');
   } catch(e) { console.error('Erro encerrar AH:', e.message); }
-  io.to(roomId).emit('game_end',{winner:winnerRole,prize,valor:partida.valor});
+  // Enviar resultado individual com mudança de nível
+  try {
+    winnerSocket.emit('game_end',{winner:winnerRole,prize,valor:partida.valor,nivelMudou:nivelWin.mudou,nivel:nivelWin.nivel});
+    loserSocket.emit('game_end',{winner:winnerRole,prize,valor:partida.valor,nivelMudou:nivelLose.mudou,nivel:nivelLose.nivel});
+  } catch(e) {
+    io.to(roomId).emit('game_end',{winner:winnerRole,prize,valor:partida.valor});
+  }
   console.log(`🏒 ${roomId} encerrada: winner=${winnerRole} motivo=${motivo}`);
   delete partidas[roomId];
 }
@@ -788,9 +815,19 @@ async function finalizarFlappy(salaKey) {
     }
   }
 
+  // Atualizar nível + ranking: 1º lugar = vitória, resto = derrota
+  const nivelPorUser = {};
+  for (let i = 0; i < ranking.length; i++) {
+    const uid = ranking[i].userId;
+    const resultado = i === 0 ? 'vitoria' : 'derrota';
+    const r = await atualizarNivel(uid, resultado, 'flappy');
+    nivelPorUser[uid] = r ? r.mudou : 0;
+  }
+
   io.to(salaKey).emit('flappy_fim', {
     ranking: ranking.map(j => ({ id: j.userId, nome: j.nome, pontos: j.pontos })),
-    premios
+    premios,
+    nivelMudou: nivelPorUser
   });
 
   delete flappySalas[salaKey];
@@ -1006,27 +1043,26 @@ pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS vitorias_nivel INTEGER DE
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_vitorias INTEGER DEFAULT 0').catch(()=>{});
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_derrotas INTEGER DEFAULT 0').catch(()=>{});
 
-async function atualizarNivel(userId, resultado) {
-  if (resultado === 'empate') return;
+async function atualizarNivel(userId, resultado, jogo) {
   try {
-    // Garantir colunas existem
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS nivel INTEGER DEFAULT 1').catch(()=>{});
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS vitorias_nivel INTEGER DEFAULT 0').catch(()=>{});
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_vitorias INTEGER DEFAULT 0').catch(()=>{});
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_derrotas INTEGER DEFAULT 0').catch(()=>{});
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS partidas_online INTEGER DEFAULT 0').catch(()=>{});
 
     const { rows } = await pool.query('SELECT nivel, vitorias_nivel, total_vitorias, total_derrotas FROM users WHERE id = $1', [userId]);
     const user = rows[0];
-    if (!user) return;
+    if (!user) return { mudou: 0 };
 
     let nivel = user.nivel || 1;
+    const nivelAntes = nivel;
     let vitorias = user.vitorias_nivel || 0;
     let totalVit = user.total_vitorias || 0;
     let totalDer = user.total_derrotas || 0;
 
     if (resultado === 'vitoria') {
-      vitorias++;
-      totalVit++;
+      vitorias++; totalVit++;
       if (vitorias >= 10 && nivel < 100) { nivel++; vitorias = 0; }
     } else if (resultado === 'derrota') {
       totalDer++;
@@ -1038,8 +1074,55 @@ async function atualizarNivel(userId, resultado) {
       'UPDATE users SET nivel=$1, vitorias_nivel=$2, total_vitorias=$3, total_derrotas=$4 WHERE id=$5',
       [nivel, vitorias, totalVit, totalDer, userId]
     );
-    console.log(`📊 User ${userId}: nível ${nivel}, vitórias ${totalVit}, derrotas ${totalDer}`);
-  } catch(e) { console.error('Erro nivel:', e.message); }
+
+    // Atualizar ranking (vitória +2, empate +1, derrota -1) e contar partidas online
+    await atualizarRanking(userId, resultado, jogo);
+    await contarPartidaReferral(userId);
+
+    return { mudou: nivel - nivelAntes, nivel, nivelAntes };
+  } catch(e) { console.error('Erro nivel:', e.message); return { mudou: 0 }; }
+}
+
+// ===== RANKING (semanal e mensal) =====
+async function atualizarRanking(userId, resultado, jogo) {
+  if (!jogo) return;
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS ranking (
+      id SERIAL PRIMARY KEY, user_id INTEGER, jogo TEXT, pontos INTEGER DEFAULT 0,
+      semana TEXT, mes TEXT, atualizado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, jogo, semana, mes)
+    )`).catch(()=>{});
+    const pts = resultado === 'vitoria' ? 2 : resultado === 'empate' ? 1 : -1;
+    const agora = new Date();
+    const semana = `${agora.getFullYear()}-W${Math.ceil((agora.getDate() + new Date(agora.getFullYear(),agora.getMonth(),1).getDay())/7)}-${agora.getMonth()}`;
+    const mes = `${agora.getFullYear()}-${agora.getMonth()}`;
+    await pool.query(`
+      INSERT INTO ranking (user_id, jogo, pontos, semana, mes) VALUES ($1,$2,$3,$4,$5)
+      ON CONFLICT (user_id, jogo, semana, mes) DO UPDATE SET pontos = ranking.pontos + $3, atualizado = CURRENT_TIMESTAMP
+    `, [userId, jogo, pts, semana, mes]);
+  } catch(e) { console.error('Erro ranking:', e.message); }
+}
+
+// ===== REFERRAL: contar partidas online do convidado =====
+async function contarPartidaReferral(userId) {
+  try {
+    await pool.query('UPDATE users SET partidas_online = COALESCE(partidas_online,0) + 1 WHERE id = $1', [userId]);
+    // Verificar se atingiu 50 partidas e tem quem convidou
+    const { rows } = await pool.query('SELECT partidas_online, convidado_por, bonus_pago FROM users WHERE id = $1', [userId]);
+    const u = rows[0];
+    if (u && u.convidado_por && !u.bonus_pago && u.partidas_online >= 50) {
+      // Pagar R$5 ao convidador
+      await pool.query('UPDATE users SET saldo = saldo + 5 WHERE id = $1', [u.convidado_por]);
+      await pool.query('UPDATE users SET bonus_pago = true WHERE id = $1', [userId]);
+      await pool.query('INSERT INTO transacoes (user_id,tipo,valor,descricao,status) VALUES ($1,$2,$3,$4,$5)',
+        [u.convidado_por, 'bonus', 5, 'Bônus de indicação (amigo jogou 50 partidas)', 'concluido']);
+      // Notificar o convidador
+      await pool.query(`CREATE TABLE IF NOT EXISTS notificacoes (id SERIAL PRIMARY KEY, user_id INTEGER, titulo TEXT, mensagem TEXT, lida BOOLEAN DEFAULT false, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(()=>{});
+      await pool.query('INSERT INTO notificacoes (user_id, titulo, mensagem) VALUES ($1,$2,$3)',
+        [u.convidado_por, '🎁 Bônus de indicação!', 'Seu amigo completou 50 partidas. Você ganhou R$5,00!']);
+      console.log(`🎁 Bônus de indicação pago: convidador ${u.convidado_por}`);
+    }
+  } catch(e) { /* colunas podem não existir ainda */ }
 }
 
 // ===== SISTEMA DE SALAS PRIVADAS =====
@@ -1197,8 +1280,8 @@ app.get('/api/admin/jogos', adminAuth, async (req, res) => {
     await pool.query(`CREATE TABLE IF NOT EXISTS jogos_config (
       id TEXT PRIMARY KEY, nome TEXT, ativo BOOLEAN DEFAULT true
     )`);
-    const jogos = ['airhockey','flappy','xadrez','sinuca'];
-    const nomes = {'airhockey':'Air Hockey','flappy':'Flappy Duelo','xadrez':'Xadrez','sinuca':'Sinuca'};
+    const jogos = ['airhockey','flappy','xadrez','sinuca','domino'];
+    const nomes = {'airhockey':'🏒 Air Hockey','flappy':'🐦 Flappy Duelo','xadrez':'♟️ Xadrez','sinuca':'🎱 Sinuca','domino':'🁣 Dominó'};
     for (const j of jogos) {
       await pool.query('INSERT INTO jogos_config (id,nome,ativo) VALUES ($1,$2,true) ON CONFLICT (id) DO NOTHING', [j, nomes[j]]);
     }
@@ -1551,6 +1634,7 @@ pool.query(`CREATE TABLE IF NOT EXISTS banners (
   cor1 TEXT DEFAULT '#2a1a4a',
   cor2 TEXT DEFAULT '#4a2a6a',
   emoji TEXT DEFAULT '🎉',
+  imagem TEXT,
   ordem INTEGER DEFAULT 0,
   ativo BOOLEAN DEFAULT true,
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -1563,6 +1647,7 @@ pool.query(`CREATE TABLE IF NOT EXISTS banners (
       ('Air Hockey & Flappy Duelo', 'Nossos jogos principais com premiação real', '#2a1a4a', '#4a2a6a', '🏆', 2),
       ('Convide amigos', 'Jogue 1v1 em salas privadas', '#4a2a1a', '#6a3a2a', '👥', 3)`);
   }
+  await pool.query('ALTER TABLE banners ADD COLUMN IF NOT EXISTS imagem TEXT').catch(()=>{});
 }).catch(e=>console.error('Erro banners:', e.message));
 
 // Listar banners ativos (público)
@@ -1583,12 +1668,13 @@ app.get('/api/admin/banners', adminAuth, async (req, res) => {
 
 // Admin: criar banner
 app.post('/api/admin/banners', adminAuth1, async (req, res) => {
-  const { titulo, subtitulo, cor1, cor2, emoji, ordem } = req.body;
+  const { titulo, subtitulo, cor1, cor2, emoji, ordem, imagem } = req.body;
   if (!titulo) return res.status(400).json({ erro: 'Título obrigatório' });
   try {
+    await pool.query('ALTER TABLE banners ADD COLUMN IF NOT EXISTS imagem TEXT').catch(()=>{});
     const { rows } = await pool.query(
-      'INSERT INTO banners (titulo, subtitulo, cor1, cor2, emoji, ordem) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-      [titulo, subtitulo||'', cor1||'#2a1a4a', cor2||'#4a2a6a', emoji||'🎉', ordem||0]
+      'INSERT INTO banners (titulo, subtitulo, cor1, cor2, emoji, ordem, imagem) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+      [titulo, subtitulo||'', cor1||'#2a1a4a', cor2||'#4a2a6a', emoji||'🎉', ordem||0, imagem||null]
     );
     res.json({ sucesso: true, id: rows[0].id });
   } catch(e) { res.status(500).json({ erro: e.message }); }
@@ -1596,11 +1682,12 @@ app.post('/api/admin/banners', adminAuth1, async (req, res) => {
 
 // Admin: editar banner
 app.post('/api/admin/banners/:id', adminAuth1, async (req, res) => {
-  const { titulo, subtitulo, cor1, cor2, emoji, ordem, ativo } = req.body;
+  const { titulo, subtitulo, cor1, cor2, emoji, ordem, ativo, imagem } = req.body;
   try {
+    await pool.query('ALTER TABLE banners ADD COLUMN IF NOT EXISTS imagem TEXT').catch(()=>{});
     await pool.query(
-      'UPDATE banners SET titulo=$1, subtitulo=$2, cor1=$3, cor2=$4, emoji=$5, ordem=$6, ativo=$7 WHERE id=$8',
-      [titulo, subtitulo, cor1, cor2, emoji, ordem, ativo!==false, parseInt(req.params.id)]
+      'UPDATE banners SET titulo=$1, subtitulo=$2, cor1=$3, cor2=$4, emoji=$5, ordem=$6, ativo=$7, imagem=$8 WHERE id=$9',
+      [titulo, subtitulo, cor1, cor2, emoji, ordem, ativo!==false, imagem||null, parseInt(req.params.id)]
     );
     res.json({ sucesso: true });
   } catch(e) { res.status(500).json({ erro: e.message }); }
@@ -1612,6 +1699,68 @@ app.delete('/api/admin/banners/:id', adminAuth1, async (req, res) => {
     await pool.query('DELETE FROM banners WHERE id = $1', [parseInt(req.params.id)]);
     res.json({ sucesso: true });
   } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+
+// ===== RANKING (público, por jogo e período) =====
+app.get('/api/ranking/:jogo/:periodo', auth, async (req, res) => {
+  const { jogo, periodo } = req.params; // periodo: 'semana' ou 'mes'
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS ranking (
+      id SERIAL PRIMARY KEY, user_id INTEGER, jogo TEXT, pontos INTEGER DEFAULT 0,
+      semana TEXT, mes TEXT, atualizado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, jogo, semana, mes)
+    )`).catch(()=>{});
+    const agora = new Date();
+    let filtro, valor;
+    if (periodo === 'semana') {
+      filtro = 'semana';
+      valor = `${agora.getFullYear()}-W${Math.ceil((agora.getDate() + new Date(agora.getFullYear(),agora.getMonth(),1).getDay())/7)}-${agora.getMonth()}`;
+    } else {
+      filtro = 'mes';
+      valor = `${agora.getFullYear()}-${agora.getMonth()}`;
+    }
+    const { rows } = await pool.query(`
+      SELECT r.pontos, u.nome, u.nivel, r.user_id
+      FROM ranking r JOIN users u ON u.id = r.user_id
+      WHERE r.jogo = $1 AND r.${filtro} = $2
+      ORDER BY r.pontos DESC LIMIT 50
+    `, [jogo, valor]);
+    res.json({ ranking: rows, meuId: req.user.id });
+  } catch(e) { res.json({ ranking: [], meuId: req.user.id }); }
+});
+
+// ===== REFERRAL: meus dados de indicação =====
+app.get('/api/convite', auth, async (req, res) => {
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS codigo_convite TEXT').catch(()=>{});
+    const { rows } = await pool.query('SELECT codigo_convite FROM users WHERE id = $1', [req.user.id]);
+    let codigo = rows[0]?.codigo_convite;
+    // Gerar se não tiver
+    if (!codigo) {
+      codigo = 'SD' + req.user.id + Math.random().toString(36).substring(2,5).toUpperCase();
+      await pool.query('UPDATE users SET codigo_convite = $1 WHERE id = $2', [codigo, req.user.id]);
+    }
+    // Contar indicados e quantos completaram
+    const { rows: indicados } = await pool.query(
+      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE bonus_pago = true) as pagos, COALESCE(SUM(LEAST(partidas_online,50)),0) as progresso FROM users WHERE convidado_por = $1',
+      [req.user.id]
+    );
+    const totalIndicados = parseInt(indicados[0].total) || 0;
+    const pagos = parseInt(indicados[0].pagos) || 0;
+    res.json({ codigo, totalIndicados, bonusGanhos: pagos, ganhoTotal: pagos * 5 });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Lista de indicados com progresso
+app.get('/api/convite/indicados', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT nome, partidas_online, bonus_pago FROM users WHERE convidado_por = $1 ORDER BY partidas_online DESC',
+      [req.user.id]
+    );
+    res.json(rows.map(r => ({ nome: r.nome, partidas: Math.min(r.partidas_online||0, 50), completo: r.bonus_pago })));
+  } catch(e) { res.json([]); }
 });
 
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

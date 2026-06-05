@@ -76,6 +76,19 @@
     <div class="value" id="saldo-display">R$ 0,00</div>
   </div>
   <div id="msg-area"></div>
+
+  <!-- RANKING -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h3 style="margin:0;">🏆 Ranking Flappy</h3>
+      <div style="display:flex;gap:6px;">
+        <button onclick="setRankFlappy('semana')" id="frkSemana" style="padding:5px 12px;background:rgba(168,85,247,.2);border:1px solid #a855f7;color:#a855f7;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Semana</button>
+        <button onclick="setRankFlappy('mes')" id="frkMes" style="padding:5px 12px;background:transparent;border:1px solid #333;color:#888;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Mês</button>
+      </div>
+    </div>
+    <div id="rankFlappyLista"><div style="text-align:center;color:#888;font-size:13px;padding:10px;">Carregando...</div></div>
+  </div>
+
   <div class="card">
     <h3>Escolha a sala</h3>
     <div class="grid-salas">
@@ -182,6 +195,7 @@
   <div class="logo"><h1>🐦 Flappy Duelo</h1></div>
   <div id="resultado-titulo" class="resultado-titulo"></div>
   <div id="resultado-valor" class="resultado-valor"></div>
+  <div id="flappyNivelMudou" style="font-size:15px;margin:8px 0 16px;display:none;"></div>
   <div class="ranking-lista" id="ranking-lista"></div>
   <button class="btn btn-primary" onclick="voltarLobby()">Jogar Novamente</button>
 </div>
@@ -250,9 +264,41 @@ async function carregarSaldo() {
     const d = await r.json();
     myNome = d.nome;
     myId = d.id;
-    document.getElementById('saldo-display').textContent = 'R$ ' + (d.saldo || 0).toFixed(2).replace('.', ',');
+    document.getElementById('saldo-display').textContent = 'R$ ' + (parseFloat(d.saldo) || 0).toFixed(2).replace('.', ',');
   } catch(e) {}
 }
+
+// ===== RANKING FLAPPY =====
+let rankFlappyPeriodo = 'semana';
+function setRankFlappy(p){
+  rankFlappyPeriodo = p;
+  document.getElementById('frkSemana').style.background = p==='semana'?'rgba(168,85,247,.2)':'transparent';
+  document.getElementById('frkSemana').style.borderColor = p==='semana'?'#a855f7':'#333';
+  document.getElementById('frkSemana').style.color = p==='semana'?'#a855f7':'#888';
+  document.getElementById('frkMes').style.background = p==='mes'?'rgba(168,85,247,.2)':'transparent';
+  document.getElementById('frkMes').style.borderColor = p==='mes'?'#a855f7':'#333';
+  document.getElementById('frkMes').style.color = p==='mes'?'#a855f7':'#888';
+  carregarRankFlappy();
+}
+async function carregarRankFlappy(){
+  if(!token){ document.getElementById('rankFlappyLista').innerHTML='<div style="text-align:center;color:#888;font-size:12px;padding:10px;">Faça login para ver o ranking</div>'; return; }
+  try{
+    const res = await fetch('/api/ranking/flappy/'+rankFlappyPeriodo, {headers:{Authorization:'Bearer '+token}});
+    const d = await res.json();
+    const el = document.getElementById('rankFlappyLista');
+    if(!d.ranking || !d.ranking.length){ el.innerHTML='<div style="text-align:center;color:#888;font-size:12px;padding:10px;">Nenhum jogador ainda. Seja o primeiro! 🏆</div>'; return; }
+    const medalhas=['🥇','🥈','🥉'];
+    el.innerHTML = d.ranking.map((r,i)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.05);${r.user_id===d.meuId?'background:rgba(168,85,247,.08);border-radius:8px;':''}">
+        <div style="width:24px;text-align:center;font-size:${i<3?'16px':'13px'};font-weight:700;color:${i<3?'#a855f7':'#888'};">${medalhas[i]||(i+1)}</div>
+        <div style="flex:1;font-size:13px;color:#fff;">${r.nome}${r.user_id===d.meuId?' <span style="color:#a855f7;font-size:11px;">(você)</span>':''}</div>
+        <div style="font-size:11px;color:#888;">Nv${r.nivel||1}</div>
+        <div style="font-size:14px;font-weight:700;color:${r.pontos>=0?'#22c55e':'#ef4444'};min-width:42px;text-align:right;">${r.pontos>0?'+':''}${r.pontos} pts</div>
+      </div>
+    `).join('');
+  }catch(e){ document.getElementById('rankFlappyLista').innerHTML='<div style="text-align:center;color:#888;font-size:12px;padding:10px;">Erro ao carregar</div>'; }
+}
+setTimeout(carregarRankFlappy, 600);
 
 function mostrarMsg(texto, tipo) {
   const el = document.getElementById('msg-area');
@@ -308,10 +354,11 @@ socket.on('flappy_player_morreu', ({ id }) => {
   if (jogadoresInfo[id]) { jogadoresInfo[id].morto = true; atualizarPlacar(); }
 });
 
-socket.on('flappy_fim', ({ ranking, premios }) => {
+socket.on('flappy_fim', ({ ranking, premios, nivelMudou }) => {
   gameAtivo = false;
   cancelAnimationFrame(animId);
   document.removeEventListener('keydown', pular);
+  window._ultNivelMudou = nivelMudou || {};
   setTimeout(() => mostrarResultado(ranking, premios), 800);
 });
 
@@ -655,12 +702,21 @@ function mostrarResultado(ranking, premios) {
       <div class="ranking-canos">${r.pontos} canos</div>
       <div class="ranking-premio">${premios[r.id] > 0 ? '+R$' + premios[r.id].toFixed(2) : '-'}</div>
     </div>`).join('');
-  function abrirModalSalaFlappy() {
-  const v = parseFloat(document.getElementById('valor-aposta').value);
-  if (!v || v < 1) { mostrarMsg('Selecione um valor primeiro!', 'erro'); return; }
-  abrirModalSala('flappy', v);
-}
-carregarSaldo();
+
+  // Mostrar mudança de nível do jogador
+  const nivelMudou = (window._ultNivelMudou || {})[myId];
+  const nivelEl = document.getElementById('flappyNivelMudou');
+  if (nivelEl) {
+    if (nivelMudou && nivelMudou > 0) {
+      nivelEl.innerHTML = '⬆️ <strong style="color:#22c55e">Você subiu de nível!</strong>';
+      nivelEl.style.display = 'block';
+    } else if (nivelMudou && nivelMudou < 0) {
+      nivelEl.innerHTML = '⬇️ <strong style="color:#ef4444">Você caiu de nível</strong>';
+      nivelEl.style.display = 'block';
+    } else {
+      nivelEl.style.display = 'none';
+    }
+  }
 }
 
 function confirmarDesistir() {
@@ -703,12 +759,7 @@ function voltarLobby() {
   document.getElementById('btn-entrar').style.display = 'block';
   document.getElementById('aguardando-box').style.display = 'none';
   document.getElementById('tap-hint').textContent = 'Toque ou pressione ESPAÇO para voar';
-  function abrirModalSalaFlappy() {
-  const v = parseFloat(document.getElementById('valor-aposta').value);
-  if (!v || v < 1) { mostrarMsg('Selecione um valor primeiro!', 'erro'); return; }
-  abrirModalSala('flappy', v);
-}
-carregarSaldo();
+  carregarSaldo();
 }
 
 function abrirModalSalaFlappy() {

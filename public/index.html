@@ -242,6 +242,7 @@
       <div class="menu-item" onclick="showScreen('stats')"><span>📊</span><div><div class="mname">Meu Painel</div><div class="msub">Saldo, partidas e histórico</div></div><span>›</span></div>
       <div class="menu-item" onclick="abrirEditarPerfil()"><span>👤</span><div><div class="mname">Editar perfil</div><div class="msub">Nome, senha e foto</div></div><span>›</span></div>
       <div class="menu-item" onclick="abrirNotificacoes()"><span>🔔</span><div><div class="mname">Notificações</div><div class="msub">Depósito e saque</div></div><span>›</span></div>
+      <div class="menu-item" onclick="abrirConvite()"><span>🎁</span><div><div class="mname">Convide amigos</div><div class="msub">Ganhe R$5 por indicação</div></div><span>›</span></div>
       <div class="menu-item" onclick="abrirSuporte()"><span>💬</span><div><div class="mname">Dúvidas e Reclamações</div><div class="msub">Fale com o suporte</div></div><span>›</span></div>
       <button class="logout-btn" onclick="logout()">🚪 SAIR DA CONTA</button>
       <button onclick="abrirExcluirConta()" style="width:100%;padding:12px;background:transparent;border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;">🗑️ Excluir minha conta</button>
@@ -709,12 +710,61 @@
       </div>
     </div>
 
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Imagem de fundo (opcional)</label>
+    <input id="bImagem" type="file" accept="image/*" onchange="carregarImagemBanner(event)" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-size:13px;margin-bottom:6px;">
+    <div id="bImagemPreview" style="font-size:11px;color:var(--muted);margin-bottom:12px;">Nenhuma imagem · usará gradiente de cores</div>
+
     <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Ordem (menor aparece primeiro)</label>
     <input id="bOrdem" type="number" value="1" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:16px;">
 
     <div id="bannerErro" style="color:#ef4444;font-size:13px;min-height:18px;margin-bottom:10px;"></div>
     <button onclick="salvarBanner()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;">SALVAR</button>
     <button onclick="fecharBanner()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;font-size:14px;cursor:pointer;margin-top:8px;">Cancelar</button>
+  </div>
+</div>
+
+<!-- CONVITE SCREEN -->
+<div id="convite" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('profile')">←</button>
+    <div class="topbar-title">🎁 CONVIDE AMIGOS</div>
+  </div>
+  <div class="scrollable">
+    <div style="padding:16px;">
+      <div style="background:linear-gradient(135deg,#1a4a2a,#2a6a3a);border-radius:16px;padding:24px;text-align:center;margin-bottom:16px;">
+        <div style="font-size:40px;margin-bottom:8px;">🎁</div>
+        <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:6px;">Ganhe R$ 5,00</div>
+        <div style="font-size:13px;color:#A5D6A7;line-height:1.5;">Para cada amigo que se cadastrar com seu código e jogar <strong>50 partidas online</strong> (não vale bot ou torneio)</div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Seu código de convite</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="meuCodigoConvite" style="flex:1;font-size:24px;font-weight:900;color:var(--gold);letter-spacing:2px;background:var(--bg);padding:12px;border-radius:10px;text-align:center;">...</div>
+          <button onclick="copiarCodigoConvite()" style="padding:12px 16px;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">📋 Copiar</button>
+        </div>
+        <button onclick="compartilharConvite()" style="width:100%;margin-top:10px;padding:12px;background:linear-gradient(135deg,#25D366,#1da851);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📱 Compartilhar no WhatsApp</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:var(--gold);" id="totalIndicados">0</div>
+          <div style="font-size:11px;color:var(--muted);">Amigos indicados</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:var(--green);" id="ganhoIndicacao">R$ 0</div>
+          <div style="font-size:11px;color:var(--muted);">Bônus ganhos</div>
+        </div>
+      </div>
+
+      <div class="section-label">Seus indicados</div>
+      <div id="listaIndicados"><div class="empty">Nenhum amigo indicado ainda.</div></div>
+    </div>
+  </div>
+  <div class="bottomnav">
+    <div class="navitem" onclick="showScreen('lobby')"><div class="navicon">🎮</div><div class="navlabel">Jogos</div></div>
+    <div class="navitem" onclick="showScreen('wallet')"><div class="navicon">💰</div><div class="navlabel">Carteira</div></div>
+    <div class="navitem active" onclick="showScreen('profile')"><div class="navicon">👤</div><div class="navlabel">Perfil</div></div>
   </div>
 </div>
 <script src="app.js"></script>

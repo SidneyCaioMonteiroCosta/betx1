@@ -141,13 +141,14 @@ async function doRegister() {
   if (senha !== senha2) { err.textContent = 'Senhas não coincidem!'; return; }
   if (senha.length < 6) { err.textContent = 'Senha muito curta!'; return; }
   const telefone = document.getElementById('regTelefone').value.trim();
+  const codigoConvite = (document.getElementById('regConvite')?.value || '').trim();
   if (!telefone) { err.textContent = 'Informe seu número de celular!'; return; }
   if (!validarTelBR(telefone)) { err.textContent = 'Número inválido! Use um celular brasileiro válido (ex: (11) 99999-9999)'; return; }
   if (!document.getElementById('checkIdade').checked) { err.textContent = 'Você deve ter 18 anos ou mais e aceitar os Termos de Uso!'; return; }
   try {
     const res = await fetch('/api/cadastro', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, email, senha, telefone })
+      body: JSON.stringify({ nome, email, senha, telefone, codigoConvite })
     });
     const data = await res.json();
     if (!res.ok) { err.textContent = data.erro; return; }
@@ -1392,17 +1393,19 @@ async function carregarBanners() {
     if (!track) return;
     if (!banners.length) { track.style.display = 'none'; return; }
     track.style.display = 'flex';
-    track.innerHTML = banners.map(b => `
-      <div class="carousel-slide" style="background:linear-gradient(135deg,${b.cor1},${b.cor2});">
+    track.innerHTML = banners.map(b => {
+      const bgImg = b.imagem ? `background-image:linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.55)),url(${b.imagem});background-size:cover;background-position:center;` : `background:linear-gradient(135deg,${b.cor1},${b.cor2});`;
+      return `
+      <div class="carousel-slide" style="${bgImg}">
         <div style="display:flex;align-items:center;gap:12px;">
           <span style="font-size:34px;">${b.emoji||'🎉'}</span>
           <div>
             <div style="font-weight:800;font-size:17px;color:#fff;">${b.titulo}</div>
-            <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:2px;">${b.subtitulo||''}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.9);margin-top:2px;">${b.subtitulo||''}</div>
           </div>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   } catch(e) {}
 }
 
@@ -1436,6 +1439,10 @@ async function carregarBannersAdmin() {
 
 function abrirCriarBanner() {
   bannerEditandoId = null;
+  bannerImagemData = null;
+  const bi = document.getElementById('bImagem'); if(bi) bi.value='';
+  const bip = document.getElementById('bImagemPreview'); if(bip) bip.textContent='Nenhuma imagem · usará gradiente';
+  const bp = document.getElementById('bannerPreview'); if(bp){ bp.style.backgroundImage='none'; }
   document.getElementById('bannerModalTitle').textContent = '🖼️ Nova Novidade';
   document.getElementById('bTitEmoji').value = '🎉';
   document.getElementById('bTitulo').value = '';
@@ -1450,6 +1457,11 @@ function abrirCriarBanner() {
 
 function editarBanner(b) {
   bannerEditandoId = b.id;
+  bannerImagemData = b.imagem || null;
+  const bip = document.getElementById('bImagemPreview');
+  const bp = document.getElementById('bannerPreview');
+  if(b.imagem){ if(bip) bip.textContent='✅ Imagem atual'; if(bp){bp.style.backgroundImage=`url(${b.imagem})`;bp.style.backgroundSize='cover';bp.style.backgroundPosition='center';} }
+  else { if(bip) bip.textContent='Nenhuma imagem · usará gradiente'; if(bp) bp.style.backgroundImage='none'; }
   document.getElementById('bannerModalTitle').textContent = '✏️ Editar Novidade';
   document.getElementById('bTitEmoji').value = b.emoji || '🎉';
   document.getElementById('bTitulo').value = b.titulo || '';
@@ -1484,6 +1496,7 @@ async function salvarBanner() {
     cor1: document.getElementById('bCor1').value,
     cor2: document.getElementById('bCor2').value,
     ordem: parseInt(document.getElementById('bOrdem').value) || 1,
+    imagem: bannerImagemData,
     ativo: true
   };
   if (!dados.titulo) { document.getElementById('bannerErro').textContent = 'Informe o título!'; return; }
@@ -1523,6 +1536,62 @@ async function excluirBanner(id) {
     await fetch('/api/admin/banners/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
     carregarBannersAdmin();
   } catch(e) {}
+}
+
+
+// ===== CONVITE / REFERRAL =====
+let meuCodigoConv = '';
+async function abrirConvite() {
+  showScreen('convite');
+  try {
+    const res = await fetch('/api/convite', { headers: { Authorization: 'Bearer ' + token } });
+    const d = await res.json();
+    meuCodigoConv = d.codigo || '';
+    document.getElementById('meuCodigoConvite').textContent = meuCodigoConv;
+    document.getElementById('totalIndicados').textContent = d.totalIndicados || 0;
+    document.getElementById('ganhoIndicacao').textContent = 'R$ ' + (d.ganhoTotal || 0);
+    // Lista de indicados
+    const resI = await fetch('/api/convite/indicados', { headers: { Authorization: 'Bearer ' + token } });
+    const indicados = await resI.json();
+    const el = document.getElementById('listaIndicados');
+    if (!indicados.length) { el.innerHTML = '<div class="empty">Nenhum amigo indicado ainda.</div>'; return; }
+    el.innerHTML = indicados.map(i => `
+      <div class="trans-item">
+        <div class="trans-icon dep">${i.completo?'✅':'⏳'}</div>
+        <div class="trans-desc">
+          <div class="trans-name">${i.nome}</div>
+          <div class="trans-date">${i.partidas}/50 partidas ${i.completo?'· Bônus pago!':''}</div>
+        </div>
+        <div class="trans-val ${i.completo?'pos':''}" style="font-size:12px;">${i.completo?'+R$5':Math.round(i.partidas/50*100)+'%'}</div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+function copiarCodigoConvite() {
+  navigator.clipboard?.writeText(meuCodigoConv);
+  alert('Código ' + meuCodigoConv + ' copiado!');
+}
+function compartilharConvite() {
+  const url = window.location.origin;
+  const msg = `🎮 Jogue Super Duelo comigo! Use meu código *${meuCodigoConv}* no cadastro e vamos competir em Air Hockey e Flappy Duelo! ${url}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ===== BANNER: upload de imagem =====
+let bannerImagemData = null;
+function carregarImagemBanner(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 500000) { alert('Imagem muito grande! Use uma menor que 500KB.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    bannerImagemData = e.target.result;
+    document.getElementById('bImagemPreview').textContent = '✅ Imagem carregada';
+    document.getElementById('bannerPreview').style.backgroundImage = `url(${bannerImagemData})`;
+    document.getElementById('bannerPreview').style.backgroundSize = 'cover';
+    document.getElementById('bannerPreview').style.backgroundPosition = 'center';
+  };
+  reader.readAsDataURL(file);
 }
 
 function openGame(game) {
