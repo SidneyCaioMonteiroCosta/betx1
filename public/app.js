@@ -176,6 +176,7 @@ function enterApp() {
   // Conectar socket para rastrear online
   iniciarSocketOnline();
   setTimeout(carregarNotificacoes, 1500);
+  carregarBanners();
 }
 
 function iniciarSocketOnline() {
@@ -521,7 +522,8 @@ function adminTab(tab) {
     'jogos': { div: 'tabJogos', btn: 'atJogos' },
     'stats': { div: 'tabStats', btn: 'atStats' },
     'torneios': { div: 'tabTorneios', btn: 'atTorneios' },
-    'tickets': { div: 'tabTickets', btn: 'atTickets' }
+    'tickets': { div: 'tabTickets', btn: 'atTickets' },
+    'banners': { div: 'tabBanners', btn: 'atBanners' }
   };
   Object.entries(tabMap).forEach(([t, ids]) => {
     const divEl = document.getElementById(ids.div);
@@ -537,6 +539,7 @@ function adminTab(tab) {
   if (tab === 'stats') carregarStatsAdmin();
   if (tab === 'torneios') carregarTorneiosAdmin();
   if (tab === 'tickets') carregarTicketsAdmin();
+  if (tab === 'banners') carregarBannersAdmin();
 }
 
 async function loadAdmin() {
@@ -622,35 +625,36 @@ function abrirEditUser(id) {
   const saldo = parseFloat(u.saldo) || 0;
   document.getElementById('editUserInfo').textContent = `${u.nome} · ${u.email}`;
   document.getElementById('adminSaldoAtual').textContent = `Saldo atual: R$ ${saldo.toFixed(2)}`;
-  document.getElementById('adminSaldoVal').value = '';
-  document.getElementById('adminNovaSenha').value = '';
+  const sv = document.getElementById('adminSaldoVal'); if (sv) sv.value = '';
+  const ns = document.getElementById('adminNovaSenha'); if (ns) ns.value = '';
   document.getElementById('adminEditMsg').textContent = '';
-  const btn = document.getElementById('btnBloquear');
-  if (u.bloqueado) {
-    btn.textContent = '✅ Desbloquear usuário';
-    btn.style.background = 'rgba(0,200,83,.1)';
-    btn.style.border = '1px solid rgba(0,200,83,.3)';
-    btn.style.color = 'var(--green)';
-  } else {
-    btn.textContent = '🔒 Bloquear usuário';
-    btn.style.background = 'rgba(239,68,68,.1)';
-    btn.style.border = '1px solid rgba(239,68,68,.3)';
-    btn.style.color = '#ef4444';
-  }
-  document.getElementById('modalEditUser').style.display = 'flex';
 
-  // Admin 2 não pode mexer em saldo, bloquear, resetar senha ou excluir
   const nivel = usuario?.adminNivel || 1;
-  const soAdmin1 = ['btnBloquear', 'btnExcluirUser'];
-  soAdmin1.forEach(bid => { const el = document.getElementById(bid); if (el) el.style.display = nivel===2 ? 'none' : 'block'; });
-  // Esconder seções de saldo e senha para Admin 2
-  const secSaldo = document.getElementById('adminSaldoVal')?.closest('div');
-  if (nivel === 2) {
-    // Esconder os blocos de ajuste de saldo e senha
-    document.querySelectorAll('#modalEditUser [data-admin1]').forEach(el => el.style.display = 'none');
-  } else {
-    document.querySelectorAll('#modalEditUser [data-admin1]').forEach(el => el.style.display = '');
+  const ehAdmin1 = nivel !== 2;
+
+  // Botão bloquear/desbloquear (só admin 1)
+  const btn = document.getElementById('btnBloquear');
+  if (btn) {
+    btn.style.display = ehAdmin1 ? 'block' : 'none';
+    if (u.bloqueado) {
+      btn.textContent = '✅ Desbloquear usuário';
+      btn.style.background = 'rgba(0,200,83,.1)';
+      btn.style.border = '1px solid rgba(0,200,83,.3)';
+      btn.style.color = 'var(--green)';
+    } else {
+      btn.textContent = '🔒 Bloquear/Desativar usuário';
+      btn.style.background = 'rgba(239,68,68,.1)';
+      btn.style.border = '1px solid rgba(239,68,68,.3)';
+      btn.style.color = '#ef4444';
+    }
   }
+  // Botão excluir (só admin 1)
+  const btnEx = document.getElementById('btnExcluirUser');
+  if (btnEx) btnEx.style.display = ehAdmin1 ? 'block' : 'none';
+  // Seções de saldo e senha (só admin 1)
+  document.querySelectorAll('#modalEditUser [data-admin1]').forEach(el => el.style.display = ehAdmin1 ? '' : 'none');
+
+  document.getElementById('modalEditUser').style.display = 'flex';
 }
 
 function fecharEditUser() {
@@ -1376,6 +1380,149 @@ async function adminExcluirUsuario() {
     fecharEditUser();
     carregarUsuariosAdmin();
   } catch(e) { alert('Erro de conexão'); }
+}
+
+
+// ===== CARROSSEL DE NOVIDADES (tela inicial) =====
+async function carregarBanners() {
+  try {
+    const res = await fetch('/api/banners');
+    const banners = await res.json();
+    const track = document.getElementById('bannerCarousel');
+    if (!track) return;
+    if (!banners.length) { track.style.display = 'none'; return; }
+    track.style.display = 'flex';
+    track.innerHTML = banners.map(b => `
+      <div class="carousel-slide" style="background:linear-gradient(135deg,${b.cor1},${b.cor2});">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:34px;">${b.emoji||'🎉'}</span>
+          <div>
+            <div style="font-weight:800;font-size:17px;color:#fff;">${b.titulo}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:2px;">${b.subtitulo||''}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+// ===== ADMIN: GERENCIAR BANNERS =====
+let bannerEditandoId = null;
+
+async function carregarBannersAdmin() {
+  try {
+    const res = await fetch('/api/admin/banners', { headers: { Authorization: 'Bearer ' + token } });
+    const banners = await res.json();
+    const el = document.getElementById('adminBanners');
+    if (!banners.length) { el.innerHTML = '<div class="empty">Nenhuma novidade criada.</div>'; return; }
+    el.innerHTML = banners.map(b => `
+      <div style="background:linear-gradient(135deg,${b.cor1},${b.cor2});border-radius:12px;padding:14px;margin-bottom:10px;${b.ativo?'':'opacity:.4;'}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:26px;">${b.emoji||'🎉'}</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;color:#fff;">${b.titulo} ${b.ativo?'':'<span style="font-size:11px;">(oculto)</span>'}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.7);">${b.subtitulo||''} · ordem ${b.ordem}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <button onclick='editarBanner(${JSON.stringify(b).replace(/'/g,"&#39;")})' style="flex:1;padding:7px;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Editar</button>
+          <button onclick="toggleBanner(${b.id},${!b.ativo})" style="flex:1;padding:7px;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">${b.ativo?'🙈 Ocultar':'👁️ Mostrar'}</button>
+          <button onclick="excluirBanner(${b.id})" style="padding:7px 12px;background:rgba(239,68,68,.3);border:none;color:#fff;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { document.getElementById('adminBanners').innerHTML = '<div class="empty">Erro ao carregar</div>'; }
+}
+
+function abrirCriarBanner() {
+  bannerEditandoId = null;
+  document.getElementById('bannerModalTitle').textContent = '🖼️ Nova Novidade';
+  document.getElementById('bTitEmoji').value = '🎉';
+  document.getElementById('bTitulo').value = '';
+  document.getElementById('bSub').value = '';
+  document.getElementById('bCor1').value = '#2a1a4a';
+  document.getElementById('bCor2').value = '#4a2a6a';
+  document.getElementById('bOrdem').value = '1';
+  document.getElementById('bannerErro').textContent = '';
+  atualizarPreviewBanner();
+  document.getElementById('modalBanner').style.display = 'flex';
+}
+
+function editarBanner(b) {
+  bannerEditandoId = b.id;
+  document.getElementById('bannerModalTitle').textContent = '✏️ Editar Novidade';
+  document.getElementById('bTitEmoji').value = b.emoji || '🎉';
+  document.getElementById('bTitulo').value = b.titulo || '';
+  document.getElementById('bSub').value = b.subtitulo || '';
+  document.getElementById('bCor1').value = b.cor1 || '#2a1a4a';
+  document.getElementById('bCor2').value = b.cor2 || '#4a2a6a';
+  document.getElementById('bOrdem').value = b.ordem || 1;
+  document.getElementById('bannerErro').textContent = '';
+  atualizarPreviewBanner();
+  document.getElementById('modalBanner').style.display = 'flex';
+}
+
+function fecharBanner() { document.getElementById('modalBanner').style.display = 'none'; }
+
+function atualizarPreviewBanner() {
+  const emoji = document.getElementById('bTitEmoji').value || '🎉';
+  const titulo = document.getElementById('bTitulo').value || 'Título';
+  const sub = document.getElementById('bSub').value || 'Subtítulo';
+  const c1 = document.getElementById('bCor1').value;
+  const c2 = document.getElementById('bCor2').value;
+  document.getElementById('bpEmoji').textContent = emoji;
+  document.getElementById('bpTitulo').textContent = titulo;
+  document.getElementById('bpSub').textContent = sub;
+  document.getElementById('bannerPreview').style.background = `linear-gradient(135deg,${c1},${c2})`;
+}
+
+async function salvarBanner() {
+  const dados = {
+    emoji: document.getElementById('bTitEmoji').value || '🎉',
+    titulo: document.getElementById('bTitulo').value.trim(),
+    subtitulo: document.getElementById('bSub').value.trim(),
+    cor1: document.getElementById('bCor1').value,
+    cor2: document.getElementById('bCor2').value,
+    ordem: parseInt(document.getElementById('bOrdem').value) || 1,
+    ativo: true
+  };
+  if (!dados.titulo) { document.getElementById('bannerErro').textContent = 'Informe o título!'; return; }
+  try {
+    const url = bannerEditandoId ? '/api/admin/banners/' + bannerEditandoId : '/api/admin/banners';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(dados)
+    });
+    const d = await res.json();
+    if (!res.ok) { document.getElementById('bannerErro').textContent = d.erro; return; }
+    fecharBanner();
+    carregarBannersAdmin();
+  } catch(e) { document.getElementById('bannerErro').textContent = 'Erro de conexão'; }
+}
+
+async function toggleBanner(id, ativo) {
+  try {
+    // Buscar o banner atual para manter os dados
+    const res = await fetch('/api/admin/banners', { headers: { Authorization: 'Bearer ' + token } });
+    const banners = await res.json();
+    const b = banners.find(x => x.id === id);
+    if (!b) return;
+    await fetch('/api/admin/banners/' + id, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ ...b, ativo })
+    });
+    carregarBannersAdmin();
+  } catch(e) {}
+}
+
+async function excluirBanner(id) {
+  if (!confirm('Excluir esta novidade?')) return;
+  try {
+    await fetch('/api/admin/banners/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+    carregarBannersAdmin();
+  } catch(e) {}
 }
 
 function openGame(game) {

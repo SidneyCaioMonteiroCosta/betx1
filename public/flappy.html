@@ -100,20 +100,39 @@
         <div class="premio">1º→175% / 2º→150% / 3º→100%</div>
       </div>
     </div>
-    <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;">Valor da aposta (mín. R$1)</label>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;" id="valor-grid">
-      <div class="sala-btn" onclick="setValor(1,this)">R$ 1</div>
-      <div class="sala-btn" onclick="setValor(2,this)">R$ 2</div>
-      <div class="sala-btn" onclick="setValor(5,this)">R$ 5</div>
-      <div class="sala-btn" onclick="setValor(10,this)">R$ 10</div>
-      <div class="sala-btn" onclick="setValor(15,this)">R$ 15</div>
-      <div class="sala-btn" onclick="setValor(20,this)">R$ 20</div>
-      <div class="sala-btn" onclick="setValor(25,this)">R$ 25</div>
-      <div class="sala-btn" onclick="setValor(30,this)">R$ 30</div>
-      <div class="sala-btn" onclick="setValor(50,this)">R$ 50</div>
-      <div class="sala-btn" onclick="setValor(60,this)">R$ 60</div>
-      <div class="sala-btn" onclick="setValor(80,this)">R$ 80</div>
-      <div class="sala-btn" onclick="setValor(100,this)">R$ 100</div>
+    <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:10px;">Escolha a arena (define a taxa de participação)</label>
+
+    <!-- Arena Iniciante -->
+    <div style="background:linear-gradient(135deg,#0a1628,#0d1f3c);border:1px solid #1e2d50;border-radius:12px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:18px;">🥉</span><div style="font-weight:700;font-size:13px;color:#fff;">Arena Iniciante</div><span style="margin-left:auto;font-size:11px;color:#888;">R$1 - R$10</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+        <div class="sala-btn" onclick="setValor(1,this,1)">R$1</div>
+        <div class="sala-btn" onclick="setValor(2,this,1)">R$2</div>
+        <div class="sala-btn" onclick="setValor(5,this,1)">R$5</div>
+        <div class="sala-btn" onclick="setValor(10,this,1)">R$10</div>
+      </div>
+    </div>
+
+    <!-- Arena Prata -->
+    <div style="background:linear-gradient(135deg,#0a0a2a,#0d0d3c);border:1px solid #2a2a60;border-radius:12px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:18px;">🥈</span><div style="font-weight:700;font-size:13px;color:#00e5ff;">Arena Prata</div><span style="margin-left:auto;font-size:11px;color:#888;">R$15 - R$30</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+        <div class="sala-btn" onclick="setValor(15,this,2)" style="border-color:#2a2a60;">R$15</div>
+        <div class="sala-btn" onclick="setValor(20,this,2)" style="border-color:#2a2a60;">R$20</div>
+        <div class="sala-btn" onclick="setValor(25,this,2)" style="border-color:#2a2a60;">R$25</div>
+        <div class="sala-btn" onclick="setValor(30,this,2)" style="border-color:#2a2a60;">R$30</div>
+      </div>
+    </div>
+
+    <!-- Arena Ouro -->
+    <div style="background:linear-gradient(135deg,#1a0a00,#2a1000);border:1px solid #4a2a00;border-radius:12px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:18px;">🥇</span><div style="font-weight:700;font-size:13px;color:#f0c040;">Arena Ouro</div><span style="margin-left:auto;font-size:11px;color:#888;">R$50 - R$100</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+        <div class="sala-btn" onclick="setValor(50,this,3)" style="border-color:#4a2a00;">R$50</div>
+        <div class="sala-btn" onclick="setValor(60,this,3)" style="border-color:#4a2a00;">R$60</div>
+        <div class="sala-btn" onclick="setValor(80,this,3)" style="border-color:#4a2a00;">R$80</div>
+        <div class="sala-btn" onclick="setValor(100,this,3)" style="border-color:#4a2a00;">R$100</div>
+      </div>
     </div>
     <input type="number" id="valor-aposta" min="1" step="1" value="5" style="display:none;">
   </div>
@@ -210,10 +229,13 @@ const CANO_GAP = 160;
 const CANO_LARGURA = 60;
 
 // ===== LOBBY =====
-function setValor(v, el) {
-  document.querySelectorAll('#valor-grid .sala-btn').forEach(b => b.classList.remove('ativo'));
+let arenaFlappy = 1;
+function setValor(v, el, arena) {
+  document.querySelectorAll('.sala-btn').forEach(b => { if(b.onclick && b.onclick.toString().includes('setValor')) b.classList.remove('ativo'); });
   el.classList.add('ativo');
   document.getElementById('valor-aposta').value = v;
+  valorAposta = v;
+  arenaFlappy = arena || 1;
 }
 
 function selecionarSala(n) {
@@ -473,11 +495,19 @@ function morreu() {
   if (botMode && botMorto) mostrarResultadoBot();
 }
 
+// Temas de arena (mesma identidade do Air Hockey)
+const ARENAS_FLAPPY = {
+  1: {bg1:'#0a1628',bg2:'#0d1f3c',cano1:'#1a8cff',cano2:'#3aa0ff',chao:'#1a3a5a',linha:'#1a8cff',nome:'🥉 Iniciante'},
+  2: {bg1:'#0a0a2a',bg2:'#0d0d3c',cano1:'#00e5ff',cano2:'#40f0ff',chao:'#2a2a60',linha:'#00e5ff',nome:'🥈 Prata'},
+  3: {bg1:'#1a0a00',bg2:'#2a1000',cano1:'#f0c040',cano2:'#ffaa00',chao:'#4a2a00',linha:'#f0c040',nome:'🥇 Ouro'}
+};
+
 function desenhar() {
   const W = canvas.width, H = canvas.height;
+  const A = ARENAS_FLAPPY[arenaFlappy] || ARENAS_FLAPPY[1];
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0a0a1a');
-  grad.addColorStop(1, '#0d0d20');
+  grad.addColorStop(0, A.bg1);
+  grad.addColorStop(1, A.bg2);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
@@ -487,22 +517,22 @@ function desenhar() {
     ctx.fillRect((i * 137 + frame * 0.2) % W, (i * 97) % H, 1.5, 1.5);
   }
 
-  // Canos
+  // Canos (cor da arena)
   for (let c of canos) {
     const gradCano = ctx.createLinearGradient(c.x, 0, c.x + CANO_LARGURA, 0);
-    gradCano.addColorStop(0, '#7c3aed');
-    gradCano.addColorStop(1, '#a855f7');
+    gradCano.addColorStop(0, A.cano1);
+    gradCano.addColorStop(1, A.cano2);
     ctx.fillStyle = gradCano;
     ctx.beginPath(); ctx.roundRect(c.x, 0, CANO_LARGURA, c.topo, [0,0,8,8]); ctx.fill();
     ctx.beginPath(); ctx.roundRect(c.x, c.topo + CANO_GAP, CANO_LARGURA, H - c.topo - CANO_GAP, [8,8,0,0]); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(c.x + 4, 0, 6, c.topo);
     ctx.fillRect(c.x + 4, c.topo + CANO_GAP, 6, H - c.topo - CANO_GAP);
   }
 
   // Chão
-  ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, H - 20, W, 20);
-  ctx.fillStyle = '#a855f7'; ctx.fillRect(0, H - 20, W, 2);
+  ctx.fillStyle = A.chao; ctx.fillRect(0, H - 20, W, 20);
+  ctx.fillStyle = A.linha; ctx.fillRect(0, H - 20, W, 2);
 
   // Bot
   if (botMode && !botMorto && botPassaro.x > 0) desenharPassaro(botRenderX, botPassaro.y, botPassaro.vy, false, true);

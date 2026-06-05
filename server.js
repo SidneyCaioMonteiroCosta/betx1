@@ -10,7 +10,13 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  // Otimizações para jogo em tempo real
+  perMessageDeflate: false,      // não comprimir (pacotes pequenos, compressão só adiciona latência)
+  transports: ['websocket', 'polling'], // priorizar websocket
+  pingInterval: 10000,
+  pingTimeout: 5000
+});
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -643,8 +649,15 @@ function tickAH(roomId) {
     else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); }
   }
 
-  // Emitir estado todo frame (60fps) — clientes interpolam
-  io.to(roomId).emit('ah_state', {bx:S.bx,by:S.by,m1x:S.m1x,m1y:S.m1y,m2x:S.m2x,m2y:S.m2y});
+  // Emitir estado — volatile descarta pacotes antigos se a rede congestionar (anti-lag)
+  // Arredondar para 3 casas reduz o tamanho do pacote pela metade
+  const r = n => Math.round(n*1000)/1000;
+  io.to(roomId).volatile.emit('ah_state', {
+    bx:r(S.bx), by:r(S.by),
+    m1x:r(S.m1x), m1y:r(S.m1y),
+    m2x:r(S.m2x), m2y:r(S.m2y),
+    bvx:r(S.bvx), bvy:r(S.bvy) // velocidade para o cliente prever
+  });
 
   if (scorer) {
     io.to(roomId).emit('ah_gol', {s1:S.s1, s2:S.s2, scorer});
@@ -1527,6 +1540,78 @@ app.get('/api/admin/tickets/count', adminAuth, async (req, res) => {
     const { rows } = await pool.query("SELECT COUNT(*) FROM tickets WHERE status = 'aberto'");
     res.json({ abertos: parseInt(rows[0].count) });
   } catch(e) { res.json({ abertos: 0 }); }
+});
+
+
+// ===== BANNERS/NOVIDADES (editáveis pelo admin) =====
+pool.query(`CREATE TABLE IF NOT EXISTS banners (
+  id SERIAL PRIMARY KEY,
+  titulo TEXT,
+  subtitulo TEXT,
+  cor1 TEXT DEFAULT '#2a1a4a',
+  cor2 TEXT DEFAULT '#4a2a6a',
+  emoji TEXT DEFAULT '🎉',
+  ordem INTEGER DEFAULT 0,
+  ativo BOOLEAN DEFAULT true,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`).then(async () => {
+  // Inserir banners padrão se não houver nenhum
+  const { rows } = await pool.query('SELECT COUNT(*) FROM banners');
+  if (parseInt(rows[0].count) === 0) {
+    await pool.query(`INSERT INTO banners (titulo, subtitulo, cor1, cor2, emoji, ordem) VALUES
+      ('Bem-vindo ao Super Duelo!', 'Jogue, compita e divirta-se', '#1a4a2a', '#2a6a3a', '🎮', 1),
+      ('Air Hockey & Flappy Duelo', 'Nossos jogos principais com premiação real', '#2a1a4a', '#4a2a6a', '🏆', 2),
+      ('Convide amigos', 'Jogue 1v1 em salas privadas', '#4a2a1a', '#6a3a2a', '👥', 3)`);
+  }
+}).catch(e=>console.error('Erro banners:', e.message));
+
+// Listar banners ativos (público)
+app.get('/api/banners', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM banners WHERE ativo = true ORDER BY ordem ASC, id ASC');
+    res.json(rows);
+  } catch(e) { res.json([]); }
+});
+
+// Admin: listar todos os banners
+app.get('/api/admin/banners', adminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM banners ORDER BY ordem ASC, id ASC');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Admin: criar banner
+app.post('/api/admin/banners', adminAuth1, async (req, res) => {
+  const { titulo, subtitulo, cor1, cor2, emoji, ordem } = req.body;
+  if (!titulo) return res.status(400).json({ erro: 'Título obrigatório' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO banners (titulo, subtitulo, cor1, cor2, emoji, ordem) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+      [titulo, subtitulo||'', cor1||'#2a1a4a', cor2||'#4a2a6a', emoji||'🎉', ordem||0]
+    );
+    res.json({ sucesso: true, id: rows[0].id });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Admin: editar banner
+app.post('/api/admin/banners/:id', adminAuth1, async (req, res) => {
+  const { titulo, subtitulo, cor1, cor2, emoji, ordem, ativo } = req.body;
+  try {
+    await pool.query(
+      'UPDATE banners SET titulo=$1, subtitulo=$2, cor1=$3, cor2=$4, emoji=$5, ordem=$6, ativo=$7 WHERE id=$8',
+      [titulo, subtitulo, cor1, cor2, emoji, ordem, ativo!==false, parseInt(req.params.id)]
+    );
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
+});
+
+// Admin: deletar banner
+app.delete('/api/admin/banners/:id', adminAuth1, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM banners WHERE id = $1', [parseInt(req.params.id)]);
+    res.json({ sucesso: true });
+  } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

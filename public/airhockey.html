@@ -239,7 +239,7 @@ let lastMove = 0;
 let salaCod = '';
 
 // Estado recebido do servidor (alvo)
-let gs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18, s1:0, s2:0 };
+let gs = { bx:.5, by:.5, bvx:0, bvy:0, m1x:.5, m1y:.82, m2x:.5, m2y:.18, s1:0, s2:0 };
 // Estado renderizado — interpola suavemente até gs (deixa fluido mesmo com lag)
 let rs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18 };
 // Meu mallet local
@@ -501,17 +501,39 @@ function onMove(e){
 }
 
 // ── RENDER ───────────────────────────────────────────
+let lastStateTime = 0;
 function renderFrame(){
   if(!ctx)return;
   const A=ARENAS[arenaId];
-  // Interpolação suave: rs se aproxima de gs (online). No bot, gs já é o estado.
-  const k = botMode ? 1 : 0.5;
-  rs.bx += (gs.bx-rs.bx)*k; rs.by += (gs.by-rs.by)*k;
-  rs.m1x += (gs.m1x-rs.m1x)*k; rs.m1y += (gs.m1y-rs.m1y)*k;
-  rs.m2x += (gs.m2x-rs.m2x)*k; rs.m2y += (gs.m2y-rs.m2y)*k;
+
+  if(botMode){
+    // Bot: estado local é a verdade, copia direto
+    rs.bx=gs.bx; rs.by=gs.by;
+    rs.m1x=gs.m1x; rs.m1y=gs.m1y;
+    rs.m2x=gs.m2x; rs.m2y=gs.m2y;
+  } else {
+    // ONLINE: predição + correção (anti-lag)
+    // A bola CONTINUA se movendo pela velocidade entre updates (predição local)
+    // e corrige suavemente para a posição do servidor quando chega novo estado
+    rs.bx += gs.bvx; rs.by += gs.bvy;
+    // Correção suave em direção ao estado autoritativo do servidor
+    const corr = 0.18;
+    rs.bx += (gs.bx-rs.bx)*corr;
+    rs.by += (gs.by-rs.by)*corr;
+    // Mallet do oponente: interpolação rápida
+    const km = 0.45;
+    if(myRole==='p1'){
+      rs.m2x += (gs.m2x-rs.m2x)*km; rs.m2y += (gs.m2y-rs.m2y)*km;
+      rs.m1x = mx; rs.m1y = my; // meu mallet = instantâneo
+    } else {
+      rs.m1x += (gs.m1x-rs.m1x)*km; rs.m1y += (gs.m1y-rs.m1y)*km;
+      rs.m2x = mx; rs.m2y = my; // meu mallet = instantâneo
+    }
+  }
+
   ctx.clearRect(0,0,W,H);
   ctx.save();
-  // Fix #3: P2 vê canvas rotacionado 180°
+  // P2 vê canvas rotacionado 180°
   if(myRole==='p2'){ctx.translate(W,H);ctx.rotate(Math.PI);}
 
   // Fundo
@@ -623,6 +645,7 @@ function conectarSocket(){
   // Fix #5: recebe estado do servidor (60fps)
   socket.on('ah_state',data=>{
     gs.bx=data.bx;gs.by=data.by;
+    gs.bvx=data.bvx||0;gs.bvy=data.bvy||0;
     gs.m1x=data.m1x;gs.m1y=data.m1y;
     gs.m2x=data.m2x;gs.m2y=data.m2y;
   });
