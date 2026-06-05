@@ -179,6 +179,7 @@ function enterApp() {
   iniciarSocketOnline();
   setTimeout(carregarNotificacoes, 1500);
   carregarBanners();
+  aplicarStatusJogos();
 }
 
 function iniciarSocketOnline() {
@@ -1816,6 +1817,46 @@ async function pagarPremiosRanking(){
   } catch(e){ alert('Erro de conexão'); }
 }
 
+
+// ===== STATUS DOS JOGOS (esconder desativados na tela inicial) =====
+async function aplicarStatusJogos() {
+  try {
+    const res = await fetch('/api/jogos-status');
+    const status = await res.json();
+    // Mapear cada jogo ao seu elemento clicável na tela inicial
+    const jogosMap = {
+      airhockey: "/airhockey.html",
+      flappy: "/flappy.html",
+      xadrez: "/xadrez.html",
+      sinuca: "/sinuca.html",
+      domino: "/domino.html"
+    };
+    Object.entries(jogosMap).forEach(([jogo, url]) => {
+      // Encontrar todos os cards que apontam para esse jogo
+      const ativo = status[jogo] !== false; // default ativo se não tiver registro
+      document.querySelectorAll(`[onclick*="${url}"]`).forEach(card => {
+        if (!ativo) {
+          card.style.opacity = '0.4';
+          card.style.pointerEvents = 'none';
+          card.style.position = 'relative';
+          // Adicionar badge "Em breve" se ainda não tem
+          if (!card.querySelector('.badge-inativo')) {
+            const badge = document.createElement('div');
+            badge.className = 'badge-inativo';
+            badge.textContent = '🔒 Indisponível';
+            badge.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;z-index:5;pointer-events:none;';
+            card.appendChild(badge);
+          }
+        } else {
+          card.style.opacity = '';
+          card.style.pointerEvents = '';
+          const b = card.querySelector('.badge-inativo');
+          if (b) b.remove();
+        }
+      });
+    });
+  } catch(e) {}
+}
 function openGame(game) {
   alert(`🎮 ${game.charAt(0).toUpperCase() + game.slice(1)}\n\nEm breve disponível com apostas reais!`);
 }

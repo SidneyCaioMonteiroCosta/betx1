@@ -859,17 +859,46 @@ io.on('connection', (socketF) => {
 
       if (s.jogadores.length >= sala && !s.iniciada) {
         s.iniciada = true;
+        s.passaros = {}; // userId -> índice do pássaro
         if (s.timer) clearTimeout(s.timer);
-        s.timer = setTimeout(async () => {
-          for (const j of s.jogadores) {
-            await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, j.userId]);
-          }
-          io.to(salaKey).emit('flappy_start', {
-            jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })), valor, countdown: 3
-          });
-        }, 500);
+        // Fase de escolha de pássaro: avisar todos para escolher
+        io.to(salaKey).emit('flappy_escolher_passaro', {
+          jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome }))
+        });
       }
     } catch(e) { socketF.emit('flappy_erro', { msg: 'Erro de autenticação' }); }
+  });
+
+  // Jogador escolheu pássaro
+  socketF.on('flappy_escolher_passaro', ({ passaroIdx }) => {
+    const conn = flappyConns[socketF.id];
+    if (!conn) return;
+    const s = flappySalas[conn.salaKey];
+    if (!s || !s.passaros) return;
+    // Verificar se outro jogador já pegou esse pássaro
+    const jaEscolhido = Object.entries(s.passaros).some(([uid, idx]) => idx === passaroIdx && parseInt(uid) !== conn.userId);
+    if (jaEscolhido) {
+      socketF.emit('flappy_passaro_ocupado', { passaroIdx });
+      return;
+    }
+    s.passaros[conn.userId] = passaroIdx;
+    // Avisar todos quais pássaros já foram escolhidos (para desabilitar)
+    io.to(conn.salaKey).emit('flappy_passaros_atualizados', { passaros: s.passaros });
+
+    // Se todos escolheram, iniciar a partida
+    if (Object.keys(s.passaros).length >= s.jogadores.length) {
+      if (s.timer) clearTimeout(s.timer);
+      s.timer = setTimeout(async () => {
+        for (const j of s.jogadores) {
+          await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [s.valor, j.userId]);
+        }
+        io.to(conn.salaKey).emit('flappy_start', {
+          jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })),
+          valor: s.valor, countdown: 3,
+          passaros: s.passaros
+        });
+      }, 600);
+    }
   });
 
   socketF.on('flappy_ponto', ({ pontos }) => {
@@ -879,6 +908,16 @@ io.on('connection', (socketF) => {
     const s = flappySalas[conn.salaKey];
     if (s) { const j = s.jogadores.find(j => j.userId === conn.userId); if (j && !j.morto) j.pontos = pontos; }
     io.to(conn.salaKey).emit('flappy_update', { id: conn.userId, pontos });
+  });
+
+  // Sincronizar posição do pássaro (para adversários verem em tempo real)
+  socketF.on('flappy_pos', ({ y, vy }) => {
+    const conn = flappyConns[socketF.id];
+    if (!conn || conn.morto) return;
+    // Repassar para os outros jogadores da sala (volatile = sem lag)
+    socketF.to(conn.salaKey).volatile.emit('flappy_pos_update', {
+      id: conn.userId, y: Math.round(y), vy: Math.round(vy * 10) / 10
+    });
   });
 
   socketF.on('flappy_morreu', async ({ pontos }) => {
@@ -1300,6 +1339,19 @@ app.post('/api/admin/usuario/:id/senha', adminAuth, async (req, res) => {
 });
 
 // ===== ADMIN - CONTROLE DE JOGOS =====
+// Rota PÚBLICA: status dos jogos (para a tela inicial saber quais estão ativos)
+app.get('/api/jogos-status', async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS jogos_config (
+      id TEXT PRIMARY KEY, nome TEXT, ativo BOOLEAN DEFAULT true
+    )`).catch(()=>{});
+    const { rows } = await pool.query('SELECT id, ativo FROM jogos_config');
+    const status = {};
+    rows.forEach(r => { status[r.id] = r.ativo; });
+    res.json(status);
+  } catch(e) { res.json({}); }
+});
+
 app.get('/api/admin/jogos', adminAuth, async (req, res) => {
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS jogos_config (

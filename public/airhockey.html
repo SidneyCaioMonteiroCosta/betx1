@@ -238,6 +238,10 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
 const token = localStorage.getItem('superduelo_token');
 const usuario = JSON.parse(localStorage.getItem('superduelo_user') || '{}');
 document.getElementById('saldoHdr').textContent = (usuario.saldo||0).toFixed(2).replace('.',',');
+// Verificar se o jogo está ativo
+fetch('/api/jogos-status').then(r=>r.json()).then(s=>{
+  if (s.airhockey === false) { alert('Air Hockey está temporariamente indisponível.'); window.location.href = '/'; }
+}).catch(()=>{});
 
 let socket = null;
 let valorSel = 0;

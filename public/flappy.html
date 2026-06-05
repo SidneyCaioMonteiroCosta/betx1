@@ -156,22 +156,7 @@
   </div>
   <button class="btn btn-primary" id="btn-entrar" onclick="entrarFila()">Entrar na Fila 🚀</button>
 <button id="salaBtn" style="width:100%;padding:14px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;" onclick="abrirModalSalaFlappy()">🏠 CRIAR / ENTRAR EM SALA</button>
-  <div class="card" style="margin-top:10px;">
-    <h3>Escolha seu pássaro</h3>
-    <div id="bird-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
-      <div class="sala-btn ativo" onclick="selecionarPassaro(0,this)" style="font-size:1.8rem;padding:10px;">🐦</div>
-      <div class="sala-btn" onclick="selecionarPassaro(1,this)" style="font-size:1.8rem;padding:10px;">🦜</div>
-      <div class="sala-btn" onclick="selecionarPassaro(2,this)" style="font-size:1.8rem;padding:10px;">🦅</div>
-      <div class="sala-btn" onclick="selecionarPassaro(3,this)" style="font-size:1.8rem;padding:10px;">🦆</div>
-      <div class="sala-btn" onclick="selecionarPassaro(4,this)" style="font-size:1.8rem;padding:10px;">🦉</div>
-      <div class="sala-btn" onclick="selecionarPassaro(5,this)" style="font-size:1.8rem;padding:10px;">🐧</div>
-      <div class="sala-btn" onclick="selecionarPassaro(6,this)" style="font-size:1.8rem;padding:10px;">🦚</div>
-      <div class="sala-btn" onclick="selecionarPassaro(7,this)" style="font-size:1.8rem;padding:10px;">🦩</div>
-      <div class="sala-btn" onclick="selecionarPassaro(8,this)" style="font-size:1.8rem;padding:10px;">🐓</div>
-      <div class="sala-btn" onclick="selecionarPassaro(9,this)" style="font-size:1.8rem;padding:10px;">🦤</div>
-    </div>
-  </div>
-<button class="btn btn-secondary" onclick="jogarContraBot()">🤖 Jogar contra Bot</button>
+<button class="btn btn-secondary" onclick="jogarContraBot()" style="margin-top:10px;">🤖 Jogar contra Bot</button>
   <div id="aguardando-box" style="display:none">
     <div class="card aguardando">
       <div class="spinner"></div>
@@ -182,6 +167,31 @@
     <button class="btn btn-secondary" onclick="sairFila()">Cancelar</button>
   </div>
 </div>
+
+<!-- TELA DE ESCOLHA DE PÁSSARO (após encontrar adversário) -->
+<div id="escolha-screen" style="display:none;width:100%;max-width:500px;padding:20px;text-align:center;">
+  <div class="logo"><h1>🐦 Escolha seu pássaro</h1></div>
+  <p style="color:#888;font-size:0.9rem;margin-bottom:6px;">Adversário encontrado! Cada jogador escolhe um pássaro diferente.</p>
+  <p id="escolha-status" style="color:#a855f7;font-size:0.85rem;margin-bottom:16px;">Escolha o seu...</p>
+  <div id="bird-grid-escolha" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">
+    <div class="bird-opt" data-idx="0" onclick="escolherPassaroOnline(0)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🐦</div>
+    <div class="bird-opt" data-idx="1" onclick="escolherPassaroOnline(1)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦜</div>
+    <div class="bird-opt" data-idx="2" onclick="escolherPassaroOnline(2)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦅</div>
+    <div class="bird-opt" data-idx="3" onclick="escolherPassaroOnline(3)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦆</div>
+    <div class="bird-opt" data-idx="4" onclick="escolherPassaroOnline(4)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦉</div>
+    <div class="bird-opt" data-idx="5" onclick="escolherPassaroOnline(5)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🐧</div>
+    <div class="bird-opt" data-idx="6" onclick="escolherPassaroOnline(6)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦚</div>
+    <div class="bird-opt" data-idx="7" onclick="escolherPassaroOnline(7)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦩</div>
+    <div class="bird-opt" data-idx="8" onclick="escolherPassaroOnline(8)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🐓</div>
+    <div class="bird-opt" data-idx="9" onclick="escolherPassaroOnline(9)" style="font-size:2rem;padding:14px;background:rgba(255,255,255,.05);border:2px solid #333;border-radius:12px;cursor:pointer;">🦤</div>
+  </div>
+  <!-- Toggle ver adversários -->
+  <label style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:0.85rem;color:#aaa;cursor:pointer;">
+    <input type="checkbox" id="verAdversarios" checked style="width:18px;height:18px;accent-color:#a855f7;">
+    Ver os pássaros dos adversários durante o jogo
+  </label>
+</div>
+
 
 <div id="game-screen">
   <div id="placar"></div>
@@ -207,6 +217,10 @@
 <script>
 const token = localStorage.getItem('superduelo_token');
 if (!token) { window.location.href = '/'; }
+// Verificar se o jogo está ativo
+fetch('/api/jogos-status').then(r=>r.json()).then(s=>{
+  if (s.flappy === false) { alert('Flappy Duelo está temporariamente indisponível.'); window.location.href = '/'; }
+}).catch(()=>{});
 
 const socket = io();
 let salaAtual = 2;
@@ -233,11 +247,31 @@ let botRenderX = 200; // posição visual do bot (separada da lógica)
 // Pássaros disponíveis
 const PASSAROS = ['🐦','🦜','🦅','🦆','🦉','🐧','🦚','🦩','🐓','🦤'];
 let passaroSelecionado = 0;
+let passarosOcupados = {};
+let meuPassaroEscolhido = null;
+let passarosJogadores = {}; // userId -> índice do pássaro
+let oppPositions = {};      // userId -> {y, vy} posição do adversário
+let verAdversarios = true;
 
 function selecionarPassaro(idx, el) {
   passaroSelecionado = idx;
   document.querySelectorAll('#bird-grid .sala-btn').forEach(b => b.classList.remove('ativo'));
-  el.classList.add('ativo');
+  if (el) el.classList.add('ativo');
+}
+
+// Escolher pássaro na tela online (após match)
+function escolherPassaroOnline(idx) {
+  // Não deixar escolher se já está ocupado por outro
+  const ocupadoPorOutro = Object.entries(passarosOcupados).some(([uid, i]) => i === idx && parseInt(uid) !== myId);
+  if (ocupadoPorOutro) { mostrarMsg('Esse pássaro já foi escolhido!', 'erro'); return; }
+  meuPassaroEscolhido = idx;
+  passaroSelecionado = idx;
+  socket.emit('flappy_escolher_passaro', { passaroIdx: idx });
+  // Marcar visualmente
+  document.querySelectorAll('.bird-opt').forEach(b => {
+    if (parseInt(b.dataset.idx) === idx) b.style.border = '2px solid #22c55e';
+  });
+  document.getElementById('escolha-status').textContent = 'Você escolheu! Aguardando adversário...';
 }
 
 const GRAVITY = 0.45;
@@ -342,16 +376,77 @@ socket.on('flappy_sala_update', ({ jogadores, total }) => {
   document.getElementById('jogadores-lista').innerHTML = jogadores.map(j => `<div class="jogador-chip">${j.nome}</div>`).join('');
 });
 
-socket.on('flappy_start', ({ jogadores, valor, countdown }) => {
+// Adversário encontrado: mostrar tela de escolha de pássaro
+socket.on('flappy_escolher_passaro', ({ jogadores }) => {
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('escolha-screen').style.display = 'block';
+  document.getElementById('escolha-status').textContent = 'Escolha o seu pássaro...';
+  passarosOcupados = {};
+  meuPassaroEscolhido = null;
+  // Resetar visual dos botões
+  document.querySelectorAll('.bird-opt').forEach(b => {
+    b.style.border = '2px solid #333';
+    b.style.opacity = '1';
+    b.style.pointerEvents = 'auto';
+  });
+});
+
+// Atualização de quais pássaros já foram escolhidos
+socket.on('flappy_passaros_atualizados', ({ passaros }) => {
+  passarosOcupados = passaros || {};
+  document.querySelectorAll('.bird-opt').forEach(b => {
+    const idx = parseInt(b.dataset.idx);
+    // Pássaro escolhido por OUTRO jogador (não eu)
+    const ocupadoPorOutro = Object.entries(passaros).some(([uid, i]) => i === idx && parseInt(uid) !== myId);
+    const escolhidoPorMim = passaros[myId] === idx;
+    if (ocupadoPorOutro) {
+      b.style.opacity = '0.3';
+      b.style.pointerEvents = 'none';
+      b.style.border = '2px solid #ef4444';
+    } else if (escolhidoPorMim) {
+      b.style.border = '2px solid #22c55e';
+      b.style.opacity = '1';
+    } else {
+      b.style.border = '2px solid #333';
+      b.style.opacity = '1';
+      b.style.pointerEvents = 'auto';
+    }
+  });
+  const total = Object.keys(passaros).length;
+  if (meuPassaroEscolhido !== null) {
+    document.getElementById('escolha-status').textContent = `Você escolheu! Aguardando os outros... (${total} prontos)`;
+  }
+});
+
+socket.on('flappy_passaro_ocupado', ({ passaroIdx }) => {
+  mostrarMsg('Esse pássaro já foi escolhido! Escolha outro.', 'erro');
+});
+
+socket.on('flappy_start', ({ jogadores, valor, countdown, passaros }) => {
   valorAposta = valor;
   jogadoresInfo = {};
-  jogadores.forEach(j => { jogadoresInfo[j.id] = { nome: j.nome, pontos: 0, morto: false, eu: j.id === myId }; });
+  passarosJogadores = passaros || {};
+  jogadores.forEach(j => {
+    jogadoresInfo[j.id] = {
+      nome: j.nome, pontos: 0, morto: false, eu: j.id === myId,
+      passaro: passaros && passaros[j.id] !== undefined ? passaros[j.id] : 0
+    };
+  });
+  // Definir meu pássaro a partir da escolha
+  if (passaros && passaros[myId] !== undefined) passaroSelecionado = passaros[myId];
+  document.getElementById('escolha-screen').style.display = 'none';
+  verAdversarios = document.getElementById('verAdversarios')?.checked !== false;
   mostrarJogo(false);
   iniciarContagem(countdown);
 });
 
 socket.on('flappy_update', ({ id, pontos: p }) => {
   if (jogadoresInfo[id]) { jogadoresInfo[id].pontos = p; atualizarPlacar(); }
+});
+
+// Posição do adversário em tempo real
+socket.on('flappy_pos_update', ({ id, y, vy }) => {
+  oppPositions[id] = { y, vy };
 });
 
 socket.on('flappy_player_morreu', ({ id }) => {
@@ -458,8 +553,9 @@ function iniciarJogo() {
   morto = false;
   botMorto = false;
   canos = [];
-  passaro = { x: 60, y: 250, vy: 0 };
-  botPassaro = { x: 200, y: 150, vy: 0 };
+  passaro = { x: 60, y: 180, vy: 0 };   // começa no terço superior
+  botPassaro = { x: 200, y: 180, vy: 0 };
+  oppPositions = {}; // posições dos adversários
   pontos = 0;
   botPontos = 0;
   frame = 0;
@@ -485,6 +581,11 @@ function loop() {
   passaro.vy += GRAVITY;
   passaro.y += passaro.vy;
   frame++;
+
+  // Enviar posição para adversários verem (a cada 2 frames = ~30fps)
+  if (!botMode && !morto && frame % 2 === 0) {
+    socket.emit('flappy_pos', { y: passaro.y, vy: passaro.vy });
+  }
 
   // Spawnar canos
   if (frame % 90 === 0) {
@@ -588,6 +689,16 @@ function desenhar() {
   // Bot
   if (botMode && !botMorto && botPassaro.x > 0) desenharPassaro(botRenderX, botPassaro.y, botPassaro.vy, false, true);
 
+  // Adversários online (se a opção estiver ligada)
+  if (!botMode && verAdversarios) {
+    Object.entries(oppPositions).forEach(([uid, pos]) => {
+      const info = jogadoresInfo[uid];
+      if (!info || info.eu || info.morto) return;
+      // Desenhar o pássaro do adversário na mesma faixa x, levemente deslocado
+      desenharPassaroEmoji(passaro.x, pos.y, pos.vy || 0, PASSAROS[info.passaro || 0], 0.65);
+    });
+  }
+
   // Jogador
   desenharPassaro(passaro.x, passaro.y, passaro.vy, morto, false);
 
@@ -614,6 +725,21 @@ function desenhar() {
     ctx.fillText('canos', W / 2, 62);
   }
   ctx.textAlign = 'left';
+}
+
+function desenharPassaroEmoji(x, y, vy, emoji, alpha) {
+  ctx.save();
+  ctx.translate(x + 17, y + 14);
+  const rot = Math.min(Math.max(vy * 0.05, -0.4), 0.6);
+  ctx.rotate(rot);
+  ctx.globalAlpha = alpha || 0.65;
+  ctx.font = '28px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 0, 0);
+  // Contorno tracejado para destacar que é adversário
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function desenharPassaro(x, y, vy, dead, isBot) {
@@ -758,11 +884,15 @@ function voltarLobby() {
   document.removeEventListener('keydown', pular);
   document.getElementById('resultado-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('escolha-screen').style.display = 'none';
   document.getElementById('lobby').style.display = 'block';
   document.getElementById('btn-entrar').disabled = false;
   document.getElementById('btn-entrar').style.display = 'block';
   document.getElementById('aguardando-box').style.display = 'none';
   document.getElementById('tap-hint').textContent = 'Toque ou pressione ESPAÇO para voar';
+  oppPositions = {};
+  passarosOcupados = {};
+  meuPassaroEscolhido = null;
   carregarSaldo();
 }
 
