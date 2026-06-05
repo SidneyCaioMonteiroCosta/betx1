@@ -324,22 +324,38 @@
 <!-- ADMIN -->
 <div id="admin" class="screen">
   <div class="topbar">
-    <div class="logo small">SUPER DUELO</div>
-    <div style="margin-left:auto;font-size:11px;color:var(--muted);">PAINEL ADMIN</div>
+    <!-- Menu hambúrguer (3 traços) -->
+    <button onclick="toggleAdminMenu()" style="background:none;border:none;cursor:pointer;padding:6px 10px;display:flex;flex-direction:column;gap:4px;">
+      <span style="display:block;width:22px;height:2.5px;background:var(--gold);border-radius:2px;"></span>
+      <span style="display:block;width:22px;height:2.5px;background:var(--gold);border-radius:2px;"></span>
+      <span style="display:block;width:22px;height:2.5px;background:var(--gold);border-radius:2px;"></span>
+    </button>
+    <div class="logo small" style="margin-left:8px;">SUPER DUELO</div>
+    <div id="adminTabAtual" style="margin-left:auto;font-size:12px;color:var(--gold);font-weight:700;">💰 Saques</div>
     <button class="back-btn" style="margin-left:8px;" onclick="logout()">🚪</button>
   </div>
-  <!-- Admin Tabs -->
-  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);">
-    <div onclick="adminTab('saques')" id="atSaques" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--gold);border-bottom:2px solid var(--gold);">💰 Saques</div>
-    <div onclick="adminTab('usuarios')" id="atUsers" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">👥 Usuários</div>
-    <div onclick="adminTab('jogos')" id="atJogos" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🎮 Jogos</div>
-    <div onclick="adminTab('stats')" id="atStats" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">📊 Stats</div>
-    <div onclick="adminTab('torneios')" id="atTorneios" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🏆 Torneios</div>
-    <div onclick="adminTab('tickets')" id="atTickets" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;position:relative;">💬 Suporte<span id="ticketBadge" style="display:none;position:absolute;top:4px;right:8px;background:#ef4444;color:#fff;font-size:10px;padding:1px 5px;border-radius:10px;">0</span></div>
-    <div onclick="adminTab('banners')" id="atBanners" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🖼️ Novidades</div>
-    <div onclick="adminTab('indicacoes')" id="atIndicacoes" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">🎁 Indicações</div>
-    <div onclick="adminTab('rankadmin')" id="atRankadmin" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">📊 Ranking</div>
+
+  <!-- Menu dropdown (escondido por padrão) -->
+  <div id="adminMenu" style="display:none;position:fixed;top:0;left:0;bottom:0;width:75%;max-width:300px;background:var(--surface);z-index:3000;box-shadow:4px 0 24px rgba(0,0,0,.5);overflow-y:auto;">
+    <div style="padding:18px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:16px;font-weight:800;color:var(--gold);">⚙️ Painel Admin</div>
+      <button onclick="toggleAdminMenu()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:8px;">
+      <div onclick="adminTab('saques');toggleAdminMenu()" class="adminMenuItem" data-tab="saques" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--gold);background:rgba(240,192,64,.1);margin-bottom:4px;position:relative;">💰 Saques</div>
+      <div onclick="adminTab('usuarios');toggleAdminMenu()" class="adminMenuItem" data-tab="usuarios" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">👥 Usuários</div>
+      <div onclick="adminTab('jogos');toggleAdminMenu()" class="adminMenuItem" data-tab="jogos" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">🎮 Jogos</div>
+      <div onclick="adminTab('torneios');toggleAdminMenu()" class="adminMenuItem" data-tab="torneios" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">🏆 Torneios</div>
+      <div onclick="adminTab('rankadmin');toggleAdminMenu()" class="adminMenuItem" data-tab="rankadmin" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">📊 Ranking e Prêmios</div>
+      <div onclick="adminTab('tickets');toggleAdminMenu()" class="adminMenuItem" data-tab="tickets" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;position:relative;">💬 Suporte<span id="ticketBadge" style="display:none;position:absolute;top:14px;right:16px;background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;">0</span></div>
+      <div onclick="adminTab('indicacoes');toggleAdminMenu()" class="adminMenuItem" data-tab="indicacoes" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">🎁 Indicações</div>
+      <div onclick="adminTab('banners');toggleAdminMenu()" class="adminMenuItem" data-tab="banners" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">🖼️ Novidades</div>
+      <div onclick="adminTab('stats');toggleAdminMenu()" class="adminMenuItem" data-tab="stats" style="padding:14px 16px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">📊 Estatísticas</div>
+    </div>
   </div>
+  <!-- Overlay para fechar o menu -->
+  <div id="adminMenuOverlay" onclick="toggleAdminMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2999;"></div>
+
   <div class="scrollable">
     <div style="padding:16px;">
 

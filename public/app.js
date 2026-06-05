@@ -517,27 +517,47 @@ function recarregarFichas() {
 let todosUsuarios = [];
 let userEditandoId = null;
 
+function toggleAdminMenu() {
+  const menu = document.getElementById('adminMenu');
+  const overlay = document.getElementById('adminMenuOverlay');
+  const isOpen = menu.style.display === 'block';
+  menu.style.display = isOpen ? 'none' : 'block';
+  overlay.style.display = isOpen ? 'none' : 'block';
+}
+
+const ADMIN_TAB_LABELS = {
+  saques: '💰 Saques', usuarios: '👥 Usuários', jogos: '🎮 Jogos',
+  torneios: '🏆 Torneios', rankadmin: '📊 Ranking', tickets: '💬 Suporte',
+  indicacoes: '🎁 Indicações', banners: '🖼️ Novidades', stats: '📊 Estatísticas'
+};
+
 function adminTab(tab) {
   const tabMap = {
-    'saques': { div: 'tabSaques', btn: 'atSaques' },
-    'usuarios': { div: 'tabUsers', btn: 'atUsers' },
-    'jogos': { div: 'tabJogos', btn: 'atJogos' },
-    'stats': { div: 'tabStats', btn: 'atStats' },
-    'torneios': { div: 'tabTorneios', btn: 'atTorneios' },
-    'tickets': { div: 'tabTickets', btn: 'atTickets' },
-    'banners': { div: 'tabBanners', btn: 'atBanners' },
-    'indicacoes': { div: 'tabIndicacoes', btn: 'atIndicacoes' },
-    'rankadmin': { div: 'tabRankadmin', btn: 'atRankadmin' }
+    'saques': 'tabSaques',
+    'usuarios': 'tabUsers',
+    'jogos': 'tabJogos',
+    'stats': 'tabStats',
+    'torneios': 'tabTorneios',
+    'tickets': 'tabTickets',
+    'banners': 'tabBanners',
+    'indicacoes': 'tabIndicacoes',
+    'rankadmin': 'tabRankadmin'
   };
-  Object.entries(tabMap).forEach(([t, ids]) => {
-    const divEl = document.getElementById(ids.div);
-    const btnEl = document.getElementById(ids.btn);
+  // Mostrar/esconder os conteúdos
+  Object.entries(tabMap).forEach(([t, divId]) => {
+    const divEl = document.getElementById(divId);
     if (divEl) divEl.style.display = t === tab ? 'block' : 'none';
-    if (btnEl) {
-      btnEl.style.color = t === tab ? 'var(--gold)' : 'var(--muted)';
-      btnEl.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent';
-    }
   });
+  // Atualizar label no header
+  const lbl = document.getElementById('adminTabAtual');
+  if (lbl) lbl.textContent = ADMIN_TAB_LABELS[tab] || '';
+  // Destacar item no menu
+  document.querySelectorAll('.adminMenuItem').forEach(el => {
+    const ativo = el.dataset.tab === tab;
+    el.style.color = ativo ? 'var(--gold)' : 'var(--text)';
+    el.style.background = ativo ? 'rgba(240,192,64,.1)' : 'transparent';
+  });
+  // Carregar dados
   if (tab === 'usuarios') carregarUsuariosAdmin();
   if (tab === 'jogos') carregarJogosAdmin();
   if (tab === 'stats') carregarStatsAdmin();
@@ -552,6 +572,8 @@ async function loadAdmin() {
   // Ajustar UI conforme nível do admin
   aplicarNivelAdmin();
   atualizarBadgeTickets();
+  // Garantir que só a aba Saques aparece ao abrir (admin nível 1)
+  if ((usuario?.adminNivel || 1) === 1) adminTab('saques');
   // Atualizar badge a cada 20s
   if (!window._ticketBadgeInterval) {
     window._ticketBadgeInterval = setInterval(atualizarBadgeTickets, 20000);
@@ -582,15 +604,15 @@ async function loadAdmin() {
 function aplicarNivelAdmin() {
   const nivel = usuario?.adminNivel || 1;
   if (nivel === 2) {
-    // Esconder abas e botões que Admin 2 não pode usar
-    const esconder = ['atSaques', 'atTorneios']; // saques e torneios só admin 1
-    esconder.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-    // Mostrar aviso de conta limitada
-    const header = document.querySelector('#admin .topbar-title');
-    if (header && !header.dataset.lvl2) {
-      header.dataset.lvl2 = '1';
-      header.innerHTML += ' <span style="font-size:11px;color:#a855f7;">(Suporte)</span>';
-    }
+    // Admin 2: esconder itens do menu que ele não pode usar
+    const esconder = ['saques', 'torneios', 'rankadmin', 'jogos']; // só admin 1 mexe nisso
+    esconder.forEach(tab => {
+      const el = document.querySelector(`.adminMenuItem[data-tab="${tab}"]`);
+      if (el) el.style.display = 'none';
+    });
+    // Marcar como conta de suporte
+    const lbl = document.getElementById('adminTabAtual');
+    if (lbl) lbl.innerHTML = '💬 Suporte <span style="font-size:10px;color:#a855f7;">(limitado)</span>';
     // Ir direto para tickets
     setTimeout(() => adminTab('tickets'), 100);
   }
