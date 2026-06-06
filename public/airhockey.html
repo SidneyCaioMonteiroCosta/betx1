@@ -813,7 +813,13 @@ function renderFrame(){
 // ── ONLINE ───────────────────────────────────────────
 function conectarSocket(){
   if(socket&&socket.connected)return;
-  socket=io();
+  // WebSocket PURO (sem polling) — polling tem latência de 300-400ms, websocket ~50ms
+  socket=io({
+    transports: ['websocket'],
+    upgrade: false,
+    reconnection: true,
+    reconnectionDelay: 500
+  });
 
   socket.on('game_start',data=>{
     myRole=data.role; botMode=false; gameOver=false;
@@ -843,17 +849,18 @@ function conectarSocket(){
     let frameCount = 0;
     function renderOnline(){
       if(!gameOver)animId=requestAnimationFrame(renderOnline);
-      // Enviar mallet a cada frame (essencial para colisão precisa no servidor)
+      // Enviar mallet a ~30fps (a cada 2 frames) — colisão é local, servidor só precisa
+      // da posição para a simulação autoritativa. Menos tráfego = menos congestão = menos ping.
       if(socket && !gameOver){
         frameCount++;
-        if(frameCount % 1 === 0) socket.emit('ah_mallet',{x:mx,y:my});
+        if(frameCount % 2 === 0) socket.emit('ah_mallet',{x:mx,y:my});
       }
       renderFrame();
     }
     animId=requestAnimationFrame(renderOnline);
-    // Medir ping a cada 2s
+    // Medir ping a cada 3s
     if(window._pingInterval) clearInterval(window._pingInterval);
-    window._pingInterval = setInterval(()=>{ if(socket&&!gameOver) socket.emit('ping_ah', performance.now()); }, 2000);
+    window._pingInterval = setInterval(()=>{ if(socket&&!gameOver) socket.emit('ping_ah', performance.now()); }, 3000);
     socket.emit('ping_ah', performance.now());
   });
 

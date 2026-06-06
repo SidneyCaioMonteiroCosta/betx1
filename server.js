@@ -13,9 +13,11 @@ const server = http.createServer(app);
 const io = new Server(server, {
   // Otimizações para jogo em tempo real
   perMessageDeflate: false,      // não comprimir (pacotes pequenos, compressão só adiciona latência)
-  transports: ['websocket', 'polling'], // priorizar websocket
-  pingInterval: 10000,
-  pingTimeout: 5000
+  transports: ['websocket'],     // SÓ websocket — polling tem latência de 300-400ms
+  allowUpgrades: false,          // não permitir downgrade para polling
+  pingInterval: 25000,
+  pingTimeout: 20000,
+  maxHttpBufferSize: 1e6
 });
 
 const pool = new Pool({
@@ -677,15 +679,18 @@ function tickAH(roomId) {
     else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); }
   }
 
-  // Emitir estado — volatile descarta pacotes antigos se a rede congestionar (anti-lag)
-  // Arredondar para 3 casas reduz o tamanho do pacote pela metade
-  const r = n => Math.round(n*1000)/1000;
-  io.to(roomId).volatile.emit('ah_state', {
-    bx:r(S.bx), by:r(S.by),
-    m1x:r(S.m1x), m1y:r(S.m1y),
-    m2x:r(S.m2x), m2y:r(S.m2y),
-    bvx:r(S.bvx), bvy:r(S.bvy) // velocidade para o cliente prever
-  });
+  // Emitir estado a ~30fps (não 60) — o cliente simula a física localmente entre updates.
+  // Isso corta o tráfego servidor→cliente pela metade, reduzindo congestão e ping.
+  S._emitN = (S._emitN||0) + 1;
+  if (S._emitN % 2 === 0) {
+    const r = n => Math.round(n*1000)/1000;
+    io.to(roomId).volatile.emit('ah_state', {
+      bx:r(S.bx), by:r(S.by),
+      m1x:r(S.m1x), m1y:r(S.m1y),
+      m2x:r(S.m2x), m2y:r(S.m2y),
+      bvx:r(S.bvx), bvy:r(S.bvy)
+    });
+  }
 
   if (scorer) {
     io.to(roomId).emit('ah_gol', {s1:S.s1, s2:S.s2, scorer});

@@ -222,7 +222,7 @@ fetch('/api/jogos-status').then(r=>r.json()).then(s=>{
   if (s.flappy === false) { alert('Flappy Duelo está temporariamente indisponível.'); window.location.href = '/'; }
 }).catch(()=>{});
 
-const socket = io();
+const socket = io({ transports: ['websocket'], upgrade: false, reconnection: true });
 let salaAtual = 2;
 let myNome = '';
 let myId = null;
