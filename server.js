@@ -292,16 +292,18 @@ app.get('/api/pix/status/:pixId', auth, async (req, res) => {
 });
 
 app.post('/api/sacar', auth, async (req, res) => {
-  const { valor, chave_pix } = req.body;
+  const { valor, chave_pix, tipo_chave } = req.body;
   if (!valor || valor <= 0) return res.status(400).json({ erro: 'Valor inválido' });
   if (!chave_pix) return res.status(400).json({ erro: 'Informe sua chave Pix' });
   const { rows } = await pool.query('SELECT saldo FROM users WHERE id = $1', [req.user.id]);
   const user = rows[0];
-  if (user.saldo < valor) return res.status(400).json({ erro: 'Saldo insuficiente' });
+  if ((parseFloat(user.saldo)||0) < parseFloat(valor)) return res.status(400).json({ erro: 'Saldo insuficiente' });
+  // Descrição inclui o tipo da chave para o admin saber
+  const tipoTxt = tipo_chave === 'telefone' ? 'Telefone' : 'CPF/CNPJ';
   await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [valor, req.user.id]);
   await pool.query(
     'INSERT INTO transacoes (user_id, tipo, valor, descricao, status, chave_pix) VALUES ($1, $2, $3, $4, $5, $6)',
-    [req.user.id, 'saque', valor, 'Saque via Pix', 'pendente', chave_pix]
+    [req.user.id, 'saque', valor, `Saque via Pix (${tipoTxt})`, 'pendente', chave_pix]
   );
   const { rows: updated } = await pool.query('SELECT saldo FROM users WHERE id = $1', [req.user.id]);
   res.json({ saldo: updated[0].saldo, mensagem: 'Saque solicitado! Pix em até 24h.' });
@@ -570,6 +572,9 @@ io.on('connection', (socket) => {
   }
 
   // Receber posição do mallet do jogador
+  // PING: ecoa o timestamp de volta para o cliente medir latência
+  socket.on('ping_ah', (t) => { socket.emit('pong_ah', t); });
+
   socket.on('ah_mallet', ({x,y}) => {
     const roomId = acharSalaAH();
     if (!roomId) return;
@@ -621,13 +626,18 @@ function tickAH(roomId) {
   // Guardar posição anterior para colisão contínua
   const oldX = S.bx, oldY = S.by;
 
+  // Velocidade dos mallets (diferença desde o último tick) — dá "tacada" na bola
+  const m1vx = S.m1x - (S._pm1x ?? S.m1x), m1vy = S.m1y - (S._pm1y ?? S.m1y);
+  const m2vx = S.m2x - (S._pm2x ?? S.m2x), m2vy = S.m2y - (S._pm2y ?? S.m2y);
+  S._pm1x = S.m1x; S._pm1y = S.m1y; S._pm2x = S.m2x; S._pm2y = S.m2y;
+
   S.bx += S.bvx; S.by += S.bvy;
 
   // Fricção
   S.bvx *= 0.992; S.bvy *= 0.992;
   const sp = Math.sqrt(S.bvx**2+S.bvy**2);
   if (sp < .005) { const f=.006/sp; S.bvx*=f; S.bvy*=f; }
-  if (sp > .024) { const f=.024/sp; S.bvx*=f; S.bvy*=f; }
+  if (sp > .026) { const f=.026/sp; S.bvx*=f; S.bvy*=f; }
 
   // Paredes
   if (S.bx-S.br<0) { S.bx=S.br; S.bvx=Math.abs(S.bvx); }
@@ -651,9 +661,9 @@ function tickAH(roomId) {
     }
   }
 
-  // Colisão contínua com mallets (evita atravessar)
-  colideContinuo(S, S.m1x, S.m1y, oldX, oldY);
-  colideContinuo(S, S.m2x, S.m2y, oldX, oldY);
+  // Colisão contínua com mallets (8 passos + impulso do movimento do disco)
+  colideContinuo(S, S.m1x, S.m1y, oldX, oldY, m1vx, m1vy);
+  colideContinuo(S, S.m2x, S.m2y, oldX, oldY, m2vx, m2vy);
 
   // Gols
   const gw=.36, gx=(1-gw)/2;
@@ -703,10 +713,10 @@ function colideAH(S, mx, my) {
 }
 
 // Detecta colisão ao longo do movimento (evita atravessar em alta velocidade)
-function colideContinuo(S, mx, my, oldX, oldY) {
+function colideContinuo(S, mx, my, oldX, oldY, mvx, mvy) {
   const minDist = S.br + MR;
-  // Verifica vários pontos ao longo da trajetória da bola
-  const steps = 4;
+  // Verifica MAIS pontos ao longo da trajetória (8 = praticamente impossível atravessar)
+  const steps = 8;
   for (let i=1; i<=steps; i++) {
     const t = i/steps;
     const cx = oldX + (S.bx-oldX)*t;
@@ -715,11 +725,14 @@ function colideContinuo(S, mx, my, oldX, oldY) {
     if (d < minDist && d > 0) {
       const nx=dx/d, ny=dy/d;
       const spd=Math.sqrt(S.bvx**2+S.bvy**2);
-      S.bx = mx + nx*(minDist+0.003);
-      S.by = my + ny*(minDist+0.003);
-      const newSpd = Math.max(spd + 0.005, 0.011);
-      S.bvx = nx*newSpd;
-      S.bvy = ny*newSpd;
+      // Reposiciona a bola na superfície do disco
+      S.bx = mx + nx*(minDist+0.004);
+      S.by = my + ny*(minDist+0.004);
+      // Velocidade resultante: direção da normal + impulso do movimento do disco
+      const impulsoMallet = Math.sqrt((mvx||0)**2 + (mvy||0)**2);
+      const newSpd = Math.max(spd + 0.005 + impulsoMallet*0.6, 0.012);
+      S.bvx = nx*newSpd + (mvx||0)*0.4;
+      S.bvy = ny*newSpd + (mvy||0)*0.4;
       return true;
     }
   }

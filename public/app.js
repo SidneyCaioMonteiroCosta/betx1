@@ -461,16 +461,43 @@ async function confirmarDep() {
   }
 }
 
+let tipoPixSelecionado = 'cpf';
+function setTipoPix(tipo, el) {
+  tipoPixSelecionado = tipo;
+  const cpf = document.getElementById('tipoCpf');
+  const tel = document.getElementById('tipoTel');
+  const ativo = (b) => { b.style.border = '2px solid var(--gold)'; b.style.background = 'rgba(240,192,64,.15)'; b.style.color = 'var(--gold)'; };
+  const inativo = (b) => { b.style.border = '2px solid var(--border)'; b.style.background = 'transparent'; b.style.color = 'var(--muted)'; };
+  if (tipo === 'cpf') { ativo(cpf); inativo(tel); document.getElementById('pixKey').placeholder = 'Digite seu CPF ou CNPJ (só números)'; }
+  else { ativo(tel); inativo(cpf); document.getElementById('pixKey').placeholder = 'Digite seu telefone com DDD (só números)'; }
+  document.getElementById('pixKey').value = '';
+}
+
 async function confirmarSaq() {
   const valor = parseFloat(document.getElementById('saqAmt').value) || pixAmt;
-  const chave_pix = document.getElementById('pixKey').value.trim();
+  let chave_pix = document.getElementById('pixKey').value.trim();
   if (!valor || valor <= 0) { alert('Escolha um valor!'); return; }
   if (!chave_pix) { alert('Informe sua chave Pix!'); return; }
+
+  // Validar conforme o tipo
+  const soNumeros = chave_pix.replace(/\D/g, '');
+  if (tipoPixSelecionado === 'cpf') {
+    if (soNumeros.length !== 11 && soNumeros.length !== 14) {
+      alert('CPF deve ter 11 dígitos ou CNPJ 14 dígitos.'); return;
+    }
+    chave_pix = soNumeros;
+  } else {
+    if (soNumeros.length < 10 || soNumeros.length > 11) {
+      alert('Telefone inválido. Use DDD + número (10 ou 11 dígitos).'); return;
+    }
+    chave_pix = soNumeros;
+  }
+
   try {
     const res = await fetch('/api/sacar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ valor, chave_pix })
+      body: JSON.stringify({ valor, chave_pix, tipo_chave: tipoPixSelecionado })
     });
     const data = await res.json();
     if (!res.ok) { alert(data.erro); return; }

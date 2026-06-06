@@ -523,7 +523,12 @@
         <div class="amt-btn" onclick="setAmt(500,this)">R$ 500</div>
       </div>
       <input class="modal-input" type="number" id="saqAmt" placeholder="Valor do saque (R$)"/>
-      <input class="modal-input" type="text" id="pixKey" placeholder="Sua chave Pix (CPF, email ou telefone)"/>
+      <div style="font-size:13px;color:var(--muted);margin:4px 0 8px;">Tipo de chave Pix</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button type="button" onclick="setTipoPix('cpf',this)" id="tipoCpf" style="flex:1;padding:11px;border:2px solid var(--gold);background:rgba(240,192,64,.15);color:var(--gold);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">CPF / CNPJ</button>
+        <button type="button" onclick="setTipoPix('telefone',this)" id="tipoTel" style="flex:1;padding:11px;border:2px solid var(--border);background:transparent;color:var(--muted);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Telefone</button>
+      </div>
+      <input class="modal-input" type="text" id="pixKey" placeholder="Digite seu CPF ou CNPJ (só números)"/>
       <div class="success-msg" id="saqOk" style="display:none;">✅ Saque solicitado! Pix em até 24h.</div>
       <button class="btn-primary saq" onclick="confirmarSaq()">⬇️ SOLICITAR SAQUE</button>
     </div>

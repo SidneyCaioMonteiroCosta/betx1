@@ -156,10 +156,27 @@ canvas{display:block;touch-action:none;flex-shrink:0;}
   </div>
   <!-- Desistir no topo (fix #6) -->
   <div class="topbar-game">
-    <div style="font-size:11px;color:var(--muted);" id="roleMsg"></div>
-    <button onclick="desistir()" style="padding:4px 12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">🏳️ Desistir</button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:11px;color:var(--muted);" id="roleMsg"></div>
+      <div style="font-size:11px;" id="pingDisplay"><span style="color:var(--muted);">● --ms</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button onclick="toggleFullscreen()" style="padding:4px 10px;background:rgba(240,192,64,.12);border:1px solid rgba(240,192,64,.3);color:var(--gold);border-radius:6px;font-size:12px;cursor:pointer;">⛶ Tela cheia</button>
+      <button onclick="desistir()" style="padding:4px 12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">🏳️ Desistir</button>
+    </div>
   </div>
   <canvas id="canvas"></canvas>
+</div>
+
+<!-- MODAL TELA CHEIA (antes da partida) -->
+<div id="modalFullscreen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:3000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border-radius:16px;max-width:340px;padding:24px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">⛶</div>
+    <div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:8px;">Jogar em tela cheia?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">A tela cheia melhora a experiência e o controle no Air Hockey.</div>
+    <button onclick="aceitarFullscreen()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:8px;">⛶ Sim, tela cheia</button>
+    <button onclick="recusarFullscreen()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;font-size:14px;cursor:pointer;">Continuar normal</button>
+  </div>
 </div>
 
 <!-- RESULT -->
@@ -258,6 +275,8 @@ let salaCod = '';
 let gs = { bx:.5, by:.5, bvx:0, bvy:0, m1x:.5, m1y:.82, m2x:.5, m2y:.18, s1:0, s2:0 };
 // Estado renderizado — interpola suavemente até gs (deixa fluido mesmo com lag)
 let rs = { bx:.5, by:.5, m1x:.5, m1y:.82, m2x:.5, m2y:.18 };
+let lastStateTime = 0;  // quando chegou o último estado do servidor (para extrapolar)
+let pingMs = 0;
 // Meu mallet local
 let mx = .5, my = .82;
 // Efeitos
@@ -288,6 +307,27 @@ function selVal(v, el, arena) {
 }
 
 function abrirRegras(){document.getElementById('modalRegras').style.display='flex';}
+
+// ===== TELA CHEIA =====
+let _fullscreenPerguntado = false;
+function toggleFullscreen() {
+  const el = document.documentElement;
+  if (!document.fullscreenElement) {
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || function(){}).call(el);
+    // Travar orientação em retrato se possível (mobile)
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(()=>{});
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document);
+  }
+  setTimeout(() => { if (typeof setupCanvas === 'function' && document.getElementById('game').style.display !== 'none') setupCanvas(); }, 300);
+}
+function aceitarFullscreen() {
+  document.getElementById('modalFullscreen').style.display = 'none';
+  toggleFullscreen();
+}
+function recusarFullscreen() {
+  document.getElementById('modalFullscreen').style.display = 'none';
+}
 
 // ===== RANKING =====
 let rankPeriodo = 'semana';
@@ -560,17 +600,22 @@ function renderFrame(){
     rs.m1x=gs.m1x; rs.m1y=gs.m1y;
     rs.m2x=gs.m2x; rs.m2y=gs.m2y;
   } else {
-    // ONLINE: interpolação suave em direção ao estado do servidor.
-    // Fator alto (0.55) = responsivo. A bola SEMPRE segue o servidor (sem predição).
-    const k = 0.55;
-    rs.bx += (gs.bx-rs.bx)*k;
-    rs.by += (gs.by-rs.by)*k;
-    // Mallet do oponente interpola; o meu é instantâneo (input local)
+    // ONLINE: EXTRAPOLAÇÃO por tempo (técnica de jogos reais).
+    // A bola avança pela própria velocidade desde o último update do servidor,
+    // então ela NUNCA fica atrasada — elimina o delay e o "quica antes de tocar".
+    const dt = Math.min((performance.now() - lastStateTime) / (1000/60), 6); // máx 6 ticks
+    const alvoBx = gs.bx + gs.bvx * dt;
+    const alvoBy = gs.by + gs.bvy * dt;
+    // Blend rápido para a posição extrapolada (suave mas sem atraso perceptível)
+    rs.bx += (alvoBx - rs.bx) * 0.6;
+    rs.by += (alvoBy - rs.by) * 0.6;
+    // Mallet do oponente: interpola rápido; o meu é 100% local (instantâneo)
+    const km = 0.6;
     if(myRole==='p1'){
-      rs.m2x += (gs.m2x-rs.m2x)*k; rs.m2y += (gs.m2y-rs.m2y)*k;
+      rs.m2x += (gs.m2x-rs.m2x)*km; rs.m2y += (gs.m2y-rs.m2y)*km;
       rs.m1x = mx; rs.m1y = my;
     } else {
-      rs.m1x += (gs.m1x-rs.m1x)*k; rs.m1y += (gs.m1y-rs.m1y)*k;
+      rs.m1x += (gs.m1x-rs.m1x)*km; rs.m1y += (gs.m1y-rs.m1y)*km;
       rs.m2x = mx; rs.m2y = my;
     }
   }
@@ -681,9 +726,29 @@ function conectarSocket(){
     document.getElementById('modalSala').style.display='none';
     mostrar('game');
     setupCanvas();
+    lastStateTime = performance.now();
+    // Perguntar tela cheia antes da partida (só uma vez por sessão e só em mobile/se não já estiver)
+    if(!_fullscreenPerguntado && !document.fullscreenElement){
+      _fullscreenPerguntado = true;
+      document.getElementById('modalFullscreen').style.display='flex';
+    }
     if(animId)cancelAnimationFrame(animId);
-    function renderOnline(){if(!gameOver)animId=requestAnimationFrame(renderOnline);renderFrame();}
+    // Loop de render: também envia o mallet a cada frame (servidor sempre tem posição atual)
+    let frameCount = 0;
+    function renderOnline(){
+      if(!gameOver)animId=requestAnimationFrame(renderOnline);
+      // Enviar mallet a cada frame (essencial para colisão precisa no servidor)
+      if(socket && !gameOver){
+        frameCount++;
+        if(frameCount % 1 === 0) socket.emit('ah_mallet',{x:mx,y:my});
+      }
+      renderFrame();
+    }
     animId=requestAnimationFrame(renderOnline);
+    // Medir ping a cada 2s
+    if(window._pingInterval) clearInterval(window._pingInterval);
+    window._pingInterval = setInterval(()=>{ if(socket&&!gameOver) socket.emit('ping_ah', performance.now()); }, 2000);
+    socket.emit('ping_ah', performance.now());
   });
 
   // Fix #5: recebe estado do servidor (60fps)
@@ -692,6 +757,17 @@ function conectarSocket(){
     gs.bvx=data.bvx||0;gs.bvy=data.bvy||0;
     gs.m1x=data.m1x;gs.m1y=data.m1y;
     gs.m2x=data.m2x;gs.m2y=data.m2y;
+    lastStateTime = performance.now(); // marca quando chegou (para extrapolar)
+  });
+
+  // PING: servidor ecoa o timestamp para medir latência
+  socket.on('pong_ah', (t) => {
+    pingMs = Math.round(performance.now() - t);
+    const el = document.getElementById('pingDisplay');
+    if (el) {
+      let cor = pingMs < 80 ? '#22c55e' : pingMs < 150 ? '#f0c040' : '#ef4444';
+      el.innerHTML = `<span style="color:${cor};">● ${pingMs}ms</span>`;
+    }
   });
 
   socket.on('ah_gol',data=>{
