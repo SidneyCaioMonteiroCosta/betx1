@@ -813,13 +813,7 @@ function renderFrame(){
 // ── ONLINE ───────────────────────────────────────────
 function conectarSocket(){
   if(socket&&socket.connected)return;
-  // WebSocket PURO (sem polling) — polling tem latência de 300-400ms, websocket ~50ms
-  socket=io({
-    transports: ['websocket'],
-    upgrade: false,
-    reconnection: true,
-    reconnectionDelay: 500
-  });
+  socket=io();
 
   socket.on('game_start',data=>{
     myRole=data.role; botMode=false; gameOver=false;

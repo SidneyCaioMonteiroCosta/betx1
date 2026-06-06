@@ -12,12 +12,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   // Otimizações para jogo em tempo real
-  perMessageDeflate: false,      // não comprimir (pacotes pequenos, compressão só adiciona latência)
-  transports: ['websocket'],     // SÓ websocket — polling tem latência de 300-400ms
-  allowUpgrades: false,          // não permitir downgrade para polling
+  perMessageDeflate: false,      // não comprimir (pacotes pequenos)
+  transports: ['websocket', 'polling'], // permitir os dois (polling como fallback do Railway)
   pingInterval: 25000,
-  pingTimeout: 20000,
-  maxHttpBufferSize: 1e6
+  pingTimeout: 20000
 });
 
 const pool = new Pool({
