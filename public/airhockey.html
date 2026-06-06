@@ -561,10 +561,14 @@ function setupCanvas(){
   if (H < W * 1.2) W = Math.round(H / 1.55);
   canvas.width=W; canvas.height=H;
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
-  canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
-  canvas.addEventListener('mousemove',e=>onMove(e));
-  canvas.addEventListener('touchstart',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
-  canvas.addEventListener('mousedown',e=>onMove(e));
+  // Adicionar listeners só uma vez (evita empilhar a cada setupCanvas)
+  if(!canvas._listenersAdded){
+    canvas._listenersAdded = true;
+    canvas.addEventListener('touchmove',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
+    canvas.addEventListener('mousemove',e=>onMove(e));
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();onMove(e.touches[0]);},{passive:false});
+    canvas.addEventListener('mousedown',e=>onMove(e));
+  }
 }
 
 function onMove(e){
@@ -603,12 +607,19 @@ function renderFrame(){
     // ONLINE: EXTRAPOLAÇÃO por tempo (técnica de jogos reais).
     // A bola avança pela própria velocidade desde o último update do servidor,
     // então ela NUNCA fica atrasada — elimina o delay e o "quica antes de tocar".
+    const bvx = isFinite(gs.bvx) ? gs.bvx : 0;
+    const bvy = isFinite(gs.bvy) ? gs.bvy : 0;
     const dt = Math.min((performance.now() - lastStateTime) / (1000/60), 6); // máx 6 ticks
-    const alvoBx = gs.bx + gs.bvx * dt;
-    const alvoBy = gs.by + gs.bvy * dt;
+    const alvoBx = gs.bx + bvx * dt;
+    const alvoBy = gs.by + bvy * dt;
+    // Proteção contra NaN: se rs virou inválido, recupera direto da posição do servidor
+    if (!isFinite(rs.bx) || !isFinite(rs.by)) { rs.bx = gs.bx; rs.by = gs.by; }
     // Blend rápido para a posição extrapolada (suave mas sem atraso perceptível)
     rs.bx += (alvoBx - rs.bx) * 0.6;
     rs.by += (alvoBy - rs.by) * 0.6;
+    // Garantir que a bola fique dentro do campo (nunca some)
+    rs.bx = Math.max(0, Math.min(1, rs.bx));
+    rs.by = Math.max(0, Math.min(1, rs.by));
     // Mallet do oponente: interpola rápido; o meu é 100% local (instantâneo)
     const km = 0.6;
     if(myRole==='p1'){
@@ -618,14 +629,22 @@ function renderFrame(){
       rs.m1x += (gs.m1x-rs.m1x)*km; rs.m1y += (gs.m1y-rs.m1y)*km;
       rs.m2x = mx; rs.m2y = my;
     }
+    // Proteção extra dos mallets
+    if(!isFinite(rs.m1x))rs.m1x=.5; if(!isFinite(rs.m1y))rs.m1y=.82;
+    if(!isFinite(rs.m2x))rs.m2x=.5; if(!isFinite(rs.m2y))rs.m2y=.18;
   }
 
-  ctx.clearRect(0,0,W,H);
+  // Limpeza à prova de rastro: resetar transform e limpar TODO o buffer do canvas
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Fundo opaco cobrindo todo o canvas (garante que nada do frame anterior persista)
+  ctx.fillStyle = A.bg2;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.save();
   // P2 vê canvas rotacionado 180°
   if(myRole==='p2'){ctx.translate(W,H);ctx.rotate(Math.PI);}
 
-  // Fundo
+  // Fundo (gradiente do campo)
   const gr=ctx.createLinearGradient(0,0,0,H);
   gr.addColorStop(0,A.bg1);gr.addColorStop(1,A.bg2);
   ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
@@ -713,7 +732,7 @@ function conectarSocket(){
     myRole=data.role; botMode=false; gameOver=false;
     arenaId=arenaId||1;
     flash=0;goalAlpha=0;
-    gs={bx:.5,by:.5,m1x:.5,m1y:.82,m2x:.5,m2y:.18,s1:0,s2:0};
+    gs={bx:.5,by:.5,bvx:0,bvy:0,m1x:.5,m1y:.82,m2x:.5,m2y:.18,s1:0,s2:0};
     rs={bx:.5,by:.5,m1x:.5,m1y:.82,m2x:.5,m2y:.18};
     mx=.5; my=myRole==='p1'?.82:.18;
     document.getElementById('p1name').textContent=myRole==='p1'?(usuario.nome||'Você'):data.p1name;
