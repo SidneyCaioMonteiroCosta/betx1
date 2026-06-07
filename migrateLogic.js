@@ -40,13 +40,18 @@ async function pkDe(c, t) {
     WHERE i.indrelid=$1::regclass AND i.indisprimary`, [`public.${t}`]).catch(()=>({rows:[]}));
   return rows.map(r => r.attname);
 }
+function normalizarCols(v) {
+  if (Array.isArray(v)) return v;
+  // Postgres array em texto: "{col1,col2}"
+  return String(v).replace(/^{|}$/g, '').split(',').filter(Boolean);
+}
 async function uniquesDe(c, t) {
   const { rows } = await c.query(`
-    SELECT con.conname, array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)) AS cols
+    SELECT con.conname, array_agg(a.attname::text ORDER BY array_position(con.conkey, a.attnum)) AS cols
     FROM pg_constraint con
     JOIN pg_attribute a ON a.attrelid=con.conrelid AND a.attnum=ANY(con.conkey)
     WHERE con.conrelid=$1::regclass AND con.contype='u' GROUP BY con.conname`, [`public.${t}`]).catch(()=>({rows:[]}));
-  return rows.map(r => ({ cols: r.cols }));
+  return rows.map(r => ({ cols: normalizarCols(r.cols) }));
 }
 const ehSerial = c => c.column_default && /nextval\(/i.test(c.column_default);
 function defaultSimples(c) {
