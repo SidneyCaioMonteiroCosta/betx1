@@ -35,6 +35,8 @@ const mp = new MercadoPagoConfig({ accessToken: MP_TOKEN });
 const payment = new Payment(mp);
 
 app.use(cors());
+// express.raw antes do json para o webhook do Stripe poder validar assinatura
+app.use('/api/kyc/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -65,6 +67,35 @@ async function initDB() {
         chave_pix TEXT DEFAULT '',
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+    // Tabelas KYC
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status VARCHAR(20) NOT NULL DEFAULT 'pending';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_provider VARCHAR(50);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_provider_session_id VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_approved_at TIMESTAMPTZ;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_rejection_reason TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_attempts INTEGER NOT NULL DEFAULT 0;
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS kyc_verifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider VARCHAR(50) NOT NULL,
+        provider_session_id VARCHAR(255),
+        status VARCHAR(20) NOT NULL,
+        liveness_score NUMERIC(5,4),
+        face_match_score NUMERIC(5,4),
+        provider_raw JSONB,
+        rejection_reason TEXT,
+        reviewed_by INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_kyc_user ON kyc_verifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_kyc_provider_session ON kyc_verifications(provider_session_id);
     `);
     console.log('✅ Banco de dados inicializado com sucesso');
   } catch (err) {
@@ -677,18 +708,14 @@ function tickAH(roomId) {
     else { S.by=1-S.br; S.bvy=-Math.abs(S.bvy); }
   }
 
-  // Emitir estado a ~30fps (não 60) — o cliente simula a física localmente entre updates.
-  // Isso corta o tráfego servidor→cliente pela metade, reduzindo congestão e ping.
-  S._emitN = (S._emitN||0) + 1;
-  if (S._emitN % 2 === 0) {
-    const r = n => Math.round(n*1000)/1000;
-    io.to(roomId).volatile.emit('ah_state', {
-      bx:r(S.bx), by:r(S.by),
-      m1x:r(S.m1x), m1y:r(S.m1y),
-      m2x:r(S.m2x), m2y:r(S.m2y),
-      bvx:r(S.bvx), bvy:r(S.bvy)
-    });
-  }
+  // Emitir estado a 60fps — minimiza janela de extrapolação no cliente
+  const r = n => Math.round(n*1000)/1000;
+  io.to(roomId).volatile.emit('ah_state', {
+    bx:r(S.bx), by:r(S.by),
+    m1x:r(S.m1x), m1y:r(S.m1y),
+    m2x:r(S.m2x), m2y:r(S.m2y),
+    bvx:r(S.bvx), bvy:r(S.bvy)
+  });
 
   if (scorer) {
     io.to(roomId).emit('ah_gol', {s1:S.s1, s2:S.s2, scorer});
@@ -781,6 +808,32 @@ async function encerrarAirHockey(roomId, winnerRole, motivo) {
 // ===== FLAPPY BIRD MULTIPLAYER =====
 const flappySalas = {};
 const flappyConns = {};
+
+// Inicia a partida Flappy mesmo que nem todos tenham escolhido pássaro
+async function iniciarFlappyForçado(salaKey) {
+  const s = flappySalas[salaKey];
+  if (!s || s.finalizada || s._iniciandoJogo) return;
+  s._iniciandoJogo = true;
+  // Auto-atribuir pássaros para quem não escolheu
+  let proximo = 0;
+  const usados = new Set(Object.values(s.passaros));
+  for (const j of s.jogadores) {
+    if (s.passaros[j.userId] === undefined) {
+      while (usados.has(proximo)) proximo++;
+      s.passaros[j.userId] = proximo;
+      usados.add(proximo);
+      proximo++;
+    }
+  }
+  for (const j of s.jogadores) {
+    await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [s.valor, j.userId]);
+  }
+  io.to(salaKey).emit('flappy_start', {
+    jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })),
+    valor: s.valor, countdown: 3,
+    passaros: s.passaros
+  });
+}
 
 function calcularPremios(ranking, valor, tamanho) {
   // valor = aposta de cada jogador
@@ -875,12 +928,13 @@ io.on('connection', (socketF) => {
 
       if (s.jogadores.length >= sala && !s.iniciada) {
         s.iniciada = true;
-        s.passaros = {}; // userId -> índice do pássaro
+        s.passaros = {};
         if (s.timer) clearTimeout(s.timer);
-        // Fase de escolha de pássaro: avisar todos para escolher
         io.to(salaKey).emit('flappy_escolher_passaro', {
           jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome }))
         });
+        // Timeout de 12s: auto-atribui pássaro para quem não escolheu e inicia
+        s.timer = setTimeout(() => iniciarFlappyForçado(salaKey), 12000);
       }
     } catch(e) { socketF.emit('flappy_erro', { msg: 'Erro de autenticação' }); }
   });
@@ -890,30 +944,19 @@ io.on('connection', (socketF) => {
     const conn = flappyConns[socketF.id];
     if (!conn) return;
     const s = flappySalas[conn.salaKey];
-    if (!s || !s.passaros) return;
-    // Verificar se outro jogador já pegou esse pássaro
+    if (!s || !s.passaros || s.finalizada) return;
     const jaEscolhido = Object.entries(s.passaros).some(([uid, idx]) => idx === passaroIdx && parseInt(uid) !== conn.userId);
     if (jaEscolhido) {
       socketF.emit('flappy_passaro_ocupado', { passaroIdx });
       return;
     }
     s.passaros[conn.userId] = passaroIdx;
-    // Avisar todos quais pássaros já foram escolhidos (para desabilitar)
     io.to(conn.salaKey).emit('flappy_passaros_atualizados', { passaros: s.passaros });
 
-    // Se todos escolheram, iniciar a partida
+    // Se todos escolheram, cancela o timeout e inicia imediatamente
     if (Object.keys(s.passaros).length >= s.jogadores.length) {
       if (s.timer) clearTimeout(s.timer);
-      s.timer = setTimeout(async () => {
-        for (const j of s.jogadores) {
-          await pool.query('UPDATE users SET saldo = saldo - $1 WHERE id = $2', [s.valor, j.userId]);
-        }
-        io.to(conn.salaKey).emit('flappy_start', {
-          jogadores: s.jogadores.map(j => ({ id: j.userId, nome: j.nome })),
-          valor: s.valor, countdown: 3,
-          passaros: s.passaros
-        });
-      }, 600);
+      iniciarFlappyForçado(conn.salaKey);
     }
   });
 
@@ -2003,5 +2046,13 @@ app.post('/api/admin/ranking-premios/pagar', adminAuth1, async (req, res) => {
     res.json({ sucesso: true, pagos });
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
+
+// ===== KYC =====
+const kycRoutes = require('./routes/kyc');
+app.use('/api/kyc', kycRoutes({
+  db: pool,
+  requireAuth: auth,
+  requireAdmin: adminAuth
+}));
 
 server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));

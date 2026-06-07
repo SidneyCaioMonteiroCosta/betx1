@@ -813,7 +813,7 @@ function renderFrame(){
 // ── ONLINE ───────────────────────────────────────────
 function conectarSocket(){
   if(socket&&socket.connected)return;
-  socket=io();
+  socket=io({ transports: ['websocket'], upgrade: false });
 
   socket.on('game_start',data=>{
     myRole=data.role; botMode=false; gameOver=false;
@@ -847,7 +847,7 @@ function conectarSocket(){
       // da posição para a simulação autoritativa. Menos tráfego = menos congestão = menos ping.
       if(socket && !gameOver){
         frameCount++;
-        if(frameCount % 2 === 0) socket.emit('ah_mallet',{x:mx,y:my});
+        socket.volatile.emit('ah_mallet',{x:mx,y:my});
       }
       renderFrame();
     }

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Verificando... — Super Duelo</title>
+  <style>
+    body { margin:0; font:15px/1.5 system-ui,-apple-system,sans-serif; background:#0e1015; color:#e7e9ee; }
+    .wrap { max-width:480px; margin:60px auto; padding:0 16px; }
+    .card { background:#171a22; border-radius:16px; padding:36px 28px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+    .spinner { width:48px; height:48px; border:4px solid #2a2f3a; border-top-color:#4cd964; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 22px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    h1 { margin:0 0 8px; font-size:20px; }
+    p  { color:#8b91a0; margin:0 0 18px; }
+    .ok h1 { color:#4cd964; }
+    .err h1 { color:#ff4d4f; }
+    a.btn { display:inline-block; margin-top:10px; padding:12px 22px; border-radius:10px; background:#4cd964; color:#06120a; text-decoration:none; font-weight:600; }
+    .reason { background:#2a2f3a; padding:10px; border-radius:8px; font-size:13px; color:#cfd3dc; margin:10px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="card">
+      <div class="spinner"></div>
+      <h1 id="title">Verificando seus dados...</h1>
+      <p id="sub">Isso pode levar alguns segundos.</p>
+    </div>
+  </div>
+
+<script>
+const card  = document.getElementById('card');
+const title = document.getElementById('title');
+const sub   = document.getElementById('sub');
+const token = localStorage.getItem('token');
+
+const reasonMap = {
+  acesso_negado:       'Você cancelou o acesso no Gov.br.',
+  state_invalido:      'Link expirado. Tente novamente.',
+  token_invalido:      'Erro de autenticação com o Gov.br.',
+  cpf_nao_retornado:   'O Gov.br não retornou seu CPF. Verifique sua conta Gov.br.',
+  menor_de_idade:      'Você precisa ter 18 anos ou mais.',
+  cpf_ja_usado:        'Esse CPF já está vinculado a outra conta.',
+  erro_interno:        'Erro interno. Tente novamente em alguns minutos.'
+};
+
+function showResult(status, reason) {
+  if (status === 'approved') {
+    card.classList.add('ok');
+    card.innerHTML = `
+      <h1>Tudo certo! 🎉</h1>
+      <p>Sua identidade foi verificada com sucesso pelo Gov.br.</p>
+      <a class="btn" href="/">Entrar no Super Duelo</a>`;
+    return;
+  }
+  if (status === 'rejected') {
+    const msg = reasonMap[reason] || 'Verificação não aprovada.';
+    card.classList.add('err');
+    card.innerHTML = `
+      <h1>Verificação não aprovada</h1>
+      <div class="reason">${msg}</div>
+      <p>Você pode tentar novamente.</p>
+      <a class="btn" href="/kyc.html">Tentar de novo</a>`;
+    return;
+  }
+  if (status === 'manual_review') {
+    title.textContent = 'Em análise pela nossa equipe';
+    sub.textContent   = 'Te avisamos assim que terminar.';
+    return;
+  }
+}
+
+// Se o servidor redirecionou com ?status= (fluxo Gov.br), mostra direto
+const params = new URLSearchParams(location.search);
+const statusParam = params.get('status');
+if (statusParam) {
+  showResult(statusParam, params.get('reason'));
+} else {
+  // Fluxo de polling (outros provedores)
+  async function poll() {
+    try {
+      const r = await fetch('/api/kyc/status', {
+        headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+      });
+      const d = await r.json();
+      if (d.status === 'approved' || d.status === 'rejected' || d.status === 'manual_review') {
+        showResult(d.status, d.rejection_reason);
+        return;
+      }
+      setTimeout(poll, 3000);
+    } catch {
+      setTimeout(poll, 5000);
+    }
+  }
+  poll();
+}
+</script>
+</body>
+</html>

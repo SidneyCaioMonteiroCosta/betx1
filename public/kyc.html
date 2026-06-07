@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Verificação de Identidade — Super Duelo</title>
+  <style>
+    :root { --bg:#0e1015; --card:#171a22; --accent:#4cd964; --danger:#ff4d4f; --text:#e7e9ee; --muted:#8b91a0; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+    .wrap { max-width:520px; margin:40px auto; padding:0 16px; }
+    .card { background:var(--card); border-radius:16px; padding:28px; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+    h1 { margin:0 0 6px; font-size:22px; }
+    p.lead { color:var(--muted); margin:0 0 24px; }
+    .btn-govbr {
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      width:100%; padding:16px; border:0; border-radius:12px;
+      background:#1351B4; color:#fff; font-weight:700; font-size:16px;
+      cursor:pointer; text-decoration:none; transition:background .2s;
+    }
+    .btn-govbr:hover { background:#0e3d8a; }
+    .btn-govbr img { width:32px; height:32px; }
+    .divider { display:flex; align-items:center; gap:10px; margin:24px 0; color:var(--muted); font-size:13px; }
+    .divider::before,.divider::after { content:''; flex:1; height:1px; background:#2a2f3a; }
+    .badge { display:inline-flex; align-items:center; gap:6px; background:#1a2640; color:#7eb8f7; padding:6px 12px; border-radius:999px; font-size:12px; margin-bottom:20px; }
+    .info-list { list-style:none; padding:0; margin:16px 0 0; }
+    .info-list li { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid #1e2330; font-size:14px; color:var(--muted); }
+    .info-list li:last-child { border-bottom:0; }
+    .info-list li span.icon { font-size:18px; flex-shrink:0; }
+    .err { background:rgba(255,77,79,.12); border:1px solid var(--danger); color:#ffb3b4; padding:10px 12px; border-radius:8px; margin-top:14px; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="badge">🔒 Verificação obrigatória — etapa única</div>
+      <h1>Verifique sua identidade</h1>
+      <p class="lead">Para jogar valendo no Super Duelo você precisa confirmar que tem 18+ anos. Usamos o Gov.br — completamente gratuito e seguro.</p>
+
+      <a id="btnGovBr" class="btn-govbr" href="#">
+        <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+          <rect width="64" height="64" rx="10" fill="#fff"/>
+          <text x="32" y="44" text-anchor="middle" font-size="28" font-weight="bold" fill="#1351B4">gov</text>
+        </svg>
+        Entrar com Gov.br
+      </a>
+
+      <div id="msg"></div>
+
+      <ul class="info-list">
+        <li><span class="icon">✅</span> Gratuito — sem cobranças</li>
+        <li><span class="icon">🔐</span> Seus dados ficam no Gov.br, não compartilhamos com terceiros</li>
+        <li><span class="icon">⚡</span> Leva menos de 1 minuto</li>
+        <li><span class="icon">🪪</span> Você vai precisar da sua conta Gov.br (CPF + senha)</li>
+      </ul>
+
+      <div class="divider">Não tem conta Gov.br?</div>
+      <p style="text-align:center;font-size:13px;color:var(--muted);">
+        Crie gratuitamente em <a href="https://acesso.gov.br" target="_blank" style="color:#4cd964;">acesso.gov.br</a>
+      </p>
+    </div>
+  </div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/';
+
+document.getElementById('btnGovBr').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const btn = e.currentTarget;
+  btn.textContent = 'Redirecionando...';
+  btn.style.pointerEvents = 'none';
+
+  try {
+    // Redireciona direto — o servidor gera a URL e faz redirect
+    window.location.href = '/api/kyc/govbr/start?_t=' + token;
+  } catch (err) {
+    document.getElementById('msg').innerHTML = `<div class="err">Erro ao iniciar verificação. Tente novamente.</div>`;
+    btn.textContent = 'Entrar com Gov.br';
+    btn.style.pointerEvents = '';
+  }
+});
+</script>
+</body>
+</html>
