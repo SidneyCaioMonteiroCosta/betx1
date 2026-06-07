@@ -870,11 +870,18 @@ async function finalizarFlappy(salaKey) {
   if (!s || s.finalizada) return;
   s.finalizada = true;
 
+  // Sincronizar pontuação dos jogadores ainda vivos via flappyConns (mais atualizado)
+  for (const j of s.jogadores) {
+    const conn = Object.values(flappyConns).find(c => c.userId === j.userId && c.salaKey === salaKey);
+    if (conn && conn.pontos > j.pontos) j.pontos = conn.pontos;
+  }
+
   const ranking = [...s.jogadores].sort((a, b) => b.pontos - a.pontos);
 
-  // Detectar empate: se os 2 primeiros (ou todos, em sala 2) têm pontos iguais
+  // Empate SOMENTE se todos estão mortos E com pontuação igual (nunca empate com jogador vivo)
+  const todosMortos = s.jogadores.every(j => j.morto);
   const premios = {};
-  const empate2 = s.tamanho === 2 && ranking[0].pontos === ranking[1].pontos;
+  const empate2 = todosMortos && s.tamanho === 2 && ranking[0].pontos === ranking[1].pontos;
   if (empate2) {
     // Empate em sala 2: devolve a aposta para ambos
     for (const j of ranking) premios[j.userId] = parseFloat(s.valor.toFixed(2));
