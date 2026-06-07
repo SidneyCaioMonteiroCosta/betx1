@@ -661,39 +661,50 @@ function renderFrame(){
     const mvyOp = opY - (rs._popy ?? opY);
     rs._popx = opX; rs._popy = opY;
 
-    // ── FÍSICA LOCAL DA BOLA (idêntica ao servidor) ──
-    const oldBx = rs.bx, oldBy = rs.by;
-    rs.bx += rs.bvx; rs.by += rs.bvy;
-    // Fricção
-    rs.bvx *= 0.992; rs.bvy *= 0.992;
-    const sp = Math.hypot(rs.bvx, rs.bvy);
-    if(sp < 0.005 && sp > 0){ const f=0.006/sp; rs.bvx*=f; rs.bvy*=f; }
-    if(sp > 0.026){ const f=0.026/sp; rs.bvx*=f; rs.bvy*=f; }
-    const BR = 0.03, CR = 0.13;
-    // Paredes laterais
-    if(rs.bx-BR<0){ rs.bx=BR; rs.bvx=Math.abs(rs.bvx); }
-    if(rs.bx+BR>1){ rs.bx=1-BR; rs.bvx=-Math.abs(rs.bvx); }
-    // Paredes cima/baixo (rebate; o servidor cuida do gol e reset)
-    if(rs.by-BR<0){ rs.by=BR; rs.bvy=Math.abs(rs.bvy); }
-    if(rs.by+BR>1){ rs.by=1-BR; rs.bvy=-Math.abs(rs.bvy); }
-    // Cantos arredondados
-    const cantos=[{cx:CR,cy:CR},{cx:1-CR,cy:CR},{cx:CR,cy:1-CR},{cx:1-CR,cy:1-CR}];
-    for(const c of cantos){
-      const inX=(c.cx<0.5)?rs.bx<CR:rs.bx>1-CR;
-      const inY=(c.cy<0.5)?rs.by<CR:rs.by>1-CR;
-      if(inX&&inY){
-        const dx=rs.bx-c.cx, dy=rs.by-c.cy, d=Math.hypot(dx,dy), raio=CR-BR;
-        if(d>raio&&d>0){
-          const nx=dx/d, ny=dy/d;
-          rs.bx=c.cx+nx*raio; rs.by=c.cy+ny*raio;
-          const dot=rs.bvx*nx+rs.bvy*ny;
-          rs.bvx-=2*dot*nx; rs.bvy-=2*dot*ny;
+    // ── FÍSICA LOCAL DA BOLA (passo fixo de 60Hz, independente do refresh da tela) ──
+    // Sem isso, telas de 120/144Hz rodavam a física 2x+ rápido e brigavam com o
+    // servidor, causando "engasgos". Agora avança em passos fixos pelo tempo real.
+    const STEP = 1000/60;
+    const _agora = performance.now();
+    const _dtFis = _agora - (rs._lastPhys ?? _agora);
+    rs._lastPhys = _agora;
+    rs._acc = (rs._acc ?? 0) + Math.min(_dtFis, 100); // clamp evita surto após travar/trocar de aba
+    let _nsteps = 0;
+    while(rs._acc >= STEP && _nsteps < 5){
+      rs._acc -= STEP; _nsteps++;
+      const oldBx = rs.bx, oldBy = rs.by;
+      rs.bx += rs.bvx; rs.by += rs.bvy;
+      // Fricção
+      rs.bvx *= 0.992; rs.bvy *= 0.992;
+      const sp = Math.hypot(rs.bvx, rs.bvy);
+      if(sp < 0.005 && sp > 0){ const f=0.006/sp; rs.bvx*=f; rs.bvy*=f; }
+      if(sp > 0.026){ const f=0.026/sp; rs.bvx*=f; rs.bvy*=f; }
+      const BR = 0.03, CR = 0.13;
+      // Paredes laterais
+      if(rs.bx-BR<0){ rs.bx=BR; rs.bvx=Math.abs(rs.bvx); }
+      if(rs.bx+BR>1){ rs.bx=1-BR; rs.bvx=-Math.abs(rs.bvx); }
+      // Paredes cima/baixo (rebate; o servidor cuida do gol e reset)
+      if(rs.by-BR<0){ rs.by=BR; rs.bvy=Math.abs(rs.bvy); }
+      if(rs.by+BR>1){ rs.by=1-BR; rs.bvy=-Math.abs(rs.bvy); }
+      // Cantos arredondados
+      const cantos=[{cx:CR,cy:CR},{cx:1-CR,cy:CR},{cx:CR,cy:1-CR},{cx:1-CR,cy:1-CR}];
+      for(const c of cantos){
+        const inX=(c.cx<0.5)?rs.bx<CR:rs.bx>1-CR;
+        const inY=(c.cy<0.5)?rs.by<CR:rs.by>1-CR;
+        if(inX&&inY){
+          const dx=rs.bx-c.cx, dy=rs.by-c.cy, d=Math.hypot(dx,dy), raio=CR-BR;
+          if(d>raio&&d>0){
+            const nx=dx/d, ny=dy/d;
+            rs.bx=c.cx+nx*raio; rs.by=c.cy+ny*raio;
+            const dot=rs.bvx*nx+rs.bvy*ny;
+            rs.bvx-=2*dot*nx; rs.bvy-=2*dot*ny;
+          }
         }
       }
+      // Colisão LOCAL com os dois discos (instantânea!)
+      colideLocal(meuMx, meuMy, oldBx, oldBy, mvxMeu, mvyMeu);
+      colideLocal(opX, opY, oldBx, oldBy, mvxOp, mvyOp);
     }
-    // Colisão LOCAL com os dois discos (instantânea!)
-    colideLocal(meuMx, meuMy, oldBx, oldBy, mvxMeu, mvyMeu);
-    colideLocal(opX, opY, oldBx, oldBy, mvxOp, mvyOp);
 
     // ── RECONCILIAÇÃO com o servidor ──
     const dtR = Math.min((performance.now()-lastStateTime)/(1000/60), 6);
