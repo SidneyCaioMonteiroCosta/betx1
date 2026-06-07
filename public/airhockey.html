@@ -635,100 +635,37 @@ function renderFrame(){
     rs.m1x=gs.m1x; rs.m1y=gs.m1y;
     rs.m2x=gs.m2x; rs.m2y=gs.m2y;
   } else {
-    // ONLINE: SIMULAÇÃO LOCAL da física + reconciliação suave com o servidor.
-    // O cliente roda a MESMA física da bola que o servidor, então a colisão com
-    // os discos é INSTANTÂNEA (não espera o servidor). Isso elimina o atraso da
-    // bola reagir aos discos. O servidor corrige drift suavemente.
-
-    // Inicializar velocidade local da bola
-    if(!isFinite(rs.bvx)){ rs.bvx = isFinite(gs.bvx)?gs.bvx:0; rs.bvy = isFinite(gs.bvy)?gs.bvy:0; }
+    // ONLINE: meu disco é local (instantâneo), o disco do oponente interpola pro
+    // servidor, e a BOLA segue o servidor suavemente (bloco abaixo).
     if(!isFinite(rs.bx)||!isFinite(rs.by)){ rs.bx=gs.bx; rs.by=gs.by; }
 
-    // Meu disco = posição local instantânea + sua velocidade (para dar tacada)
-    const meuMx = mx, meuMy = my;
-    const mvxMeu = meuMx - (rs._pmx ?? meuMx);
-    const mvyMeu = meuMy - (rs._pmy ?? meuMy);
-    rs._pmx = meuMx; rs._pmy = meuMy;
-
-    // Disco do oponente: interpola rápido para a posição do servidor
-    let opX, opY;
     const km = 0.6;
     if(myRole==='p1'){
       rs.m2x += (gs.m2x-rs.m2x)*km; rs.m2y += (gs.m2y-rs.m2y)*km;
-      rs.m1x = meuMx; rs.m1y = meuMy;
-      opX = rs.m2x; opY = rs.m2y;
+      rs.m1x = mx; rs.m1y = my;
     } else {
       rs.m1x += (gs.m1x-rs.m1x)*km; rs.m1y += (gs.m1y-rs.m1y)*km;
-      rs.m2x = meuMx; rs.m2y = meuMy;
-      opX = rs.m1x; opY = rs.m1y;
-    }
-    const mvxOp = opX - (rs._popx ?? opX);
-    const mvyOp = opY - (rs._popy ?? opY);
-    rs._popx = opX; rs._popy = opY;
-
-    // ── FÍSICA LOCAL DA BOLA (passo fixo de 60Hz, independente do refresh da tela) ──
-    // Sem isso, telas de 120/144Hz rodavam a física 2x+ rápido e brigavam com o
-    // servidor, causando "engasgos". Agora avança em passos fixos pelo tempo real.
-    const STEP = 1000/60;
-    const _agora = performance.now();
-    const _dtFis = _agora - (rs._lastPhys ?? _agora);
-    rs._lastPhys = _agora;
-    rs._acc = (rs._acc ?? 0) + Math.min(_dtFis, 100); // clamp evita surto após travar/trocar de aba
-    let _nsteps = 0;
-    while(rs._acc >= STEP && _nsteps < 5){
-      rs._acc -= STEP; _nsteps++;
-      const oldBx = rs.bx, oldBy = rs.by;
-      rs.bx += rs.bvx; rs.by += rs.bvy;
-      // Fricção
-      rs.bvx *= 0.992; rs.bvy *= 0.992;
-      const sp = Math.hypot(rs.bvx, rs.bvy);
-      if(sp < 0.005 && sp > 0){ const f=0.006/sp; rs.bvx*=f; rs.bvy*=f; }
-      if(sp > 0.026){ const f=0.026/sp; rs.bvx*=f; rs.bvy*=f; }
-      const BR = 0.03, CR = 0.13;
-      // Paredes laterais
-      if(rs.bx-BR<0){ rs.bx=BR; rs.bvx=Math.abs(rs.bvx); }
-      if(rs.bx+BR>1){ rs.bx=1-BR; rs.bvx=-Math.abs(rs.bvx); }
-      // Paredes cima/baixo (rebate; o servidor cuida do gol e reset)
-      if(rs.by-BR<0){ rs.by=BR; rs.bvy=Math.abs(rs.bvy); }
-      if(rs.by+BR>1){ rs.by=1-BR; rs.bvy=-Math.abs(rs.bvy); }
-      // Cantos arredondados
-      const cantos=[{cx:CR,cy:CR},{cx:1-CR,cy:CR},{cx:CR,cy:1-CR},{cx:1-CR,cy:1-CR}];
-      for(const c of cantos){
-        const inX=(c.cx<0.5)?rs.bx<CR:rs.bx>1-CR;
-        const inY=(c.cy<0.5)?rs.by<CR:rs.by>1-CR;
-        if(inX&&inY){
-          const dx=rs.bx-c.cx, dy=rs.by-c.cy, d=Math.hypot(dx,dy), raio=CR-BR;
-          if(d>raio&&d>0){
-            const nx=dx/d, ny=dy/d;
-            rs.bx=c.cx+nx*raio; rs.by=c.cy+ny*raio;
-            const dot=rs.bvx*nx+rs.bvy*ny;
-            rs.bvx-=2*dot*nx; rs.bvy-=2*dot*ny;
-          }
-        }
-      }
-      // Colisão LOCAL com os dois discos (instantânea!)
-      colideLocal(meuMx, meuMy, oldBx, oldBy, mvxMeu, mvyMeu);
-      colideLocal(opX, opY, oldBx, oldBy, mvxOp, mvyOp);
+      rs.m2x = mx; rs.m2y = my;
     }
 
-    // ── RECONCILIAÇÃO com o servidor ──
-    const dtR = Math.min((performance.now()-lastStateTime)/(1000/60), 6);
-    const srvBx = gs.bx + (isFinite(gs.bvx)?gs.bvx:0)*dtR;
-    const srvBy = gs.by + (isFinite(gs.bvy)?gs.bvy:0)*dtR;
-    const dist = Math.hypot(rs.bx-srvBx, rs.by-srvBy);
-    // Detectar RESET (gol): bola do servidor no centro com baixa velocidade
+    // ── BOLA: dirigida 100% pelo SERVIDOR, com seguimento suave ──
+    // Antes o cliente simulava a física da bola e "brigava" com o servidor a cada
+    // divergência, causando os movimentos doidos. Agora que o ping é baixo (São
+    // Paulo), a bola só SEGUE suavemente o servidor: fica fluida igual ao modo
+    // treino e é autoritativa (sem trapaça). Os discos continuam instantâneos.
     const ehReset = Math.abs(gs.bx-0.5)<0.03 && Math.abs(gs.by-0.5)<0.03 && Math.hypot(gs.bvx||0,gs.bvy||0)<0.013;
-    if(ehReset && dist>0.1){
-      // Snap imediato para o centro (após gol)
-      rs.bx=gs.bx; rs.by=gs.by; rs.bvx=gs.bvx||0; rs.bvy=gs.bvy||0;
+    if(ehReset){
+      // Gol/saque: reposiciona no centro na hora (sem easing)
+      rs.bx = gs.bx; rs.by = gs.by;
     } else {
-      // Correção adaptativa: maior se divergiu muito (servidor processou colisão que não previ)
-      const corrK = dist > 0.15 ? 0.3 : 0.045;
-      rs.bx += (srvBx-rs.bx)*corrK;
-      rs.by += (srvBy-rs.by)*corrK;
-      // Reconciliar velocidade lentamente (mantém a física local fluida)
-      rs.bvx += ((gs.bvx||0)-rs.bvx)*0.05;
-      rs.bvy += ((gs.bvy||0)-rs.bvy)*0.05;
+      // Alvo = posição do servidor + extrapolação pela velocidade dele (compensa o
+      // tempo desde o último pacote, mantendo a bola em movimento contínuo e suave).
+      const passos = Math.min((performance.now()-lastStateTime)/(1000/60), 6);
+      const tgX = gs.bx + (isFinite(gs.bvx)?gs.bvx:0)*passos;
+      const tgY = gs.by + (isFinite(gs.bvy)?gs.bvy:0)*passos;
+      // Segue o alvo suavemente — nada de snaps, então sem movimentos doidos
+      rs.bx += (tgX-rs.bx)*0.4;
+      rs.by += (tgY-rs.by)*0.4;
     }
     // Travas de segurança
     rs.bx = Math.max(0, Math.min(1, rs.bx));
@@ -803,14 +740,8 @@ function renderFrame(){
     drawM(rs.m1x,rs.m1y,A.c2); // oponente (vermelho, interpolado)
   }
 
-  // Bola — posição de RENDER suavizada (absorve pequenos saltos da rede/reconciliação
-  // sem mexer na física). Lag imperceptível (~1 frame), mas tira o "engasgo" visual.
-  if(botMode){ rs.rbx=rs.bx; rs.rby=rs.by; }
-  else {
-    rs.rbx = (rs.rbx==null) ? rs.bx : rs.rbx + (rs.bx-rs.rbx)*0.5;
-    rs.rby = (rs.rby==null) ? rs.by : rs.rby + (rs.by-rs.rby)*0.5;
-  }
-  const bx2=px(rs.rbx),by2=py(rs.rby),br=.03*W;
+  // Bola — coordenadas interpoladas (canvas rotacionado cuida da perspectiva)
+  const bx2=px(rs.bx),by2=py(rs.by),br=.03*W;
   ctx.shadowColor='#fff';ctx.shadowBlur=16;
   const bg=ctx.createRadialGradient(bx2-br*.3,by2-br*.3,br*.05,bx2,by2,br);
   bg.addColorStop(0,'#fff');bg.addColorStop(1,'rgba(200,220,255,.5)');
