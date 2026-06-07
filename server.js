@@ -24,7 +24,7 @@ const pool = new Pool({
 });
 
 const JWT_SECRET = 'betx1_secret_2026';
-const MP_TOKEN = 'APP_USR-3691621388347314-053106-82e243a23ed4fa091d30923ed61128b2-478925025';
+const MP_TOKEN = process.env.MP_TOKEN || 'APP_USR-3691621388347314-053106-82e243a23ed4fa091d30923ed61128b2-478925025';
 const ADMIN_EMAIL = 'tutoriacaio562@gmail.com';
 const ADMIN_SENHA = 'Scmc4815@';
 // Admin 2 — acesso reduzido (só suporte e visualização)
