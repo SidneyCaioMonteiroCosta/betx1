@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>KYC — Admin Super Duelo</title>
+  <style>
+    body { margin:0; font:14px system-ui,sans-serif; background:#0e1015; color:#e7e9ee; }
+    header { padding:16px 24px; background:#171a22; font-size:18px; font-weight:600; }
+    .wrap { padding:24px; }
+    table { width:100%; border-collapse:collapse; background:#171a22; border-radius:8px; overflow:hidden; }
+    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #2a2f3a; font-size:13px; }
+    th { background:#1f232d; color:#8b91a0; font-weight:500; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; }
+    .b-submitted    { background:#4a3b0a; color:#ffd95c; }
+    .b-manual_review{ background:#3b2a4a; color:#d8b4ff; }
+    button { padding:6px 10px; border-radius:6px; border:0; cursor:pointer; font-size:12px; margin-right:4px; }
+    .approve { background:#4cd964; color:#06120a; }
+    .reject  { background:#ff4d4f; color:#fff; }
+    .empty { text-align:center; padding:40px; color:#8b91a0; }
+  </style>
+</head>
+<body>
+  <header>Super Duelo • Admin · KYC pendentes</header>
+  <div class="wrap">
+    <table id="tbl">
+      <thead>
+        <tr><th>ID</th><th>Email</th><th>Nome</th><th>CPF</th><th>Nasc.</th><th>Status</th><th>Liveness</th><th>Face</th><th>Tentativas</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="10" class="empty">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+<script>
+async function load() {
+  const r = await fetch('/api/kyc/admin/pending', { credentials:'include' });
+  const rows = await r.json();
+  const tbody = document.getElementById('rows');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">Nenhuma verificação pendente.</td></tr>`; return; }
+  tbody.innerHTML = rows.map(u => `
+    <tr>
+      <td>${u.id}</td>
+      <td>${u.email}</td>
+      <td>${u.full_name || '-'}</td>
+      <td>${u.cpf || '-'}</td>
+      <td>${u.birth_date ? new Date(u.birth_date).toLocaleDateString('pt-BR') : '-'}</td>
+      <td><span class="badge b-${u.kyc_status}">${u.kyc_status}</span></td>
+      <td>${u.liveness_score ?? '-'}</td>
+      <td>${u.face_match_score ?? '-'}</td>
+      <td>${u.kyc_attempts}</td>
+      <td>
+        <button class="approve" onclick="decide(${u.id},'approve')">Aprovar</button>
+        <button class="reject"  onclick="decide(${u.id},'reject')">Rejeitar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+async function decide(userId, decision) {
+  let reason = null;
+  if (decision === 'reject') {
+    reason = prompt('Motivo da rejeição:'); if (!reason) return;
+  }
+  const r = await fetch(`/api/kyc/admin/${userId}/decide`, {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ decision, reason })
+  });
+  if (r.ok) load(); else alert('Erro ao decidir.');
+}
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>

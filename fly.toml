@@ -5,7 +5,7 @@ app = "superduelo"
 primary_region = "gru"   # São Paulo
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = "deploy/Dockerfile"
 
 [http_service]
   internal_port = 3000
