@@ -745,13 +745,17 @@ function colideAH(S, mx, my) {
 // Detecta colisão ao longo do movimento (evita atravessar em alta velocidade)
 function colideContinuo(S, mx, my, oldX, oldY, mvx, mvy) {
   const minDist = S.br + MR;
-  // Verifica MAIS pontos ao longo da trajetória (8 = praticamente impossível atravessar)
-  const steps = 8;
+  // Verifica pontos ao longo da trajetória da BOLA e do DISCO (varre os dois,
+  // senão um disco rápido teleporta por cima da bola e ela atravessa).
+  const steps = 12;
+  const pmx = mx-(mvx||0), pmy = my-(mvy||0); // posição anterior do disco
   for (let i=1; i<=steps; i++) {
     const t = i/steps;
     const cx = oldX + (S.bx-oldX)*t;
     const cy = oldY + (S.by-oldY)*t;
-    const dx = cx-mx, dy = cy-my, d = Math.sqrt(dx*dx+dy*dy);
+    const mxAt = pmx + (mx-pmx)*t;            // disco interpolado
+    const myAt = pmy + (my-pmy)*t;
+    const dx = cx-mxAt, dy = cy-myAt, d = Math.sqrt(dx*dx+dy*dy);
     if (d < minDist && d > 0) {
       const nx=dx/d, ny=dy/d;
       const spd=Math.sqrt(S.bvx**2+S.bvy**2);

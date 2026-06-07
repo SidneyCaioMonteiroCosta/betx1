@@ -598,12 +598,17 @@ function onMove(e){
 function colideLocal(dmx, dmy, oldX, oldY, mvx, mvy){
   const MR=0.074, BR=0.03;
   const minDist = BR + MR;
-  const steps = 8;
+  const steps = 12;
+  // Posição anterior do disco (varremos o movimento dele também, senão um disco
+  // rápido "teleporta" por cima da bola e ela atravessa).
+  const pmx = dmx-(mvx||0), pmy = dmy-(mvy||0);
   for(let i=1;i<=steps;i++){
     const t=i/steps;
-    const cx=oldX+(rs.bx-oldX)*t;
+    const cx=oldX+(rs.bx-oldX)*t;       // bola interpolada
     const cy=oldY+(rs.by-oldY)*t;
-    const dx=cx-dmx, dy=cy-dmy, d=Math.hypot(dx,dy);
+    const mxAt=pmx+(dmx-pmx)*t;          // disco interpolado
+    const myAt=pmy+(dmy-pmy)*t;
+    const dx=cx-mxAt, dy=cy-myAt, d=Math.hypot(dx,dy);
     if(d<minDist && d>0){
       const nx=dx/d, ny=dy/d;
       const spd=Math.hypot(rs.bvx,rs.bvy);
@@ -798,8 +803,14 @@ function renderFrame(){
     drawM(rs.m1x,rs.m1y,A.c2); // oponente (vermelho, interpolado)
   }
 
-  // Bola — coordenadas diretas interpoladas (canvas rotacionado cuida da perspectiva)
-  const bx2=px(rs.bx),by2=py(rs.by),br=.03*W;
+  // Bola — posição de RENDER suavizada (absorve pequenos saltos da rede/reconciliação
+  // sem mexer na física). Lag imperceptível (~1 frame), mas tira o "engasgo" visual.
+  if(botMode){ rs.rbx=rs.bx; rs.rby=rs.by; }
+  else {
+    rs.rbx = (rs.rbx==null) ? rs.bx : rs.rbx + (rs.bx-rs.rbx)*0.5;
+    rs.rby = (rs.rby==null) ? rs.by : rs.rby + (rs.by-rs.rby)*0.5;
+  }
+  const bx2=px(rs.rbx),by2=py(rs.rby),br=.03*W;
   ctx.shadowColor='#fff';ctx.shadowBlur=16;
   const bg=ctx.createRadialGradient(bx2-br*.3,by2-br*.3,br*.05,bx2,by2,br);
   bg.addColorStop(0,'#fff');bg.addColorStop(1,'rgba(200,220,255,.5)');
