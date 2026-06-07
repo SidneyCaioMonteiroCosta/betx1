@@ -1,3 +1,5 @@
 node_modules
 betx1.db
 .env
+migrate-urls.txt
+neon-url.txt
