@@ -2098,25 +2098,6 @@ app.post('/api/admin/ranking-premios/pagar', adminAuth1, async (req, res) => {
   } catch(e) { res.status(500).json({ erro: e.message }); }
 });
 
-// ===== MIGRAÇÃO TEMPORÁRIA Railway -> Neon (remover depois de usar) =====
-app.post('/api/admin/migrate-db', adminAuth, async (req, res) => {
-  const { neonUrl } = req.body;
-  if (!neonUrl || !String(neonUrl).startsWith('postgresql://')) {
-    return res.status(400).json({ erro: 'neonUrl inválida' });
-  }
-  try {
-    const { migrarDB } = require('./migrateLogic');
-    console.log('🔁 Iniciando migração Railway -> Neon...');
-    const resumo = await migrarDB(pool, neonUrl);
-    const tudoOk = resumo.every(r => r.ok);
-    console.log('🔁 Migração finalizada. tudoOk=', tudoOk);
-    res.json({ ok: true, tudoOk, resumo });
-  } catch (e) {
-    console.error('Erro migrate-db:', e);
-    res.status(500).json({ erro: e.message });
-  }
-});
-
 // ===== KYC =====
 const kycRoutes = require('./routes/kyc');
 app.use('/api/kyc', kycRoutes({
