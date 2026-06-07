@@ -988,7 +988,16 @@ io.on('connection', (socketF) => {
     const j = s.jogadores.find(j => j.userId === conn.userId);
     if (j) { j.morto = true; j.pontos = pontos; }
     io.to(conn.salaKey).emit('flappy_player_morreu', { id: conn.userId });
-    if (s.jogadores.every(j => j.morto)) await finalizarFlappy(conn.salaKey);
+    const vivos = s.jogadores.filter(j => !j.morto);
+    // Encerra se todos morreram OU se só sobrou 1 vivo (vencedor já definido)
+    if (vivos.length <= 1) {
+      // Dar os pontos atuais ao sobrevivente (bônus simbólico para destacar no ranking)
+      if (vivos.length === 1) {
+        const sobrevivente = flappyConns[vivos[0].socketId];
+        if (sobrevivente) { sobrevivente.pontos += 1; vivos[0].pontos += 1; }
+      }
+      await finalizarFlappy(conn.salaKey);
+    }
   });
 
   socketF.on('flappy_leave', () => {
