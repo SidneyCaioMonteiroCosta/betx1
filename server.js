@@ -2106,4 +2106,5 @@ app.use('/api/kyc', kycRoutes({
   requireAdmin: adminAuth
 }));
 
-server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => console.log(`✅ Super Duelo rodando na porta ${PORT}`));
