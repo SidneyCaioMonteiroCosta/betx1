@@ -871,24 +871,33 @@ async function finalizarFlappy(salaKey) {
   s.finalizada = true;
 
   const ranking = [...s.jogadores].sort((a, b) => b.pontos - a.pontos);
-  const premios = calcularPremios(ranking, s.valor, s.tamanho);
+
+  // Detectar empate: se os 2 primeiros (ou todos, em sala 2) têm pontos iguais
+  const premios = {};
+  const empate2 = s.tamanho === 2 && ranking[0].pontos === ranking[1].pontos;
+  if (empate2) {
+    // Empate em sala 2: devolve a aposta para ambos
+    for (const j of ranking) premios[j.userId] = parseFloat(s.valor.toFixed(2));
+  } else {
+    Object.assign(premios, calcularPremios(ranking, s.valor, s.tamanho));
+  }
 
   for (const [userId, premio] of Object.entries(premios)) {
     if (premio > 0) {
       await pool.query('UPDATE users SET saldo = saldo + $1 WHERE id = $2', [premio, userId]);
-      const tipo = premio > s.valor ? 'ganho' : 'devolucao';
+      const tipo = empate2 ? 'devolucao' : (premio > s.valor ? 'ganho' : 'devolucao');
       await pool.query(
         'INSERT INTO transacoes (user_id, tipo, valor, descricao, status) VALUES ($1,$2,$3,$4,$5)',
-        [userId, tipo, premio, `Flappy Bird R$${s.valor} (${s.tamanho}p)`, 'concluido']
+        [userId, tipo, premio, `Flappy Bird R$${s.valor} (${s.tamanho}p)${empate2 ? ' - EMPATE' : ''}`, 'concluido']
       );
     }
   }
 
-  // Atualizar nível + ranking: 1º lugar = vitória, resto = derrota
+  // Atualizar nível + ranking: empate = empate, 1º = vitória, resto = derrota
   const nivelPorUser = {};
   for (let i = 0; i < ranking.length; i++) {
     const uid = ranking[i].userId;
-    const resultado = i === 0 ? 'vitoria' : 'derrota';
+    const resultado = empate2 ? 'empate' : (i === 0 ? 'vitoria' : 'derrota');
     const r = await atualizarNivel(uid, resultado, 'flappy');
     nivelPorUser[uid] = r ? r.mudou : 0;
   }
@@ -896,6 +905,7 @@ async function finalizarFlappy(salaKey) {
   io.to(salaKey).emit('flappy_fim', {
     ranking: ranking.map(j => ({ id: j.userId, nome: j.nome, pontos: j.pontos })),
     premios,
+    empate: empate2,
     nivelMudou: nivelPorUser
   });
 
@@ -991,11 +1001,6 @@ io.on('connection', (socketF) => {
     const vivos = s.jogadores.filter(j => !j.morto);
     // Encerra se todos morreram OU se só sobrou 1 vivo (vencedor já definido)
     if (vivos.length <= 1) {
-      // Dar os pontos atuais ao sobrevivente (bônus simbólico para destacar no ranking)
-      if (vivos.length === 1) {
-        const sobrevivente = flappyConns[vivos[0].socketId];
-        if (sobrevivente) { sobrevivente.pontos += 1; vivos[0].pontos += 1; }
-      }
       await finalizarFlappy(conn.salaKey);
     }
   });

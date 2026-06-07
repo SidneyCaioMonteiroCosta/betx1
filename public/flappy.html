@@ -453,12 +453,12 @@ socket.on('flappy_player_morreu', ({ id }) => {
   if (jogadoresInfo[id]) { jogadoresInfo[id].morto = true; atualizarPlacar(); }
 });
 
-socket.on('flappy_fim', ({ ranking, premios, nivelMudou }) => {
+socket.on('flappy_fim', ({ ranking, premios, empate, nivelMudou }) => {
   gameAtivo = false;
   cancelAnimationFrame(animId);
   document.removeEventListener('keydown', pular);
   window._ultNivelMudou = nivelMudou || {};
-  setTimeout(() => mostrarResultado(ranking, premios), 800);
+  setTimeout(() => mostrarResultado(ranking, premios, empate), 800);
 });
 
 socket.on('flappy_erro', ({ msg }) => {
@@ -808,13 +808,16 @@ function mostrarResultadoBot() {
   }, 800);
 }
 
-function mostrarResultado(ranking, premios) {
+function mostrarResultado(ranking, premios, empate) {
   document.getElementById('game-screen').style.display = 'none';
   document.getElementById('resultado-screen').style.display = 'block';
   const meuPremio = premios[myId] || 0;
   const titulo = document.getElementById('resultado-titulo');
   const valorEl = document.getElementById('resultado-valor');
-  if (meuPremio > valorAposta) {
+  if (empate) {
+    titulo.textContent = '🤝 Empate!'; titulo.className = 'resultado-titulo';
+    valorEl.innerHTML = `Mesma pontuação — sua aposta foi devolvida <span>R$ ${meuPremio.toFixed(2)}</span>`;
+  } else if (meuPremio > valorAposta) {
     titulo.textContent = '🏆 Você Ganhou!'; titulo.className = 'resultado-titulo ganhou';
     valorEl.innerHTML = `Você recebeu <span>R$ ${meuPremio.toFixed(2)}</span>`;
   } else if (meuPremio === valorAposta) {
