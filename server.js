@@ -2106,7 +2106,4 @@ app.use('/api/kyc', kycRoutes({
   requireAdmin: adminAuth
 }));
 
-// Porta fixa 3000: a Railway detecta e roteia pra ela, e o fly.toml usa internal_port=3000.
-// (usar process.env.PORT quebrou o roteamento da Railway -> 502)
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`✅ Super Duelo rodando na porta ${PORT}`));
+server.listen(3000, () => console.log('✅ Super Duelo rodando em http://localhost:3000'));
