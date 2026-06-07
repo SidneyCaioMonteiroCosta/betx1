@@ -922,6 +922,38 @@ async function finalizarFlappy(salaKey) {
   });
 }
 
+// Verifica se a partida já tem vencedor definido e encerra se sim.
+// Regras:
+//  - Todos mortos               -> encerra (rank por canos; empate possível)
+//  - Só 1 vivo, e ele já passou  -> encerra (vitória garantida, ninguém o alcança)
+//    MAIS canos que todos mortos
+//  - Caso contrário             -> continua jogando (o vivo precisa superar os mortos)
+async function checarFimFlappy(salaKey) {
+  const s = flappySalas[salaKey];
+  if (!s || s.finalizada) return;
+
+  // Pontuação mais atual de cada jogador (flappyConns costuma estar à frente)
+  const pontosDe = (j) => {
+    const conn = Object.values(flappyConns).find(c => c.userId === j.userId && c.salaKey === salaKey);
+    return Math.max(j.pontos || 0, conn ? (conn.pontos || 0) : 0);
+  };
+
+  const vivos  = s.jogadores.filter(j => !j.morto);
+  const mortos = s.jogadores.filter(j => j.morto);
+
+  // Todos morreram -> encerra
+  if (vivos.length === 0) { await finalizarFlappy(salaKey); return; }
+
+  // Só 1 vivo: encerra apenas se ele já tem ESTRITAMENTE mais canos que todos os mortos
+  if (vivos.length === 1) {
+    const maxMortos = mortos.length ? Math.max(...mortos.map(pontosDe)) : 0;
+    if (pontosDe(vivos[0]) > maxMortos) {
+      await finalizarFlappy(salaKey);
+    }
+    // senão: o vivo ainda não superou — segue jogando até superar ou morrer
+  }
+}
+
 io.on('connection', (socketF) => {
   socketF.on('flappy_join', async ({ token: tkn, sala, valor }) => {
     try {
@@ -977,13 +1009,15 @@ io.on('connection', (socketF) => {
     }
   });
 
-  socketF.on('flappy_ponto', ({ pontos }) => {
+  socketF.on('flappy_ponto', async ({ pontos }) => {
     const conn = flappyConns[socketF.id];
     if (!conn || conn.morto) return; // ignora pontos se já morreu
     conn.pontos = pontos;
     const s = flappySalas[conn.salaKey];
     if (s) { const j = s.jogadores.find(j => j.userId === conn.userId); if (j && !j.morto) j.pontos = pontos; }
     io.to(conn.salaKey).emit('flappy_update', { id: conn.userId, pontos });
+    // Se este é o último vivo e acabou de superar os mortos, encerra com vitória
+    await checarFimFlappy(conn.salaKey);
   });
 
   // Sincronizar posição do pássaro (para adversários verem em tempo real)
@@ -1005,11 +1039,7 @@ io.on('connection', (socketF) => {
     const j = s.jogadores.find(j => j.userId === conn.userId);
     if (j) { j.morto = true; j.pontos = pontos; }
     io.to(conn.salaKey).emit('flappy_player_morreu', { id: conn.userId });
-    const vivos = s.jogadores.filter(j => !j.morto);
-    // Encerra se todos morreram OU se só sobrou 1 vivo (vencedor já definido)
-    if (vivos.length <= 1) {
-      await finalizarFlappy(conn.salaKey);
-    }
+    await checarFimFlappy(conn.salaKey);
   });
 
   socketF.on('flappy_leave', () => {
